@@ -14,6 +14,22 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
+      workbox: {
+        // סרטון האינטרו: נשמר במטמון אחרי צפייה ראשונה, עם תמיכה ב-Range
+        // Requests (חובה לניגון וידאו ב-iOS/Safari מתוך ה-Service Worker)
+        runtimeCaching: [
+          {
+            urlPattern: /\.mp4$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'intro-video',
+              rangeRequests: true,
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: { maxEntries: 3 },
+            },
+          },
+        ],
+      },
       manifest: {
         name: 'יומן בריסטה חכם',
         short_name: 'Barista Journal',

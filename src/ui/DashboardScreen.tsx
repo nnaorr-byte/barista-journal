@@ -7,7 +7,8 @@ import { roastLabel } from '../services/recommendation';
 import { shotRatio, type RoastLevel, type Shot } from '../domain/types';
 import { BarChart, LineChart, type Point } from './charts';
 import { StatTile, EmptyState } from './components';
-import { TASTE_LABELS, formatDateTime, ratingClass } from './labels';
+import { FLAVOR_LABELS, TASTE_LABELS, formatDateTime, ratingClass } from './labels';
+import type { FlavorNote } from '../domain/types';
 
 type Metric = 'rating' | 'yield' | 'time' | 'grind';
 
@@ -77,6 +78,22 @@ export function DashboardScreen() {
 
   const best10 = topShots(shots, 10);
   const worst5 = topShots(shots, 5, true).filter((s) => s.rating <= 5);
+
+  // פרופיל תווי טעם (גלגל הטעמים)
+  const flavorProfile = (() => {
+    const byNote = new Map<FlavorNote, { count: number; ratingSum: number }>();
+    for (const s of shots) {
+      for (const f of s.flavorNotes ?? []) {
+        const e = byNote.get(f) ?? { count: 0, ratingSum: 0 };
+        e.count += 1;
+        e.ratingSum += s.rating;
+        byNote.set(f, e);
+      }
+    }
+    return [...byNote.entries()]
+      .map(([note, e]) => ({ note, count: e.count, avgRating: e.ratingSum / e.count }))
+      .sort((a, b) => b.avgRating - a.avgRating);
+  })();
 
   return (
     <div>
@@ -158,24 +175,45 @@ export function DashboardScreen() {
         </div>
       )}
 
-      {insights.tasteProfile.length > 0 && (
+      {(insights.tasteProfile.length > 0 || flavorProfile.length > 0) && (
         <div className="card">
           <h2>👅 פרופיל הטעם שלי</h2>
           <p className="muted small">אילו טעמים מופיעים בשוטים שלך, ומה הדירוג הממוצע כשהם מופיעים:</p>
-          <table className="data">
-            <thead>
-              <tr><th>טעם</th><th>הופעות</th><th>דירוג ממוצע</th></tr>
-            </thead>
-            <tbody>
-              {insights.tasteProfile.map((t) => (
-                <tr key={t.tag}>
-                  <td>{TASTE_LABELS[t.tag]}</td>
-                  <td>{t.count}</td>
-                  <td>{t.avgRating.toFixed(1)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {insights.tasteProfile.length > 0 && (
+            <table className="data">
+              <thead>
+                <tr><th>טעם</th><th>הופעות</th><th>דירוג ממוצע</th></tr>
+              </thead>
+              <tbody>
+                {insights.tasteProfile.map((t) => (
+                  <tr key={t.tag}>
+                    <td>{TASTE_LABELS[t.tag]}</td>
+                    <td>{t.count}</td>
+                    <td>{t.avgRating.toFixed(1)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {flavorProfile.length > 0 && (
+            <>
+              <h3>גלגל הטעמים — אילו תווים אתה הכי אוהב</h3>
+              <table className="data">
+                <thead>
+                  <tr><th>תו טעם</th><th>הופעות</th><th>דירוג ממוצע</th></tr>
+                </thead>
+                <tbody>
+                  {flavorProfile.map((f) => (
+                    <tr key={f.note}>
+                      <td>{FLAVOR_LABELS[f.note]}</td>
+                      <td>{f.count}</td>
+                      <td>{f.avgRating.toFixed(1)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
         </div>
       )}
 

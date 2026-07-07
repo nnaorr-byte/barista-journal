@@ -1,4 +1,4 @@
-import type { MachineTempSetting, QualityLevel, RoastLevel, TasteTag } from '../domain/types';
+import type { FlavorNote, MachineTempSetting, QualityLevel, RoastLevel, TasteTag } from '../domain/types';
 
 export const TASTE_LABELS: Record<TasteTag, string> = {
   sour: 'חמוץ',
@@ -8,6 +8,23 @@ export const TASTE_LABELS: Record<TasteTag, string> = {
   dry: 'יבש',
   watery: 'מימי',
   other: 'אחר',
+};
+
+export const FLAVOR_LABELS: Record<FlavorNote, string> = {
+  fruity: '🍑 פירותי',
+  citrus: '🍋 הדרים',
+  berries: '🫐 פירות יער',
+  floral: '🌸 פרחוני',
+  chocolate: '🍫 שוקולד',
+  caramel: '🍮 קרמל',
+  nutty: '🥜 אגוזי',
+  honey: '🍯 דבש',
+  vanilla: '🌾 וניל',
+  spices: '🌶️ תבלינים',
+  earthy: '🪵 אדמתי',
+  smoky: '💨 מעושן',
+  winey: '🍷 ייני',
+  buttery: '🧈 חמאתי',
 };
 
 export const QUALITY_LABELS: Record<QualityLevel, string> = {

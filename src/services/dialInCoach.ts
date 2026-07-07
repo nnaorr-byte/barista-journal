@@ -1,5 +1,5 @@
 import {
-  shotFlowRate, shotRatio, type CoachAdvice, type ExtractionVerdict, type Shot,
+  shotFlowRate, shotRatio, type CoachAdvice, type ExtractionVerdict, type Grinder, type Shot,
 } from '../domain/types';
 
 // ה-AI Coach: מאבחן כל שוט לפי טעם + מספרים, מחליט אם מדובר
@@ -9,7 +9,17 @@ import {
 
 const ONE_VAR = 'זכור: משנים משתנה אחד בלבד בכל ניסיון. רק כך אפשר לדעת מה באמת השפיע.';
 
-export function analyzeShot(shot: Shot): CoachAdvice {
+// המלצת טחינה קונקרטית: "עבור מ-18 ל-17" במקום "טחן עדין יותר"
+function grindTarget(shot: Shot, grinder: Grinder | undefined, direction: 'finer' | 'coarser', steps: number): string {
+  const step = grinder?.scaleStep || 1;
+  const delta = step * steps * (direction === 'finer' ? -1 : 1);
+  const target = Math.round((shot.grindSetting + delta) * 10) / 10;
+  const action = direction === 'finer' ? 'טחן עדין יותר' : 'טחן גס יותר';
+  if (!shot.grindSetting) return `${action} ב${steps > 1 ? `-${steps} צעדים` : 'צעד אחד'}.`;
+  return `${action}: עבור מדרגה ${shot.grindSetting} לדרגה ${target}${grinder ? ` (${grinder.name})` : ''}.`;
+}
+
+export function analyzeShot(shot: Shot, grinder?: Grinder): CoachAdvice {
   const ratio = shotRatio(shot);
   const flow = shotFlowRate(shot);
   const tags = new Set(shot.tasteTags);
@@ -49,7 +59,7 @@ export function analyzeShot(shot: Shot): CoachAdvice {
         verdictLabel: 'תת-מיצוי (Under Extraction)',
         explanation: buildUnderExplanation(shot, fast, watery, longRatio),
         changeVariable: 'דרגת טחינה',
-        changeInstruction: 'טחן עדין יותר בצעד אחד (או שניים אם השוט רץ מתחת ל-20 שניות). כל שאר הפרמטרים נשארים זהים.',
+        changeInstruction: `${grindTarget(shot, grinder, 'finer', shot.brewTimeSec > 0 && shot.brewTimeSec < 20 ? 2 : 1)} כל שאר הפרמטרים נשארים זהים.`,
         whyThisVariable: 'טחינה היא המשתנה בעל ההשפעה הגדולה ביותר על קצב המיצוי. טחינה עדינה יותר מאטה את הזרימה, מגדילה את שטח המגע בין המים לקפה, ומעלה את המיצוי — בדיוק מה שחסר בשוט חמוץ/מימי.',
         doNotChange: ['מנת הקפה (Dose)', 'ה-Yield', 'טמפרטורת המכונה', 'סוג הסלסלה'],
         nextShotPreview: `הניסיון הבא: אותה מנה (${shot.doseGrams} גרם), אותו יעד Yield (~${shot.yieldGrams} גרם), טחינה עדינה יותר בצעד. צפה לזמן חליטה ארוך ב-3–5 שניות ולפחות חמיצות.`,
@@ -62,7 +72,7 @@ export function analyzeShot(shot: Shot): CoachAdvice {
         verdictLabel: 'מיצוי-יתר (Over Extraction)',
         explanation: buildOverExplanation(shot, slow, dry, shortRatio),
         changeVariable: 'דרגת טחינה',
-        changeInstruction: 'טחן גס יותר בצעד אחד. כל שאר הפרמטרים נשארים זהים.',
+        changeInstruction: `${grindTarget(shot, grinder, 'coarser', 1)} כל שאר הפרמטרים נשארים זהים.`,
         whyThisVariable: 'מרירות ויובש נובעים ממיצוי מוגזם — המים שוהים יותר מדי זמן במגע עם חלקיקים דקים מדי. הגסה של הטחינה מקצרת את זמן המגע ועוצרת את המיצוי לפני התרכובות המרות.',
         doNotChange: ['מנת הקפה (Dose)', 'ה-Yield', 'טמפרטורת המכונה'],
         nextShotPreview: `הניסיון הבא: אותה מנה (${shot.doseGrams} גרם), אותו יעד Yield, טחינה גסה יותר בצעד. צפה לזמן קצר ב-3–5 שניות ולפחות מרירות.`,

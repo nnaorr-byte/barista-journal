@@ -5,10 +5,10 @@ import { bagRepo, dialInRepo, shotRepo } from '../db/repositories';
 import { recommendShot, confidenceLabel } from '../services/recommendation';
 import { analyzeShot } from '../services/dialInCoach';
 import type {
-  Bag, CoachAdvice, MachineTempSetting, QualityLevel, Shot, ShotRecommendation, TasteTag,
+  Bag, CoachAdvice, FlavorNote, MachineTempSetting, QualityLevel, Shot, ShotRecommendation, TasteTag,
 } from '../domain/types';
 import { Chips, Field, RatingPicker, StatTile } from './components';
-import { QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS } from './labels';
+import { FLAVOR_LABELS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS } from './labels';
 import type { Screen } from '../App';
 
 type Step = 'setup' | 'brew' | 'results' | 'coach';
@@ -17,6 +17,9 @@ const TASTE_OPTIONS = (Object.entries(TASTE_LABELS) as [TasteTag, string][]).map
   ([value, label]) => ({ value, label }),
 );
 const QUALITY_OPTIONS = (Object.entries(QUALITY_LABELS) as [QualityLevel, string][]).map(
+  ([value, label]) => ({ value, label }),
+);
+const FLAVOR_OPTIONS = (Object.entries(FLAVOR_LABELS) as [FlavorNote, string][]).map(
   ([value, label]) => ({ value, label }),
 );
 
@@ -49,6 +52,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const [portafilterType, setPortafilterType] = useState('Bottomless');
   const [tasteTags, setTasteTags] = useState<TasteTag[]>([]);
   const [tasteOther, setTasteOther] = useState('');
+  const [flavorNotes, setFlavorNotes] = useState<FlavorNote[]>([]);
   const [body, setBody] = useState<QualityLevel | null>(null);
   const [crema, setCrema] = useState<QualityLevel | null>(null);
   const [aftertaste, setAftertaste] = useState<QualityLevel | null>(null);
@@ -58,6 +62,8 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const [advice, setAdvice] = useState<CoachAdvice | null>(null);
   const [multiVarWarning, setMultiVarWarning] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savedShotId, setSavedShotId] = useState<string | null>(null);
+  const [markedFavorite, setMarkedFavorite] = useState(false);
 
   if (!data) return null;
   const { user, beans, bags, shots, machines, grinders } = data;
@@ -68,6 +74,38 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const selectedBag = bags.find((b) => b.id === bagId);
   const selectedGrinder = grinders.find((g) => g.id === grinderId);
   const lastShot = shots[0];
+
+  // המתכון השמור (⭐) העדכני ביותר עבור הפולים שנבחרו
+  const recipeShot = beanId
+    ? shots.find((s) => s.beanId === beanId && s.favorite) ?? null
+    : null;
+
+  function applyRecipe() {
+    if (!recipeShot) return;
+    setGrinderId(recipeShot.grinderId);
+    setDose(String(recipeShot.doseGrams));
+    setGrindSetting(String(recipeShot.grindSetting));
+    setTemp(recipeShot.machineTemp);
+    setBasketType(recipeShot.basketType);
+    setPortafilterType(recipeShot.portafilterType);
+    setYieldGrams(String(recipeShot.yieldGrams));
+    setRecommendation({
+      doseGrams: recipeShot.doseGrams,
+      yieldGrams: recipeShot.yieldGrams,
+      brewTimeSecMin: Math.max(1, recipeShot.brewTimeSec - 2),
+      brewTimeSecMax: recipeShot.brewTimeSec + 2,
+      ratio: Math.round((recipeShot.yieldGrams / recipeShot.doseGrams) * 10) / 10,
+      grindSetting: recipeShot.grindSetting,
+      machineTemp: recipeShot.machineTemp,
+      confidence: 'high',
+      basedOnShots: 1,
+      reasons: [
+        `⭐ המתכון השמור שלך מ-${new Date(recipeShot.createdAt).toLocaleDateString('he-IL')} (דירוג ${recipeShot.rating}/10). חזור עליו במדויק.`,
+      ],
+      beanNotes: recipeShot.notes ? [`מהמתכון: "${recipeShot.notes}"`] : [],
+    });
+    setStep('brew');
+  }
 
   function applyLastShot() {
     if (!lastShot) return;
@@ -129,12 +167,15 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
         portafilterType,
         tasteTags,
         tasteOther: tasteTags.includes('other') ? tasteOther : '',
+        flavorNotes,
         body,
         crema,
         aftertaste,
         notes,
         rating,
       });
+      setSavedShotId(shot.id);
+      setMarkedFavorite(false);
 
       // בדיקת "משתנה אחד בלבד" מול השוט הקודם באותו סשן
       setMultiVarWarning(session ? await checkOneVariable(shot, session.id) : null);
@@ -149,7 +190,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
         });
       }
 
-      setAdvice(analyzeShot(shot));
+      setAdvice(analyzeShot(shot, grinders.find((g) => g.id === gId)));
       setStep('coach');
     } finally {
       setSaving(false);
@@ -221,8 +262,14 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
             </Field>
           </div>
 
+          {recipeShot && bagId && (
+            <button className="btn block" style={{ marginBottom: 10 }} onClick={applyRecipe}>
+              ⭐ הכן לפי המתכון השמור ({recipeShot.doseGrams}←{recipeShot.yieldGrams} גרם · טחינה {recipeShot.grindSetting} · דירוג {recipeShot.rating}/10)
+            </button>
+          )}
+
           <button
-            className="btn block"
+            className={`btn block ${recipeShot && bagId ? 'secondary' : ''}`}
             disabled={!beanId || !bagId || !dose}
             onClick={computeRecommendation}
           >
@@ -319,6 +366,15 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
             </div>
           )}
 
+          <h3>תווי טעם — גלגל הטעמים (לא חובה)</h3>
+          <Chips
+            options={FLAVOR_OPTIONS}
+            selected={flavorNotes}
+            onToggle={(f) =>
+              setFlavorNotes((prev) => (prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]))
+            }
+          />
+
           <h3>Body</h3>
           <Chips options={QUALITY_OPTIONS} selected={body ? [body] : []} onToggle={(v) => setBody(body === v ? null : v)} />
           <h3>Crema</h3>
@@ -386,6 +442,25 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           </div>
           <div className="one-var-banner">💡 {advice.oneVariableReminder}</div>
 
+          {savedShotId && (
+            <button
+              className={`btn block ${markedFavorite ? 'secondary' : ''}`}
+              style={{ marginTop: 12 }}
+              disabled={markedFavorite}
+              onClick={async () => {
+                const shot = await shotRepo.get(savedShotId);
+                if (!shot) return;
+                // מתכון אחד לכל פולים — מסירים סימון קודם
+                const prev = shots.filter((s) => s.beanId === shot.beanId && s.favorite);
+                for (const p of prev) await shotRepo.put({ ...p, favorite: false });
+                await shotRepo.put({ ...shot, favorite: true });
+                setMarkedFavorite(true);
+              }}
+            >
+              {markedFavorite ? '✔ נשמר כמתכון עבור הפולים האלה' : '⭐ שמור כמתכון — זה השוט שאליו אחזור'}
+            </button>
+          )}
+
           <div className="btn-row">
             <button className="btn" style={{ flex: 1 }} onClick={() => navigate('home')}>סיום — למסך הבית</button>
             <button
@@ -393,8 +468,9 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
               onClick={() => {
                 // שוט נוסף עם אותם פולים — איפוס תוצאות בלבד
                 setYieldGrams(''); setBrewTime(''); setTasteTags([]); setTasteOther('');
-                setBody(null); setCrema(null); setAftertaste(null); setNotes(''); setRating(0);
-                setAdvice(null); setMultiVarWarning(null);
+                setFlavorNotes([]); setBody(null); setCrema(null); setAftertaste(null);
+                setNotes(''); setRating(0);
+                setAdvice(null); setMultiVarWarning(null); setSavedShotId(null); setMarkedFavorite(false);
                 computeRecommendation();
               }}
             >

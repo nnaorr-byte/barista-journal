@@ -4,7 +4,7 @@ import { db } from '../db/database';
 import { grinderRepo, maintenanceRepo, userRepo, wipeAllData } from '../db/repositories';
 import { seedIfEmpty } from '../db/database';
 import { MAINTENANCE_RULES, computeMaintenanceStatus } from '../services/maintenance';
-import { exportBackup, exportCsv, exportExcel, restoreBackup } from '../services/importExport';
+import { exportBackup, exportCsv, exportExcel, getLastBackupAt, restoreBackup, shareBackup } from '../services/importExport';
 import { Field } from './components';
 import { formatDate } from './labels';
 
@@ -121,6 +121,21 @@ export function SettingsScreen() {
       {/* ייצוא וגיבוי */}
       <div className="card">
         <h2>📦 ייצוא וגיבוי</h2>
+        <button
+          className="btn block"
+          onClick={async () => {
+            const result = await shareBackup();
+            if (result === 'shared') setMessage('✅ הגיבוי שותף בהצלחה!');
+            else if (result === 'fallback') setMessage('✅ קובץ הגיבוי ירד למכשיר!');
+          }}
+        >
+          💾 גבה ושתף (וואטסאפ / מייל)
+        </button>
+        <p className="muted small" style={{ margin: '6px 0 10px' }}>
+          {getLastBackupAt()
+            ? `גיבוי אחרון: ${formatDate(getLastBackupAt())}`
+            : 'עוד לא בוצע גיבוי במכשיר הזה.'}
+        </p>
         <div className="btn-row">
           <button className="btn secondary" onClick={() => exportCsv(shots, beans)}>
             📄 ייצוא CSV
@@ -128,7 +143,7 @@ export function SettingsScreen() {
           <button className="btn secondary" onClick={() => exportExcel(shots, beans)}>
             📊 ייצוא Excel
           </button>
-          <button className="btn secondary" onClick={() => exportBackup()}>
+          <button className="btn secondary" onClick={async () => { await exportBackup(); setMessage('✅ קובץ הגיבוי ירד למכשיר!'); }}>
             💾 גיבוי מלא (JSON)
           </button>
         </div>

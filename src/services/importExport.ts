@@ -76,7 +76,43 @@ interface BackupFile {
   tables: Record<string, unknown[]>;
 }
 
-export async function exportBackup(): Promise<void> {
+// ===== מעקב גיבויים (מקומי למכשיר) =====
+
+const LAST_BACKUP_KEY = 'lastBackupAt';
+
+export function getLastBackupAt(): string | null {
+  return localStorage.getItem(LAST_BACKUP_KEY);
+}
+
+export function markBackupDone(): void {
+  localStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString());
+}
+
+export interface BackupStatus {
+  lastBackupAt: string | null;
+  daysSinceBackup: number | null;
+  shotsSinceBackup: number;
+  needsBackup: boolean;
+}
+
+// תזכורת כשנצברו 10+ שוטים לא מגובים, או שעבר שבוע ויש שוטים חדשים,
+// או שיש 3+ שוטים ומעולם לא גובה.
+export function computeBackupStatus(shots: Shot[]): BackupStatus {
+  const last = getLastBackupAt();
+  const daysSinceBackup = last
+    ? Math.floor((Date.now() - new Date(last).getTime()) / 86_400_000)
+    : null;
+  const shotsSinceBackup = last
+    ? shots.filter((s) => s.createdAt > last).length
+    : shots.length;
+  const needsBackup =
+    shotsSinceBackup >= 10 ||
+    (last === null && shots.length >= 3) ||
+    (daysSinceBackup !== null && daysSinceBackup >= 7 && shotsSinceBackup > 0);
+  return { lastBackupAt: last, daysSinceBackup, shotsSinceBackup, needsBackup };
+}
+
+async function buildBackupBlob(): Promise<Blob> {
   const tables: Record<string, unknown[]> = {};
   for (const table of db.tables) {
     tables[table.name] = await table.toArray();
@@ -87,10 +123,31 @@ export async function exportBackup(): Promise<void> {
     exportedAt: new Date().toISOString(),
     tables,
   };
-  download(
-    new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }),
-    `barista-journal-backup-${stamp()}.json`,
-  );
+  return new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+}
+
+// שיתוף גיבוי דרך חלון השיתוף של המכשיר (וואטסאפ/מייל בטלפון).
+// מחזיר 'shared' בהצלחה, 'fallback' אם המכשיר לא תומך (בוצעה הורדה), 'cancelled' אם המשתמש ביטל.
+export async function shareBackup(): Promise<'shared' | 'fallback' | 'cancelled'> {
+  const blob = await buildBackupBlob();
+  const file = new File([blob], `barista-journal-backup-${stamp()}.json`, { type: 'application/json' });
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'גיבוי יומן בריסטה' });
+      markBackupDone();
+      return 'shared';
+    } catch {
+      return 'cancelled'; // המשתמש סגר את חלון השיתוף — לא נסמן כגובה
+    }
+  }
+  download(blob, `barista-journal-backup-${stamp()}.json`);
+  markBackupDone();
+  return 'fallback';
+}
+
+export async function exportBackup(): Promise<void> {
+  download(await buildBackupBlob(), `barista-journal-backup-${stamp()}.json`);
+  markBackupDone();
 }
 
 export async function restoreBackup(file: File): Promise<{ ok: boolean; error?: string }> {

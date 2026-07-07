@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import { computeInsights } from '../services/learning';
 import { recommendShot, confidenceLabel } from '../services/recommendation';
 import { computeMaintenanceStatus } from '../services/maintenance';
+import { computeBackupStatus, shareBackup } from '../services/importExport';
 import { ratingTrend } from '../services/stats';
 import { shotRatio, type RoastLevel } from '../domain/types';
 import { StatTile, EmptyState } from './components';
@@ -10,6 +12,8 @@ import { formatDateTime, ratingClass } from './labels';
 import type { Screen } from '../App';
 
 export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
+  const [backupMsg, setBackupMsg] = useState('');
+  const [backupDismissed, setBackupDismissed] = useState(false);
   const data = useLiveQuery(async () => {
     const [user, shots, beans, bags, events, grinders] = await Promise.all([
       db.users.toArray().then((u) => u[0]),
@@ -58,9 +62,38 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
   }
 
   const overdueMaintenance = maintenance.filter((m) => m.overdue || m.lastPerformed === null);
+  const backupStatus = computeBackupStatus(shots);
 
   return (
     <div>
+      {/* תזכורת גיבוי */}
+      {backupStatus.needsBackup && !backupDismissed && (
+        <div className="card warn">
+          <h2>💾 הגיע הזמן לגבות</h2>
+          <p className="muted small" style={{ margin: '0 0 8px' }}>
+            {backupStatus.lastBackupAt === null
+              ? `יש לך ${backupStatus.shotsSinceBackup} שוטים שמעולם לא גובו. אם המכשיר יאבד — היומן יאבד איתו.`
+              : `${backupStatus.shotsSinceBackup} שוטים חדשים מאז הגיבוי האחרון (לפני ${backupStatus.daysSinceBackup} ימים).`}
+          </p>
+          {backupMsg && <p className="small" style={{ margin: '0 0 8px', color: 'var(--good)' }}>{backupMsg}</p>}
+          <div className="btn-row" style={{ marginTop: 0 }}>
+            <button
+              className="btn"
+              style={{ flex: 1 }}
+              onClick={async () => {
+                const result = await shareBackup();
+                if (result === 'shared') setBackupMsg('✅ הגיבוי שותף בהצלחה!');
+                else if (result === 'fallback') setBackupMsg('✅ קובץ הגיבוי ירד למכשיר!');
+              }}
+            >
+              💾 גבה עכשיו
+            </button>
+            <button className="btn secondary small" onClick={() => setBackupDismissed(true)}>
+              אחר כך
+            </button>
+          </div>
+        </div>
+      )}
       {/* המלצת השוט הבא */}
       <div className="card accent">
         <h2>🎯 המלצת השוט הבא</h2>

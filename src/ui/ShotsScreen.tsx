@@ -4,7 +4,7 @@ import { db } from '../db/database';
 import { shotRepo } from '../db/repositories';
 import { shotRatio, shotFlowRate, type Shot, type TasteTag } from '../domain/types';
 import { EmptyState, Field, RatingPicker } from './components';
-import { TASTE_LABELS, formatDateTime, ratingClass } from './labels';
+import { FLAVOR_LABELS, TASTE_LABELS, formatDateTime, ratingClass } from './labels';
 
 export function ShotsScreen() {
   const data = useLiveQuery(async () => {
@@ -83,7 +83,7 @@ export function ShotsScreen() {
             <div className="shot-item" onClick={() => setExpanded(expanded === s.id ? null : s.id)}>
               <div className={`shot-rating ${ratingClass(s.rating)}`}>{s.rating}</div>
               <div style={{ flex: 1 }}>
-                <div>{beanMap.get(s.beanId)?.name ?? 'פולים שנמחקו'}</div>
+                <div>{s.favorite && '⭐ '}{beanMap.get(s.beanId)?.name ?? 'פולים שנמחקו'}</div>
                 <div className="muted small">
                   {s.doseGrams}←{s.yieldGrams} גרם · {s.brewTimeSec} שניות · טחינה {s.grindSetting}
                 </div>
@@ -103,8 +103,28 @@ export function ShotsScreen() {
                     {s.tasteOther && ` (${s.tasteOther})`}
                   </p>
                 )}
+                {(s.flavorNotes?.length ?? 0) > 0 && (
+                  <p className="small" style={{ margin: '4px 0' }}>
+                    תווי טעם: {s.flavorNotes!.map((f) => FLAVOR_LABELS[f]).join(' · ')}
+                  </p>
+                )}
                 {s.notes && <p className="small muted" style={{ margin: '4px 0' }}>"{s.notes}"</p>}
                 <div className="btn-row">
+                  <button
+                    className="btn small secondary"
+                    onClick={async () => {
+                      if (s.favorite) {
+                        await shotRepo.put({ ...s, favorite: false });
+                      } else {
+                        // מתכון אחד לכל פולים — מסירים סימון קודם
+                        const prev = data.shots.filter((x) => x.beanId === s.beanId && x.favorite);
+                        for (const p of prev) await shotRepo.put({ ...p, favorite: false });
+                        await shotRepo.put({ ...s, favorite: true });
+                      }
+                    }}
+                  >
+                    {s.favorite ? '⭐ הסר מתכון' : '☆ שמור כמתכון'}
+                  </button>
                   <button className="btn small secondary" onClick={() => setEditing(s)}>✏️ עריכה</button>
                   <button
                     className="btn small danger"

@@ -12,8 +12,8 @@ if errorlevel 1 (
 type nul > dist\.nojekyll
 cd dist
 git init -b gh-pages
-git config user.name "Naor"
-git config user.email "naor@adhestick.com"
+git config user.name "nnaorr-byte"
+git config user.email "nnaorr-byte@users.noreply.github.com"
 git add -A
 git commit -m "Deploy site update"
 git push -f https://github.com/nnaorr-byte/barista-journal.git gh-pages

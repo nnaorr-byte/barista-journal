@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#2b1d16"/>
+  <g>
+    <!-- ספל -->
+    <path d="M128 200 h224 v120 a80 80 0 0 1 -80 80 h-64 a80 80 0 0 1 -80 -80 z" fill="#c98a4b"/>
+    <!-- קרמה -->
+    <path d="M128 200 h224 v28 h-224 z" fill="#e8c99a"/>
+    <!-- ידית -->
+    <path d="M352 220 h28 a52 52 0 0 1 0 104 h-28 v-36 h24 a18 18 0 0 0 0 -36 h-24 z" fill="#c98a4b"/>
+    <!-- אדים -->
+    <path d="M200 96 q-16 24 0 48 q16 24 0 44" stroke="#e8c99a" stroke-width="18" fill="none" stroke-linecap="round"/>
+    <path d="M280 96 q-16 24 0 48 q16 24 0 44" stroke="#e8c99a" stroke-width="18" fill="none" stroke-linecap="round"/>
+    <!-- צלחת -->
+    <rect x="112" y="408" width="256" height="24" rx="12" fill="#4a352a"/>
+  </g>
+</svg>

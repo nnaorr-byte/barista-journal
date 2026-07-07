@@ -19,6 +19,9 @@ git commit -m "Deploy site update"
 git push -f https://github.com/nnaorr-byte/barista-journal.git gh-pages
 cd ..
 rmdir /s /q dist\.git
+rem החזרת הבנייה המקומית (בלי נתיב GitHub) כדי ש-localhost ימשיך לעבוד
+set GITHUB_PAGES=
+call npm run build
 echo.
 echo Done! https://nnaorr-byte.github.io/barista-journal/
 pause

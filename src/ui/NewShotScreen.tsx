@@ -11,7 +11,7 @@ import { Chips, Field, RatingPicker, StatTile } from './components';
 import { FLAVOR_LABELS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS } from './labels';
 import type { Screen } from '../App';
 
-type Step = 'intro' | 'setup' | 'brew' | 'results' | 'coach';
+type Step = 'setup' | 'brew' | 'results' | 'coach';
 
 const TASTE_OPTIONS = (Object.entries(TASTE_LABELS) as [TasteTag, string][]).map(
   ([value, label]) => ({ value, label }),
@@ -36,7 +36,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     return { user, beans, bags, shots, machines, grinders };
   });
 
-  const [step, setStep] = useState<Step>('intro');
+  const [step, setStep] = useState<Step>('setup');
   const [beanId, setBeanId] = useState('');
   const [bagId, setBagId] = useState('');
   const [grinderId, setGrinderId] = useState('');
@@ -195,27 +195,6 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     } finally {
       setSaving(false);
     }
-  }
-
-  // --- אינטרו: סרטון פתיחה לפני כל שוט ---
-  if (step === 'intro') {
-    return (
-      <div className="card accent" style={{ padding: 10 }}>
-        <video
-          src={`${import.meta.env.BASE_URL}intro.mp4`}
-          autoPlay
-          muted
-          playsInline
-          controls
-          onEnded={() => setStep('setup')}
-          onError={() => setStep('setup')}
-          style={{ width: '100%', borderRadius: 10, display: 'block', background: '#000' }}
-        />
-        <button className="btn block" style={{ marginTop: 10 }} onClick={() => setStep('setup')}>
-          דלג והתחל שוט ←
-        </button>
-      </div>
-    );
   }
 
   // --- שלב 1: הגדרה ---

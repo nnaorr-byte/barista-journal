@@ -21,58 +21,72 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD;
 }
 
-/* ---- משתני עיצוב: מצב כהה (אספרסו) ---- */
+/* ---- משתני עיצוב: מצב כהה (קרמה זכוכית) ---- */
 :root {
-  --bg: #17100a;
-  --bg-gradient: radial-gradient(120% 90% at 50% 0%, #241609 0%, #17100a 55%, #120c07 100%);
-  --bg-elevated: #271a10;
-  --bg-card: #2c1e13;
-  --bg-card-gradient: linear-gradient(180deg, #33241689 0%, #2c1e13 100%);
-  --bg-input: #201409;
-  --border: #4b3826;
-  --border-soft: #3b2b1c;
-  --hairline: rgba(232, 201, 154, 0.14);
-  --text: #f4eadb;
-  --text-muted: #b8a189;
-  --accent: #cf9250;
-  --accent-2: #a96f33; /* קצה כהה למעבר הגוון */
-  --accent-strong: #e5ac66;
-  --accent-ink: #241304; /* טקסט על גבי כפתור קרמל */
-  --crema: #ecd3ac;
+  --bg: #190e06;
+  --bg-gradient:
+    radial-gradient(55% 32% at 85% 0%, rgba(255, 176, 96, 0.16) 0%, transparent 70%),
+    radial-gradient(45% 28% at 8% 100%, rgba(255, 140, 80, 0.08) 0%, transparent 70%),
+    linear-gradient(165deg, #2b1c11 0%, #201309 55%, #190e06 100%);
+  --bg-elevated: #2a1b10;
+  --bg-card: #251710;
+  --bg-card-gradient: linear-gradient(178deg, rgba(255, 190, 120, 0.05) 0%, transparent 30%), linear-gradient(180deg, #291a10 0%, #23150c 100%);
+  --bg-input: #1e1209;
+  --border: #4d3823;
+  --border-soft: rgba(255, 200, 140, 0.14);
+  --hairline: rgba(255, 214, 160, 0.15);
+  --text: #f6ead8;
+  --text-muted: #c2a582;
+  --accent: #e8a960; /* ענבר — גם צבע הגרפים */
+  --accent-strong: #ffcf95;
+  --crema: #ffe3bd;
+  --glow: rgba(255, 178, 96, 0.35);
+  --glass-bg: linear-gradient(160deg, rgba(255, 190, 110, 0.30), rgba(255, 160, 80, 0.10));
+  --glass-bg-hover: linear-gradient(160deg, rgba(255, 190, 110, 0.42), rgba(255, 160, 80, 0.16));
+  --glass-border: rgba(255, 208, 148, 0.45);
+  --glass-ink: #ffe6c2; /* טקסט על כפתור זכוכית */
+  --glass-fill: linear-gradient(160deg, rgba(255, 190, 110, 0.5), rgba(255, 150, 70, 0.28)); /* צ'יפ נבחר */
+  --glass-fill-ink: #fff1dd;
   --good: #93c47f;
   --warn: #e0b45e;
   --bad: #dd8171;
   --radius: 16px;
-  --radius-sm: 11px;
+  --radius-sm: 12px;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 18px rgba(0, 0, 0, 0.28);
-  --shadow-btn: 0 2px 6px rgba(0, 0, 0, 0.35), 0 6px 16px rgba(169, 111, 51, 0.22);
   --speed: 0.22s;
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* ---- מצב בהיר (לאטה) ---- */
+/* ---- מצב בהיר (לאטה זכוכית) ---- */
 [data-theme='light'] {
-  --bg: #f1e7d8;
-  --bg-gradient: radial-gradient(120% 90% at 50% 0%, #f9f1e4 0%, #f1e7d8 55%, #e9dcc8 100%);
-  --bg-elevated: #f6eddd;
-  --bg-card: #fdf8ef;
-  --bg-card-gradient: linear-gradient(180deg, #fffdf8 0%, #fdf8ef 100%);
-  --bg-input: #f5ecdc;
-  --border: #d3bfa4;
-  --border-soft: #e0d0b8;
-  --hairline: rgba(122, 82, 43, 0.16);
+  --bg: #f2e8d9;
+  --bg-gradient:
+    radial-gradient(55% 32% at 85% 0%, rgba(232, 150, 70, 0.14) 0%, transparent 70%),
+    radial-gradient(45% 28% at 8% 100%, rgba(220, 130, 60, 0.08) 0%, transparent 70%),
+    linear-gradient(165deg, #f9f1e3 0%, #f2e8d9 55%, #ecdfc9 100%);
+  --bg-elevated: #f7eede;
+  --bg-card: #fdf8ee;
+  --bg-card-gradient: linear-gradient(178deg, rgba(230, 150, 70, 0.06) 0%, transparent 30%), linear-gradient(180deg, #fffcf5 0%, #fbf5e9 100%);
+  --bg-input: #f5ecdb;
+  --border: #d2bda0;
+  --border-soft: rgba(150, 95, 40, 0.2);
+  --hairline: rgba(130, 85, 40, 0.16);
   --text: #33241a;
   --text-muted: #7d6650;
   --accent: #a5642a;
-  --accent-2: #7f4a1c;
   --accent-strong: #8a5222;
-  --accent-ink: #fff6e8;
   --crema: #96683a;
+  --glow: rgba(210, 130, 55, 0.28);
+  --glass-bg: linear-gradient(160deg, rgba(215, 125, 45, 0.20), rgba(200, 115, 45, 0.08));
+  --glass-bg-hover: linear-gradient(160deg, rgba(215, 125, 45, 0.30), rgba(200, 115, 45, 0.13));
+  --glass-border: rgba(150, 90, 30, 0.5);
+  --glass-ink: #6e3f10;
+  --glass-fill: linear-gradient(160deg, rgba(200, 115, 40, 0.85), rgba(175, 95, 35, 0.75));
+  --glass-fill-ink: #fff4e4;
   --good: #4d7c3f;
   --warn: #96702a;
   --bad: #ad4a39;
   --shadow: 0 1px 2px rgba(90, 60, 30, 0.08), 0 6px 18px rgba(90, 60, 30, 0.12);
-  --shadow-btn: 0 2px 6px rgba(90, 60, 30, 0.18), 0 6px 14px rgba(165, 100, 42, 0.2);
 }
 
 * { box-sizing: border-box; }
@@ -290,39 +304,48 @@ textarea { min-height: 72px; resize: vertical; }
   .field-row.thirds { grid-template-columns: 1fr 1fr 1fr; }
 }
 
-/* ---- כפתורים ---- */
+/* ---- כפתורים: זכוכית ענברית ---- */
 button.btn {
-  background: linear-gradient(160deg, var(--accent-strong) 0%, var(--accent) 45%, var(--accent-2) 100%);
-  color: var(--accent-ink);
-  border: none;
-  border-radius: 13px;
-  padding: 13px 22px;
+  background: var(--glass-bg);
+  color: var(--glass-ink);
+  border: 1px solid var(--glass-border);
+  border-radius: 15px;
+  padding: 13px 24px;
   font-size: 0.98rem;
   font-weight: 700;
   letter-spacing: 0.1px;
   cursor: pointer;
   font-family: inherit;
-  box-shadow: var(--shadow-btn);
-  transition: transform 0.14s var(--spring), box-shadow var(--speed), filter var(--speed);
+  box-shadow: inset 0 1px 0 rgba(255, 226, 180, 0.3), 0 0 0 rgba(0, 0, 0, 0);
+  transition: transform 0.15s var(--spring), box-shadow 0.3s, background 0.3s;
 }
-button.btn:hover { filter: brightness(1.07); }
-button.btn:active { transform: scale(0.97); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); }
-button.btn:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 2px; }
-button.btn:disabled { opacity: 0.42; cursor: not-allowed; transform: none; filter: none; }
+button.btn:hover {
+  background: var(--glass-bg-hover);
+  box-shadow: inset 0 1px 0 rgba(255, 226, 180, 0.3), 0 0 26px var(--glow);
+}
+button.btn:active { transform: scale(0.97); }
+button.btn:focus-visible { outline: 3px solid var(--glass-border); outline-offset: 2px; }
+button.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
 button.btn.secondary {
-  background: var(--bg-elevated);
+  background: color-mix(in srgb, var(--crema) 5%, transparent);
   color: var(--text);
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--glass-border) 50%, transparent);
   box-shadow: none;
 }
-button.btn.secondary:hover { border-color: var(--accent); filter: none; }
-button.btn.danger {
-  background: linear-gradient(160deg, #e2907f, var(--bad) 60%, #b95d4c);
-  color: #2a0c06;
+button.btn.secondary:hover {
+  border-color: var(--glass-border);
+  background: color-mix(in srgb, var(--crema) 9%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--glow) 55%, transparent);
 }
-[data-theme='light'] button.btn.danger { color: #fff5f2; }
+button.btn.danger {
+  background: linear-gradient(160deg, rgba(230, 110, 90, 0.35), rgba(210, 80, 60, 0.15));
+  border-color: color-mix(in srgb, var(--bad) 65%, transparent);
+  color: #ffd9cf;
+}
+[data-theme='light'] button.btn.danger { color: #8a2f1e; }
+button.btn.danger:hover { box-shadow: 0 0 24px color-mix(in srgb, var(--bad) 40%, transparent); }
 button.btn.block { width: 100%; display: block; }
-button.btn.small { padding: 8px 14px; font-size: 0.84rem; font-weight: 600; border-radius: 999px; }
+button.btn.small { padding: 8px 15px; font-size: 0.84rem; font-weight: 600; border-radius: 999px; }
 
 .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
 
@@ -340,13 +363,14 @@ button.btn.small { padding: 8px 14px; font-size: 0.84rem; font-weight: 600; bord
   font-family: inherit;
   transition: background var(--speed), border-color var(--speed), color var(--speed), transform 0.14s var(--spring);
 }
-.chip:hover { border-color: var(--accent); }
+.chip:hover { border-color: var(--glass-border); }
 .chip:active { transform: scale(0.94); }
 .chip.selected {
-  background: linear-gradient(160deg, var(--accent-strong), var(--accent));
-  color: var(--accent-ink);
-  border-color: transparent;
+  background: var(--glass-fill);
+  color: var(--glass-fill-ink);
+  border-color: var(--glass-border);
   font-weight: 700;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--glow) 75%, transparent);
 }
 
 /* ---- דירוג ---- */
@@ -365,13 +389,14 @@ button.btn.small { padding: 8px 14px; font-size: 0.84rem; font-weight: 600; bord
   font-family: inherit;
   transition: background var(--speed), border-color var(--speed), color var(--speed), transform 0.14s var(--spring);
 }
-.rating-row button:hover { border-color: var(--accent); }
+.rating-row button:hover { border-color: var(--glass-border); }
 .rating-row button:active { transform: scale(0.9); }
 .rating-row button.selected {
-  background: linear-gradient(160deg, var(--accent-strong), var(--accent));
-  color: var(--accent-ink);
-  border-color: transparent;
+  background: var(--glass-fill);
+  color: var(--glass-fill-ink);
+  border-color: var(--glass-border);
   transform: scale(1.08);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--glow) 75%, transparent);
 }
 
 /* ---- טיימר ---- */
@@ -392,6 +417,7 @@ button.btn.small { padding: 8px 14px; font-size: 0.84rem; font-weight: 600; bord
 }
 .timer-display.running {
   color: var(--accent-strong);
+  text-shadow: 0 0 22px var(--glow);
   animation: timer-pulse 1.6s ease-in-out infinite;
 }
 
@@ -475,7 +501,7 @@ button.btn.small { padding: 8px 14px; font-size: 0.84rem; font-weight: 600; bord
   color: var(--crema);
   margin-top: 12px;
 }
-[data-theme='light'] .one-var-banner { color: var(--accent-2); }
+[data-theme='light'] .one-var-banner { color: #6e3f10; }
 
 /* ---- שונות ---- */
 .empty-state {

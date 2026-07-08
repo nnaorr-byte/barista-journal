@@ -598,6 +598,8 @@ function BrewStep({
   onBack: () => void;
 }) {
   const [running, setRunning] = useState(false);
+  // elapsed נמדד ברציפות (כולל שברירי שנייה) כדי שהטבעת תזרום חלק,
+  // לא בקפיצות של שנייה. הספרות מעוגלות רק בתצוגה.
   const [elapsed, setElapsed] = useState(0);
   const startRef = useRef(0);
   const vibratedRef = useRef({ enter: false, exceed: false });
@@ -607,8 +609,9 @@ function BrewStep({
 
   useEffect(() => {
     if (!running) return;
-    const iv = setInterval(() => {
-      const sec = Math.floor((Date.now() - startRef.current) / 1000);
+    let raf = 0;
+    const loop = () => {
+      const sec = (Date.now() - startRef.current) / 1000;
       setElapsed(sec);
       // רטט (באנדרואיד; באייפון אין תמיכה — הצבע משתנה במקום)
       if (sec >= targetMin && !vibratedRef.current.enter) {
@@ -619,9 +622,13 @@ function BrewStep({
         vibratedRef.current.exceed = true;
         navigator.vibrate?.([90, 70, 90]);
       }
-    }, 200);
-    return () => clearInterval(iv);
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
   }, [running, targetMin, targetMax]);
+
+  const displaySec = Math.floor(elapsed);
 
   // טבעת התקדמות: הסקאלה עד יעד-מקסימום + מרווח קטן
   const ringMax = targetMax + 8;
@@ -685,7 +692,7 @@ function BrewStep({
             />
           </svg>
           <div className={`timer-display in-ring ${running ? 'running' : ''}`} style={overZone && running ? { color: 'var(--bad)' } : inZone && running ? { color: 'var(--good)' } : undefined}>
-            {String(Math.floor(elapsed / 60)).padStart(2, '0')}:{String(elapsed % 60).padStart(2, '0')}
+            {String(Math.floor(displaySec / 60)).padStart(2, '0')}:{String(displaySec % 60).padStart(2, '0')}
           </div>
         </div>
         <p className="muted small" style={{ textAlign: 'center', margin: '4px 0 0' }}>
@@ -709,13 +716,13 @@ function BrewStep({
             </button>
           ) : (
             <button className="btn danger" style={{ flex: 1 }} onClick={() => setRunning(false)}>
-              ⏹ עצור ({elapsed} שניות)
+              ⏹ עצור ({displaySec} שניות)
             </button>
           )}
         </div>
         <div className="btn-row">
           <button className="btn secondary" onClick={onBack}>→ חזרה</button>
-          <button className="btn" style={{ flex: 1 }} onClick={() => onDone(elapsed)}>
+          <button className="btn" style={{ flex: 1 }} onClick={() => onDone(Math.round(elapsed))}>
             השוט מוכן — לתוצאות ←
           </button>
         </div>

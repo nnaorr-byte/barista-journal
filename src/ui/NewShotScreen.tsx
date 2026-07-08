@@ -8,6 +8,7 @@ import type {
   Bag, CoachAdvice, FlavorNote, MachineTempSetting, QualityLevel, Shot, ShotRecommendation, TasteTag,
 } from '../domain/types';
 import { Chips, Field, RatingPicker, StatTile } from './components';
+import { TastingCoach } from './TastingCoach';
 import { FLAVOR_LABELS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS } from './labels';
 import type { Screen } from '../App';
 
@@ -44,8 +45,12 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const [recommendation, setRecommendation] = useState<ShotRecommendation | null>(null);
 
   // תוצאות
-  const [yieldGrams, setYieldGrams] = useState('');
+  const [yieldStop, setYieldStop] = useState(''); // גרם בעצירה בפועל
+  const [yieldGrams, setYieldGrams] = useState(''); // גרם סופי אחרי טפטוף
   const [brewTime, setBrewTime] = useState('');
+  const [quick, setQuick] = useState(false); // מצב "שוט מהיר"
+  const [tasting, setTasting] = useState(false); // אימון טעימה פעיל
+  const [tastingSummary, setTastingSummary] = useState('');
   const [grindSetting, setGrindSetting] = useState('');
   const [temp, setTemp] = useState<MachineTempSetting>('medium');
   const [basketType, setBasketType] = useState('סטנדרטית');
@@ -159,6 +164,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
         bagId: selectedBag.id,
         dialInSessionId: session?.id ?? null,
         doseGrams: parseFloat(dose) || 0,
+        yieldStopGrams: yieldStop ? parseFloat(yieldStop) : null,
         yieldGrams: parseFloat(yieldGrams) || 0,
         brewTimeSec: parseInt(brewTime) || 0,
         grindSetting: parseFloat(grindSetting) || 0,
@@ -205,9 +211,22 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           <h2>☕ שוט חדש — שלב 1: לפני החליטה</h2>
 
           {lastShot && (
-            <button className="btn secondary block" style={{ marginBottom: 12 }} onClick={applyLastShot}>
-              ⚡ כמו השוט הקודם (שכפול הגדרות)
-            </button>
+            <div className="btn-row" style={{ marginTop: 0, marginBottom: 12 }}>
+              <button className="btn secondary" style={{ flex: 1 }} onClick={applyLastShot}>
+                📋 כמו הקודם
+              </button>
+              <button
+                className="btn" style={{ flex: 1.4 }}
+                onClick={() => {
+                  applyLastShot();
+                  setYieldGrams(String(lastShot.yieldGrams));
+                  setQuick(true);
+                  setStep('results');
+                }}
+              >
+                ⚡ שוט מהיר (תיעוד ב-10 שניות)
+              </button>
+            </div>
           )}
 
           <Field label="סוג פולים">
@@ -297,32 +316,76 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
   // --- שלב 3: תוצאות ---
   if (step === 'results') {
+    const ratioLine = dose && yieldGrams && (
+      <p className="muted small">
+        יחס חליטה: 1:{(parseFloat(yieldGrams) / parseFloat(dose)).toFixed(1)}
+        {brewTime && parseInt(brewTime) > 0 &&
+          ` · זרימה: ${(parseFloat(yieldGrams) / parseInt(brewTime)).toFixed(1)} גרם/שנייה`}
+        {yieldStop && yieldGrams && parseFloat(yieldGrams) > parseFloat(yieldStop) &&
+          ` · טפטוף: ${(parseFloat(yieldGrams) - parseFloat(yieldStop)).toFixed(1)} גרם`}
+      </p>
+    );
+
+    const weightFields = (
+      <div className="field-row thirds">
+        <Field label="גרם נכנס">
+          <input type="number" step="0.1" inputMode="decimal" value={dose} onChange={(e) => setDose(e.target.value)} />
+        </Field>
+        <Field label="עצירה בפועל (גרם)">
+          <input
+            type="number" step="0.1" inputMode="decimal" placeholder="לא חובה"
+            value={yieldStop} onChange={(e) => setYieldStop(e.target.value)}
+          />
+        </Field>
+        <Field label="סופי אחרי טפטוף (גרם)">
+          <input type="number" step="0.1" inputMode="decimal" value={yieldGrams} onChange={(e) => setYieldGrams(e.target.value)} />
+        </Field>
+      </div>
+    );
+
+    // מצב "שוט מהיר": טופס מינימלי — שאר הפרטים משוכפלים מהשוט הקודם
+    if (quick) {
+      return (
+        <div>
+          <div className="card accent">
+            <h2>⚡ שוט מהיר</h2>
+            <p className="muted small" style={{ marginTop: 0 }}>
+              טחינה, טמפרטורה וסלסלה שוכפלו מהשוט הקודם. טעמים והערות אפשר להשלים אחר-כך מהיומן (✏️ עריכה).
+            </p>
+            {weightFields}
+            {ratioLine}
+            <Field label="זמן חליטה (שניות)">
+              <input type="number" inputMode="numeric" value={brewTime} onChange={(e) => setBrewTime(e.target.value)} />
+            </Field>
+            <h3>דירוג אישי (1–10)</h3>
+            <RatingPicker value={rating} onChange={setRating} />
+            <div className="btn-row">
+              <button className="btn secondary" onClick={() => { setQuick(false); setStep('setup'); }}>→ ביטול</button>
+              <button
+                className="btn" style={{ flex: 1 }}
+                disabled={!dose || !yieldGrams || !brewTime || rating === 0 || saving}
+                onClick={saveShot}
+              >
+                💾 שמור וקבל ניתוח
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div>
         <div className="card">
           <h2>📋 שלב 3: תוצאות השוט</h2>
 
+          {weightFields}
+          {ratioLine}
+
           <div className="field-row thirds">
-            <Field label="גרם נכנס">
-              <input type="number" step="0.1" inputMode="decimal" value={dose} onChange={(e) => setDose(e.target.value)} />
-            </Field>
-            <Field label="גרם יצא">
-              <input type="number" step="0.1" inputMode="decimal" value={yieldGrams} onChange={(e) => setYieldGrams(e.target.value)} />
-            </Field>
             <Field label="זמן (שניות)">
               <input type="number" inputMode="numeric" value={brewTime} onChange={(e) => setBrewTime(e.target.value)} />
             </Field>
-          </div>
-
-          {dose && yieldGrams && (
-            <p className="muted small">
-              יחס חליטה: 1:{(parseFloat(yieldGrams) / parseFloat(dose)).toFixed(1)}
-              {brewTime && parseInt(brewTime) > 0 &&
-                ` · זרימה: ${(parseFloat(yieldGrams) / parseInt(brewTime)).toFixed(1)} גרם/שנייה`}
-            </p>
-          )}
-
-          <div className="field-row">
             <Field label={`דרגת טחינה (${selectedGrinder?.name ?? 'מטחנה'})`}>
               <input type="number" step="0.5" inputMode="decimal" value={grindSetting} onChange={(e) => setGrindSetting(e.target.value)} />
             </Field>
@@ -351,6 +414,27 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
               </select>
             </Field>
           </div>
+
+          {!tasting && (
+            <button className="btn secondary block" style={{ marginTop: 6 }} onClick={() => setTasting(true)}>
+              👅 אימון טעימה מודרך — תן לי להוביל אותך לגימה-לגימה
+            </button>
+          )}
+          {tasting && (
+            <TastingCoach
+              onCancel={() => setTasting(false)}
+              onComplete={(result) => {
+                setTasteTags((prev) => [...new Set([...prev, ...result.tags])]);
+                if (result.body) setBody(result.body);
+                if (result.aftertaste) setAftertaste(result.aftertaste);
+                setTastingSummary(result.summary);
+                setTasting(false);
+              }}
+            />
+          )}
+          {tastingSummary && (
+            <div className="one-var-banner" style={{ marginTop: 10 }}>👅 {tastingSummary}</div>
+          )}
 
           <h3>טעם (אפשר לבחור כמה)</h3>
           <Chips
@@ -467,9 +551,9 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
               className="btn secondary"
               onClick={() => {
                 // שוט נוסף עם אותם פולים — איפוס תוצאות בלבד
-                setYieldGrams(''); setBrewTime(''); setTasteTags([]); setTasteOther('');
+                setYieldStop(''); setYieldGrams(''); setBrewTime(''); setTasteTags([]); setTasteOther('');
                 setFlavorNotes([]); setBody(null); setCrema(null); setAftertaste(null);
-                setNotes(''); setRating(0);
+                setNotes(''); setRating(0); setQuick(false); setTasting(false); setTastingSummary('');
                 setAdvice(null); setMultiVarWarning(null); setSavedShotId(null); setMarkedFavorite(false);
                 computeRecommendation();
               }}
@@ -515,14 +599,39 @@ function BrewStep({
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const startRef = useRef(0);
+  const vibratedRef = useRef({ enter: false, exceed: false });
+
+  const targetMin = recommendation.brewTimeSecMin;
+  const targetMax = recommendation.brewTimeSecMax;
 
   useEffect(() => {
     if (!running) return;
     const iv = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
-    }, 250);
+      const sec = Math.floor((Date.now() - startRef.current) / 1000);
+      setElapsed(sec);
+      // רטט (באנדרואיד; באייפון אין תמיכה — הצבע משתנה במקום)
+      if (sec >= targetMin && !vibratedRef.current.enter) {
+        vibratedRef.current.enter = true;
+        navigator.vibrate?.(120);
+      }
+      if (sec > targetMax && !vibratedRef.current.exceed) {
+        vibratedRef.current.exceed = true;
+        navigator.vibrate?.([90, 70, 90]);
+      }
+    }, 200);
     return () => clearInterval(iv);
-  }, [running]);
+  }, [running, targetMin, targetMax]);
+
+  // טבעת התקדמות: הסקאלה עד יעד-מקסימום + מרווח קטן
+  const ringMax = targetMax + 8;
+  const R = 88;
+  const CIRC = 2 * Math.PI * R;
+  const progress = Math.min(elapsed / ringMax, 1);
+  const zoneStart = (targetMin / ringMax) * CIRC;
+  const zoneLen = ((targetMax - targetMin) / ringMax) * CIRC;
+  const inZone = elapsed >= targetMin && elapsed <= targetMax;
+  const overZone = elapsed > targetMax;
+  const progressColor = overZone ? 'var(--bad)' : inZone ? 'var(--good)' : 'var(--accent)';
 
   return (
     <div>
@@ -552,15 +661,48 @@ function BrewStep({
       </div>
 
       <div className="card">
-        <h2>⏱️ טיימר חליטה</h2>
-        <div className={`timer-display ${running ? 'running' : ''}`}>
-          {String(Math.floor(elapsed / 60)).padStart(2, '0')}:{String(elapsed % 60).padStart(2, '0')}
+        <h2>⏱️ טיימר חליטה — יעד {targetMin}–{targetMax} שניות</h2>
+        <div className="timer-ring-wrap" dir="ltr">
+          <svg viewBox="0 0 220 220" className="timer-ring">
+            {/* מסילה */}
+            <circle cx="110" cy="110" r={R} fill="none" stroke="var(--border-soft)" strokeWidth="10" />
+            {/* אזור היעד */}
+            <circle
+              cx="110" cy="110" r={R} fill="none"
+              stroke="var(--good)" strokeOpacity="0.25" strokeWidth="10"
+              strokeDasharray={`${zoneLen} ${CIRC - zoneLen}`}
+              strokeDashoffset={-zoneStart}
+              transform="rotate(-90 110 110)"
+            />
+            {/* התקדמות */}
+            <circle
+              cx="110" cy="110" r={R} fill="none"
+              stroke={progressColor} strokeWidth="10" strokeLinecap="round"
+              strokeDasharray={`${progress * CIRC} ${CIRC}`}
+              transform="rotate(-90 110 110)"
+              style={{ transition: 'stroke 0.3s' }}
+            />
+          </svg>
+          <div className={`timer-display in-ring ${running ? 'running' : ''}`} style={overZone && running ? { color: 'var(--bad)' } : inZone && running ? { color: 'var(--good)' } : undefined}>
+            {String(Math.floor(elapsed / 60)).padStart(2, '0')}:{String(elapsed % 60).padStart(2, '0')}
+          </div>
         </div>
+        <p className="muted small" style={{ textAlign: 'center', margin: '4px 0 0' }}>
+          {!running && elapsed === 0 && 'הטבעת הירוקה מסמנת את חלון היעד'}
+          {running && !inZone && !overZone && 'בדרך לחלון היעד…'}
+          {running && inZone && '🎯 בתוך חלון היעד!'}
+          {running && overZone && 'חלון היעד חלף — שקול לעצור'}
+        </p>
         <div className="btn-row">
           {!running ? (
             <button
               className="btn" style={{ flex: 1 }}
-              onClick={() => { startRef.current = Date.now(); setElapsed(0); setRunning(true); }}
+              onClick={() => {
+                startRef.current = Date.now();
+                setElapsed(0);
+                vibratedRef.current = { enter: false, exceed: false };
+                setRunning(true);
+              }}
             >
               ▶ התחל טיימר
             </button>

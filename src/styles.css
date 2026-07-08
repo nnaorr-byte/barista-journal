@@ -409,6 +409,23 @@ button.btn.small { padding: 8px 15px; font-size: 0.84rem; font-weight: 600; bord
   box-shadow: 0 0 16px color-mix(in srgb, var(--glow) 75%, transparent);
 }
 
+/* ---- טיימר: טבעת יעד ---- */
+.timer-ring-wrap {
+  position: relative;
+  width: min(230px, 62vw);
+  margin: 6px auto;
+}
+.timer-ring { width: 100%; height: auto; display: block; }
+.timer-display.in-ring {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.7rem;
+  margin: 0;
+}
+
 /* ---- טיימר ---- */
 @keyframes timer-pulse {
   0%, 100% { opacity: 1; }

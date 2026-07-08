@@ -108,7 +108,8 @@ export interface Shot {
   createdAt: string; // ISO datetime
 
   doseGrams: number; // גרם נכנס
-  yieldGrams: number; // גרם יוצא
+  yieldStopGrams?: number | null; // גרם בעצירה בפועל (לפני הטפטוף)
+  yieldGrams: number; // גרם סופי בכוס, אחרי הטפטוף — הבסיס לכל החישובים
   brewTimeSec: number; // זמן חליטה
   grindSetting: number; // דרגת טחינה (ביחס למטחנה)
   machineTemp: MachineTempSetting;

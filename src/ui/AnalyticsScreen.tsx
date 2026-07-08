@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
-import { shotRatio, shotFlowRate, type Shot } from '../domain/types';
+import { shotRatio, shotFlowRate, type Bean, type FlavorNote, type Shot } from '../domain/types';
 import { LineChart, ScatterChart, Histogram, type Point } from './charts';
 import { StatTile, EmptyState } from './components';
+import { FLAVOR_LABELS, formatDateTime } from './labels';
 
 // ===== Coffee Shot Analytics =====
 // ניתוח ויזואלי של איכות ועקביות ההכנה, מהנתונים הקיימים בלבד.
@@ -43,6 +45,118 @@ function consistencyScore(shots: Shot[]): number | null {
 interface Insight {
   icon: string;
   text: string;
+}
+
+// ===== Coffee Wrapped — סיכום השנה =====
+function CoffeeWrapped({ shots, beans, onBack }: { shots: Shot[]; beans: Bean[]; onBack: () => void }) {
+  const year = new Date().getFullYear();
+  const yearShots = shots.filter((s) => s.createdAt.startsWith(String(year)));
+  const beanMap = new Map(beans.map((b) => [b.id, b]));
+
+  if (yearShots.length === 0) {
+    return (
+      <div className="card">
+        <h2>🎁 Coffee Wrapped {year}</h2>
+        <EmptyState icon="🎁" text={`עדיין אין שוטים ב-${year}`} hint="ברגע שתתעד — הסיכום יתמלא." />
+        <button className="btn block" onClick={onBack}>→ חזרה לניתוח</button>
+      </div>
+    );
+  }
+
+  const totalCoffee = yearShots.reduce((a, s) => a + s.doseGrams, 0);
+  const totalEspresso = yearShots.reduce((a, s) => a + s.yieldGrams, 0);
+  const distinctBeans = new Set(yearShots.map((s) => s.beanId)).size;
+  const avgRating = mean(yearShots.map((s) => s.rating));
+  const best = [...yearShots].sort((a, b) => b.rating - a.rating)[0];
+
+  // הפול של השנה: הכי הרבה שוטים
+  const byBean = new Map<string, number>();
+  for (const s of yearShots) byBean.set(s.beanId, (byBean.get(s.beanId) ?? 0) + 1);
+  const topBeanId = [...byBean.entries()].sort((a, b) => b[1] - a[1])[0][0];
+
+  // החודש הפעיל ביותר
+  const byMonth = new Map<number, number>();
+  for (const s of yearShots) {
+    const m = new Date(s.createdAt).getMonth();
+    byMonth.set(m, (byMonth.get(m) ?? 0) + 1);
+  }
+  const topMonth = [...byMonth.entries()].sort((a, b) => b[1] - a[1])[0];
+  const monthName = new Date(year, topMonth[0], 1).toLocaleDateString('he-IL', { month: 'long' });
+
+  // תווי הטעם של השנה
+  const byFlavor = new Map<FlavorNote, number>();
+  for (const s of yearShots) for (const f of s.flavorNotes ?? []) byFlavor.set(f, (byFlavor.get(f) ?? 0) + 1);
+  const topFlavors = [...byFlavor.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+  // שיפור: מחצית ראשונה מול שנייה
+  const half = Math.floor(yearShots.length / 2);
+  const firstAvg = half >= 3 ? mean(yearShots.slice(0, half).map((s) => s.rating)) : null;
+  const secondAvg = half >= 3 ? mean(yearShots.slice(half).map((s) => s.rating)) : null;
+
+  return (
+    <div>
+      <div className="card accent">
+        <h2>🎁 Coffee Wrapped {year}</h2>
+        <p className="muted small" style={{ marginTop: 0 }}>השנה שלך באספרסו, במספרים.</p>
+        <div className="stat-grid">
+          <StatTile value={yearShots.length} label="שוטים השנה" />
+          <StatTile value={`${(totalCoffee / 1000).toFixed(2)} ק״ג`} label="קפה נטחן" />
+          <StatTile value={`${(totalEspresso / 1000).toFixed(1)} ליטר`} label="אספרסו בכוס" />
+          <StatTile value={distinctBeans} label="סוגי פולים" />
+          <StatTile value={avgRating.toFixed(1)} label="דירוג ממוצע" />
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>🏆 השוט של השנה</h2>
+        <p style={{ margin: '4px 0' }}>
+          <strong>{best.rating}/10</strong> · {beanMap.get(best.beanId)?.name ?? 'פולים'} ·{' '}
+          {best.doseGrams}←{best.yieldGrams} גרם ב-{best.brewTimeSec} שניות
+        </p>
+        <p className="muted small">{formatDateTime(best.createdAt)}</p>
+      </div>
+
+      <div className="card">
+        <h2>🫘 הפול של השנה</h2>
+        <p style={{ margin: '4px 0' }}>
+          <strong>{beanMap.get(topBeanId)?.name ?? 'פולים'}</strong>
+          {beanMap.get(topBeanId)?.roastery && ` · ${beanMap.get(topBeanId)!.roastery}`}
+          {' — '}{byBean.get(topBeanId)} שוטים
+        </p>
+        <p className="muted small">החודש החזק שלך: {monthName} ({topMonth[1]} שוטים)</p>
+      </div>
+
+      {topFlavors.length > 0 && (
+        <div className="card">
+          <h2>👅 הטעמים של השנה</h2>
+          <div className="chips">
+            {topFlavors.map(([f, n]) => (
+              <span key={f} className="chip selected">{FLAVOR_LABELS[f]} × {n}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {firstAvg !== null && secondAvg !== null && (
+        <div className="card">
+          <h2>📈 המסע שלך</h2>
+          <div className="stat-grid">
+            <StatTile value={firstAvg.toFixed(1)} label="ממוצע — תחילת השנה" />
+            <StatTile value={secondAvg.toFixed(1)} label="ממוצע — ההמשך" />
+          </div>
+          <p className="muted small" style={{ marginTop: 8 }}>
+            {secondAvg > firstAvg + 0.3
+              ? `📈 השתפרת ב-${(secondAvg - firstAvg).toFixed(1)} נקודות במהלך השנה — הכיול והתיעוד עובדים!`
+              : secondAvg < firstAvg - 0.3
+                ? 'שווה להציץ מה השתנה — אולי הפולים או שגרת התחזוקה.'
+                : '➡️ יציבות לאורך השנה — עקביות היא סימן של בריסטה אמיתי.'}
+          </p>
+        </div>
+      )}
+
+      <button className="btn block" onClick={onBack}>→ חזרה לניתוח</button>
+    </div>
+  );
 }
 
 function buildInsights(shots: Shot[]): Insight[] {
@@ -139,15 +253,21 @@ function buildInsights(shots: Shot[]): Insight[] {
 
 export function AnalyticsScreen() {
   const data = useLiveQuery(async () => {
-    const [shots, grinders] = await Promise.all([
+    const [shots, grinders, beans] = await Promise.all([
       db.shots.orderBy('createdAt').toArray(), // ישן→חדש
       db.grinders.toArray(),
+      db.beans.toArray(),
     ]);
-    return { shots, grinders };
+    return { shots, grinders, beans };
   });
+  const [wrapped, setWrapped] = useState(false);
 
   if (!data) return null;
-  const { shots, grinders } = data;
+  const { shots, grinders, beans } = data;
+
+  if (wrapped) {
+    return <CoffeeWrapped shots={shots} beans={beans} onBack={() => setWrapped(false)} />;
+  }
 
   if (shots.length < 2) {
     return (
@@ -228,6 +348,9 @@ export function AnalyticsScreen() {
         <p className="muted small" style={{ marginTop: 0 }}>
           ניתוח {shots.length} השוטים שלך — איכות, עקביות ומגמות.
         </p>
+        <button className="btn secondary block" style={{ marginBottom: 12 }} onClick={() => setWrapped(true)}>
+          🎁 Coffee Wrapped — סיכום השנה שלי
+        </button>
         <div className="stat-grid">
           <StatTile value={avgRating.toFixed(1)} label="דירוג ממוצע" />
           <StatTile value={`${Math.round(avgTime)}s`} label="זמן ממוצע" />

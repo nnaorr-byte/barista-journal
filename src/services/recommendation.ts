@@ -97,6 +97,16 @@ export function recommendShot(params: {
     reasons.push('אין עדיין היסטוריית טחינה לפולים האלה על המטחנה הנוכחית — התחל מאמצע הסקאלה ועדן לפי זמן החליטה.');
   }
 
+  // חישוב טפטוף: אם תועדו גם משקל עצירה וגם משקל סופי, ממליצים איפה לעצור
+  const drips = beanShots
+    .filter((s) => s.yieldStopGrams && s.yieldGrams > (s.yieldStopGrams ?? 0))
+    .map((s) => s.yieldGrams - (s.yieldStopGrams ?? 0));
+  if (drips.length >= 2) {
+    const avgDrip = drips.reduce((a, b) => a + b, 0) / drips.length;
+    const stopAt = round1(dose * ratio - avgDrip);
+    reasons.push(`הטפטוף הממוצע שלך אחרי עצירה הוא ~${round1(avgDrip)} גרם — עצור בערך ב-${stopAt} גרם כדי לנחות על היעד הסופי.`);
+  }
+
   // הערות היסטוריות חופשיות אחרונות
   const notedShots = beanShots.filter((s) => s.notes.trim().length > 0).slice(0, 2);
   for (const s of notedShots) {

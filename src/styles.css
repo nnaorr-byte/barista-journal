@@ -61,8 +61,8 @@
 [data-theme='light'] {
   --bg: #f2e8d9;
   --bg-gradient:
-    radial-gradient(55% 32% at 85% 0%, rgba(232, 150, 70, 0.14) 0%, transparent 70%),
-    radial-gradient(45% 28% at 8% 100%, rgba(220, 130, 60, 0.08) 0%, transparent 70%),
+    radial-gradient(55% 32% at 85% 0%, rgba(232, 150, 70, 0.22) 0%, transparent 70%),
+    radial-gradient(45% 28% at 8% 100%, rgba(220, 130, 60, 0.13) 0%, transparent 70%),
     linear-gradient(165deg, #f9f1e3 0%, #f2e8d9 55%, #ecdfc9 100%);
   --bg-elevated: #f7eede;
   --bg-card: #fdf8ee;
@@ -76,9 +76,9 @@
   --accent: #a5642a;
   --accent-strong: #8a5222;
   --crema: #96683a;
-  --glow: rgba(210, 130, 55, 0.28);
-  --glass-bg: linear-gradient(160deg, rgba(215, 125, 45, 0.20), rgba(200, 115, 45, 0.08));
-  --glass-bg-hover: linear-gradient(160deg, rgba(215, 125, 45, 0.30), rgba(200, 115, 45, 0.13));
+  --glow: rgba(210, 130, 55, 0.35);
+  --glass-bg: linear-gradient(160deg, rgba(215, 125, 45, 0.26), rgba(200, 115, 45, 0.11));
+  --glass-bg-hover: linear-gradient(160deg, rgba(215, 125, 45, 0.36), rgba(200, 115, 45, 0.16));
   --glass-border: rgba(150, 90, 30, 0.5);
   --glass-ink: #6e3f10;
   --glass-fill: linear-gradient(160deg, rgba(200, 115, 40, 0.85), rgba(175, 95, 35, 0.75));
@@ -115,6 +115,16 @@ body {
   max-width: 720px;
   margin: 0 auto;
   padding: 0 16px 100px;
+  position: relative;
+  z-index: 1; /* מעל שכבת פולי הקפה */
+}
+
+/* ---- רקע פולי קפה נופלים ---- */
+.beans-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
 }
 
 /* ---- אנימציית כניסת מסך ---- */

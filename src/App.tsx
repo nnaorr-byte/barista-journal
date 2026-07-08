@@ -6,6 +6,7 @@ import { BeansScreen } from './ui/BeansScreen';
 import { DashboardScreen } from './ui/DashboardScreen';
 import { AnalyticsScreen } from './ui/AnalyticsScreen';
 import { SettingsScreen } from './ui/SettingsScreen';
+import { BeansBackground } from './ui/BeansBackground';
 
 export type Screen = 'home' | 'new-shot' | 'shots' | 'beans' | 'dashboard' | 'analytics' | 'settings';
 
@@ -31,6 +32,8 @@ export default function App() {
   }, [theme]);
 
   return (
+    <>
+    <BeansBackground />
     <div className="app">
       <header className="topbar">
         <h1>☕ יומן בריסטה חכם</h1>
@@ -67,5 +70,6 @@ export default function App() {
         ))}
       </nav>
     </div>
+    </>
   );
 }

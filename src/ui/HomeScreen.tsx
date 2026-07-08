@@ -8,7 +8,7 @@ import { computeBackupStatus, shareBackup } from '../services/importExport';
 import { ratingTrend } from '../services/stats';
 import { shotRatio, type RoastLevel } from '../domain/types';
 import { StatTile, EmptyState } from './components';
-import { formatDateTime, ratingClass } from './labels';
+import { formatDateTime, ratingClass, shotWeights } from './labels';
 import type { Screen } from '../App';
 
 export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
@@ -181,7 +181,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
             <div style={{ flex: 1 }}>
               <div>{beanMap.get(insights.bestShot.beanId)?.name ?? 'פולים שנמחקו'}</div>
               <div className="muted small">
-                {insights.bestShot.doseGrams} גרם ← {insights.bestShot.yieldGrams} גרם ·{' '}
+                {shotWeights(insights.bestShot)} ·{' '}
                 {insights.bestShot.brewTimeSec} שניות · יחס 1:{shotRatio(insights.bestShot).toFixed(1)} · טחינה{' '}
                 {insights.bestShot.grindSetting}
               </div>

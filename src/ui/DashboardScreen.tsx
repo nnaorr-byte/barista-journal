@@ -7,7 +7,7 @@ import { roastLabel } from '../services/recommendation';
 import { shotRatio, type RoastLevel, type Shot } from '../domain/types';
 import { BarChart, LineChart, type Point } from './charts';
 import { StatTile, EmptyState } from './components';
-import { FLAVOR_LABELS, TASTE_LABELS, formatDateTime, ratingClass } from './labels';
+import { FLAVOR_LABELS, TASTE_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
 import type { FlavorNote } from '../domain/types';
 
 type Metric = 'rating' | 'yield' | 'time' | 'grind';
@@ -240,7 +240,7 @@ function ShotRow({ shot, beanName }: { shot: Shot; beanName?: string }) {
       <div style={{ flex: 1 }}>
         <div>{beanName ?? 'פולים שנמחקו'}</div>
         <div className="muted small">
-          {shot.doseGrams}←{shot.yieldGrams} גרם · {shot.brewTimeSec} שניות · יחס 1:{shotRatio(shot).toFixed(1)}
+          {shotWeights(shot)} · {shot.brewTimeSec} שניות · יחס 1:{shotRatio(shot).toFixed(1)}
         </div>
         <div className="muted small">{formatDateTime(shot.createdAt)}</div>
       </div>

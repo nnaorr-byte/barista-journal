@@ -62,3 +62,13 @@ export function formatDateTime(iso: string): string {
 export function ratingClass(rating: number): string {
   return rating >= 7 ? 'good' : rating >= 5 ? 'mid' : 'bad';
 }
+
+// תצוגת משקלים אחידה: "16←36 גרם" + ציון העצירה בפועל אם תועדה
+export function shotWeights(s: {
+  doseGrams: number;
+  yieldGrams: number;
+  yieldStopGrams?: number | null;
+}): string {
+  const stop = s.yieldStopGrams ? ` (עצירה ב-${s.yieldStopGrams})` : '';
+  return `${s.doseGrams}←${s.yieldGrams} גרם${stop}`;
+}

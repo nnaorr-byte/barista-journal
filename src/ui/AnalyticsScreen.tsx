@@ -4,7 +4,7 @@ import { db } from '../db/database';
 import { shotRatio, shotFlowRate, type Bean, type FlavorNote, type Shot } from '../domain/types';
 import { LineChart, ScatterChart, Histogram, type Point } from './charts';
 import { StatTile, EmptyState } from './components';
-import { FLAVOR_LABELS, formatDateTime } from './labels';
+import { FLAVOR_LABELS, formatDateTime, shotWeights } from './labels';
 
 // ===== Coffee Shot Analytics =====
 // ניתוח ויזואלי של איכות ועקביות ההכנה, מהנתונים הקיימים בלבד.
@@ -111,7 +111,7 @@ function CoffeeWrapped({ shots, beans, onBack }: { shots: Shot[]; beans: Bean[];
         <h2>🏆 השוט של השנה</h2>
         <p style={{ margin: '4px 0' }}>
           <strong>{best.rating}/10</strong> · {beanMap.get(best.beanId)?.name ?? 'פולים'} ·{' '}
-          {best.doseGrams}←{best.yieldGrams} גרם ב-{best.brewTimeSec} שניות
+          {shotWeights(best)} ב-{best.brewTimeSec} שניות
         </p>
         <p className="muted small">{formatDateTime(best.createdAt)}</p>
       </div>

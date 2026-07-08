@@ -4,7 +4,7 @@ import { db } from '../db/database';
 import { shotRepo } from '../db/repositories';
 import { shotRatio, shotFlowRate, type Shot, type TasteTag } from '../domain/types';
 import { EmptyState, Field, RatingPicker } from './components';
-import { FLAVOR_LABELS, TASTE_LABELS, formatDateTime, ratingClass } from './labels';
+import { FLAVOR_LABELS, TASTE_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
 
 export function ShotsScreen() {
   const data = useLiveQuery(async () => {
@@ -85,7 +85,7 @@ export function ShotsScreen() {
               <div style={{ flex: 1 }}>
                 <div>{s.favorite && '⭐ '}{beanMap.get(s.beanId)?.name ?? 'פולים שנמחקו'}</div>
                 <div className="muted small">
-                  {s.doseGrams}←{s.yieldGrams} גרם · {s.brewTimeSec} שניות · טחינה {s.grindSetting}
+                  {shotWeights(s)} · {s.brewTimeSec} שניות · טחינה {s.grindSetting}
                 </div>
                 <div className="muted small">{formatDateTime(s.createdAt)}</div>
               </div>
@@ -94,8 +94,11 @@ export function ShotsScreen() {
             {expanded === s.id && (
               <div style={{ padding: '4px 8px 12px' }}>
                 <p className="small" style={{ margin: '4px 0' }}>
-                  יחס 1:{shotRatio(s).toFixed(1)} · זרימה {shotFlowRate(s).toFixed(1)} גרם/שנייה ·{' '}
-                  {s.basketType} · {s.portafilterType}
+                  יחס 1:{shotRatio(s).toFixed(1)} · זרימה {shotFlowRate(s).toFixed(1)} גרם/שנייה
+                  {s.yieldStopGrams && s.yieldGrams > s.yieldStopGrams
+                    ? ` · טפטוף ${(s.yieldGrams - s.yieldStopGrams).toFixed(1)} גרם`
+                    : ''}
+                  {' · '}{s.basketType} · {s.portafilterType}
                 </p>
                 {s.tasteTags.length > 0 && (
                   <p className="small" style={{ margin: '4px 0' }}>
@@ -146,6 +149,7 @@ export function ShotsScreen() {
 
 function EditShotForm({ shot, onClose }: { shot: Shot; onClose: () => void }) {
   const [dose, setDose] = useState(String(shot.doseGrams));
+  const [yieldStop, setYieldStop] = useState(shot.yieldStopGrams ? String(shot.yieldStopGrams) : '');
   const [yieldG, setYieldG] = useState(String(shot.yieldGrams));
   const [time, setTime] = useState(String(shot.brewTimeSec));
   const [grind, setGrind] = useState(String(shot.grindSetting));
@@ -157,9 +161,10 @@ function EditShotForm({ shot, onClose }: { shot: Shot; onClose: () => void }) {
       <h2>✏️ עריכת שוט</h2>
       <div className="field-row thirds">
         <Field label="גרם נכנס"><input type="number" step="0.1" value={dose} onChange={(e) => setDose(e.target.value)} /></Field>
-        <Field label="גרם יצא"><input type="number" step="0.1" value={yieldG} onChange={(e) => setYieldG(e.target.value)} /></Field>
-        <Field label="זמן (שניות)"><input type="number" value={time} onChange={(e) => setTime(e.target.value)} /></Field>
+        <Field label="עצירה בפועל (גרם)"><input type="number" step="0.1" placeholder="לא תועד" value={yieldStop} onChange={(e) => setYieldStop(e.target.value)} /></Field>
+        <Field label="סופי אחרי טפטוף"><input type="number" step="0.1" value={yieldG} onChange={(e) => setYieldG(e.target.value)} /></Field>
       </div>
+      <Field label="זמן (שניות)"><input type="number" value={time} onChange={(e) => setTime(e.target.value)} /></Field>
       <Field label="דרגת טחינה"><input type="number" step="0.5" value={grind} onChange={(e) => setGrind(e.target.value)} /></Field>
       <Field label="הערות"><textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
       <h3>דירוג</h3>
@@ -172,6 +177,7 @@ function EditShotForm({ shot, onClose }: { shot: Shot; onClose: () => void }) {
             await shotRepo.put({
               ...shot,
               doseGrams: parseFloat(dose) || shot.doseGrams,
+              yieldStopGrams: yieldStop ? parseFloat(yieldStop) : null,
               yieldGrams: parseFloat(yieldG) || shot.yieldGrams,
               brewTimeSec: parseInt(time) || shot.brewTimeSec,
               grindSetting: parseFloat(grind) || shot.grindSetting,

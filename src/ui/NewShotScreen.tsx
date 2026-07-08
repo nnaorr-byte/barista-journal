@@ -283,7 +283,8 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
           {recipeShot && bagId && (
             <button className="btn block" style={{ marginBottom: 10 }} onClick={applyRecipe}>
-              ⭐ הכן לפי המתכון השמור ({recipeShot.doseGrams}←{recipeShot.yieldGrams} גרם · טחינה {recipeShot.grindSetting} · דירוג {recipeShot.rating}/10)
+              ⭐ הכן לפי המתכון השמור ({recipeShot.doseGrams}←{recipeShot.yieldGrams} גרם
+              {recipeShot.yieldStopGrams ? `, עצירה ב-${recipeShot.yieldStopGrams}` : ''} · טחינה {recipeShot.grindSetting} · דירוג {recipeShot.rating}/10)
             </button>
           )}
 

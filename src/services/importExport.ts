@@ -4,7 +4,7 @@ import { shotRatio, shotFlowRate, type Bean, type Shot } from '../domain/types';
 // ייצוא CSV / Excel / גיבוי JSON מלא + שחזור.
 
 const SHOT_HEADERS = [
-  'תאריך', 'פולים', 'גרם נכנס', 'גרם יוצא', 'יחס', 'זמן (שניות)', 'זרימה (גרם/שניה)',
+  'תאריך', 'פולים', 'גרם נכנס', 'גרם בעצירה', 'גרם סופי (אחרי טפטוף)', 'יחס', 'זמן (שניות)', 'זרימה (גרם/שניה)',
   'טחינה', 'טמפרטורה', 'סלסלה', 'פורטפילטר', 'טעמים', 'Body', 'Crema', 'Aftertaste',
   'דירוג', 'הערות',
 ];
@@ -14,6 +14,7 @@ function shotRows(shots: Shot[], beans: Map<string, Bean>): (string | number)[][
     new Date(s.createdAt).toLocaleString('he-IL'),
     beans.get(s.beanId)?.name ?? '',
     s.doseGrams,
+    s.yieldStopGrams ?? '',
     s.yieldGrams,
     Number(shotRatio(s).toFixed(2)),
     s.brewTimeSec,

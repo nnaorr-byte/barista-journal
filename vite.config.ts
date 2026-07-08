@@ -14,6 +14,10 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
+      workbox: {
+        // כולל את קובצי הפונט במטמון — כדי שהעיצוב יעבוד גם אופליין
+        globPatterns: ['**/*.{js,css,html,svg,woff2}'],
+      },
       manifest: {
         name: 'יומן בריסטה חכם',
         short_name: 'Barista Journal',

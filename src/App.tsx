@@ -4,9 +4,10 @@ import { NewShotScreen } from './ui/NewShotScreen';
 import { ShotsScreen } from './ui/ShotsScreen';
 import { BeansScreen } from './ui/BeansScreen';
 import { DashboardScreen } from './ui/DashboardScreen';
+import { AnalyticsScreen } from './ui/AnalyticsScreen';
 import { SettingsScreen } from './ui/SettingsScreen';
 
-export type Screen = 'home' | 'new-shot' | 'shots' | 'beans' | 'dashboard' | 'settings';
+export type Screen = 'home' | 'new-shot' | 'shots' | 'beans' | 'dashboard' | 'analytics' | 'settings';
 
 const NAV: { screen: Screen; icon: string; label: string }[] = [
   { screen: 'home', icon: '🏠', label: 'בית' },
@@ -14,6 +15,7 @@ const NAV: { screen: Screen; icon: string; label: string }[] = [
   { screen: 'shots', icon: '📖', label: 'יומן' },
   { screen: 'beans', icon: '🫘', label: 'פולים' },
   { screen: 'dashboard', icon: '📊', label: 'נתונים' },
+  { screen: 'analytics', icon: '📈', label: 'ניתוח' },
   { screen: 'settings', icon: '⚙️', label: 'הגדרות' },
 ];
 
@@ -41,12 +43,16 @@ export default function App() {
         </button>
       </header>
 
-      {screen === 'home' && <HomeScreen navigate={setScreen} />}
-      {screen === 'new-shot' && <NewShotScreen navigate={setScreen} />}
-      {screen === 'shots' && <ShotsScreen />}
-      {screen === 'beans' && <BeansScreen />}
-      {screen === 'dashboard' && <DashboardScreen />}
-      {screen === 'settings' && <SettingsScreen />}
+      {/* key על העטיפה מפעיל את אנימציית הכניסה בכל החלפת מסך */}
+      <main key={screen} className="screen">
+        {screen === 'home' && <HomeScreen navigate={setScreen} />}
+        {screen === 'new-shot' && <NewShotScreen navigate={setScreen} />}
+        {screen === 'shots' && <ShotsScreen />}
+        {screen === 'beans' && <BeansScreen />}
+        {screen === 'dashboard' && <DashboardScreen />}
+        {screen === 'analytics' && <AnalyticsScreen />}
+        {screen === 'settings' && <SettingsScreen />}
+      </main>
 
       <nav className="bottom-nav">
         {NAV.map((item) => (

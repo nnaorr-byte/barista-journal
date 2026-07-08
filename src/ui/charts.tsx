@@ -30,13 +30,22 @@ function niceTicks(min: number, max: number, count = 4): number[] {
   return ticks;
 }
 
-export function LineChart({ points, unit = '' }: { points: Point[]; unit?: string }) {
+export function LineChart({
+  points, unit = '', band, overlay, overlayLabel,
+}: {
+  points: Point[];
+  unit?: string;
+  band?: { from: number; to: number; label?: string }; // רצועת יעד ברקע
+  overlay?: (number | null)[]; // סדרה נלווית (ממוצע נע) — קו מקווקו באותו גוון
+  overlayLabel?: string;
+}) {
   if (points.length < 2) {
     return <p className="muted small">צריך לפחות 2 שוטים כדי להציג מגמה.</p>;
   }
   const values = points.map((p) => p.value);
-  const rawMin = Math.min(...values);
-  const rawMax = Math.max(...values);
+  const overlayVals = (overlay ?? []).filter((v): v is number => v !== null);
+  const rawMin = Math.min(...values, ...(band ? [band.from] : []), ...overlayVals);
+  const rawMax = Math.max(...values, ...(band ? [band.to] : []), ...overlayVals);
   const pad = (rawMax - rawMin) * 0.15 || 1;
   const min = rawMin - pad;
   const max = rawMax + pad;
@@ -54,9 +63,33 @@ export function LineChart({ points, unit = '' }: { points: Point[]; unit?: strin
     ? points.map((_, i) => i)
     : [0, Math.floor(points.length / 2), points.length - 1];
 
+  const overlayPath = overlay
+    ? overlay
+        .map((v, i) => (v === null ? null : `${x(i).toFixed(1)},${y(v).toFixed(1)}`))
+        .reduce((acc, p, i, arr) => {
+          if (p === null) return acc;
+          const prev = i > 0 ? arr[i - 1] : null;
+          return acc + (prev === null ? `M${p}` : `L${p}`);
+        }, '')
+    : null;
+
   return (
     <div className="chart-wrap" dir="ltr">
       <svg className="chart-svg" viewBox={`0 0 ${W} ${H}`} role="img">
+        {band && (
+          <g>
+            <rect
+              x={M.left} width={W - M.left - M.right}
+              y={y(band.to)} height={Math.max(0, y(band.from) - y(band.to))}
+              fill={ACCENT} opacity="0.09"
+            />
+            {band.label && (
+              <text x={W - M.right - 4} y={y(band.to) + 13} textAnchor="end" fontSize="10" fill={INK_MUTED}>
+                {band.label}
+              </text>
+            )}
+          </g>
+        )}
         {ticks.map((t) => (
           <g key={t}>
             <line x1={M.left} x2={W - M.right} y1={y(t)} y2={y(t)} stroke={GRID} strokeWidth="1" opacity="0.5" />
@@ -66,6 +99,14 @@ export function LineChart({ points, unit = '' }: { points: Point[]; unit?: strin
           </g>
         ))}
         <path d={path} fill="none" stroke={ACCENT} strokeWidth="2" strokeLinejoin="round" />
+        {overlayPath && (
+          <path d={overlayPath} fill="none" stroke={ACCENT} strokeWidth="2" strokeDasharray="6 5" opacity="0.65" strokeLinejoin="round" />
+        )}
+        {overlayPath && overlayLabel && (
+          <text x={M.left + 4} y={M.top + 4} fontSize="10" fill={INK_MUTED}>
+            - - {overlayLabel}
+          </text>
+        )}
         {points.map((p, i) => (
           <circle key={i} cx={x(i)} cy={y(p.value)} r="4" fill={ACCENT}>
             <title>{`${p.label}: ${p.value}${unit}`}</title>
@@ -123,6 +164,108 @@ export function BarChart({ points, unit = '', maxValue }: { points: Point[]; uni
               >
                 {formatVal(p.value)}{unit}
               </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// תרשים פיזור: Dose מול Yield. שוטים מוצלחים (8+) מלאים, השאר קווי מתאר —
+// זהות לפי צורה ולא לפי צבע (נגיש לעיוורי צבעים).
+export interface ScatterPoint {
+  x: number;
+  y: number;
+  highlight: boolean;
+  label: string;
+}
+
+export function ScatterChart({
+  points, xLabel, yLabel,
+}: {
+  points: ScatterPoint[];
+  xLabel: string;
+  yLabel: string;
+}) {
+  if (points.length < 2) return <p className="muted small">צריך לפחות 2 שוטים להצגת פיזור.</p>;
+
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const padX = (Math.max(...xs) - Math.min(...xs)) * 0.15 || 0.5;
+  const padY = (Math.max(...ys) - Math.min(...ys)) * 0.15 || 2;
+  const minX = Math.min(...xs) - padX;
+  const maxX = Math.max(...xs) + padX;
+  const minY = Math.min(...ys) - padY;
+  const maxY = Math.max(...ys) + padY;
+
+  const iw = W - M.left - M.right;
+  const ih = H - M.top - M.bottom;
+  const px = (v: number) => M.left + ((v - minX) / (maxX - minX)) * iw;
+  const py = (v: number) => M.top + ih - ((v - minY) / (maxY - minY)) * ih;
+
+  const xTicks = niceTicks(minX, maxX, 5);
+  const yTicks = niceTicks(minY, maxY, 4);
+
+  return (
+    <div className="chart-wrap" dir="ltr">
+      <svg className="chart-svg" viewBox={`0 0 ${W} ${H}`} role="img">
+        {yTicks.map((t) => (
+          <g key={`y${t}`}>
+            <line x1={M.left} x2={W - M.right} y1={py(t)} y2={py(t)} stroke={GRID} strokeWidth="1" opacity="0.5" />
+            <text x={M.left - 6} y={py(t) + 4} textAnchor="end" fontSize="11" fill={INK_MUTED}>{t}</text>
+          </g>
+        ))}
+        {xTicks.map((t) => (
+          <text key={`x${t}`} x={px(t)} y={H - 8} textAnchor="middle" fontSize="11" fill={INK_MUTED}>{t}</text>
+        ))}
+        {points.map((p, i) => (
+          <circle
+            key={i} cx={px(p.x)} cy={py(p.y)} r={p.highlight ? 7 : 5}
+            fill={p.highlight ? ACCENT : 'none'}
+            stroke={ACCENT} strokeWidth="2"
+            opacity={p.highlight ? 1 : 0.55}
+          >
+            <title>{p.label}</title>
+          </circle>
+        ))}
+        <text x={W / 2} y={H - 22} textAnchor="middle" fontSize="10" fill={INK_MUTED}>{xLabel}</text>
+        <text x={14} y={M.top - 2} fontSize="10" fill={INK_MUTED}>{yLabel}</text>
+      </svg>
+    </div>
+  );
+}
+
+// היסטוגרמה אנכית (התפלגות דירוגים 1–10)
+export function Histogram({ bins, unit = '' }: { bins: Point[]; unit?: string }) {
+  if (bins.every((b) => b.value === 0)) return <p className="muted small">אין נתונים עדיין.</p>;
+  const max = Math.max(...bins.map((b) => b.value));
+  const iw = W - M.left - M.right;
+  const ih = H - M.top - M.bottom;
+  const barW = (iw / bins.length) * 0.72;
+  const gap = iw / bins.length;
+
+  return (
+    <div className="chart-wrap" dir="ltr">
+      <svg className="chart-svg" viewBox={`0 0 ${W} ${H}`} role="img">
+        {bins.map((b, i) => {
+          const h = max > 0 ? (b.value / max) * ih : 0;
+          const cx = M.left + gap * i + gap / 2;
+          return (
+            <g key={b.label}>
+              <rect
+                x={cx - barW / 2} y={M.top + ih - h}
+                width={barW} height={Math.max(h, b.value > 0 ? 3 : 0)} rx="4"
+                fill={ACCENT}
+              >
+                <title>{`${b.label}: ${b.value}${unit}`}</title>
+              </rect>
+              {b.value > 0 && (
+                <text x={cx} y={M.top + ih - h - 6} textAnchor="middle" fontSize="11" fontWeight="700" fill="var(--text)">
+                  {b.value}
+                </text>
+              )}
+              <text x={cx} y={H - 8} textAnchor="middle" fontSize="11" fill={INK_MUTED}>{b.label}</text>
             </g>
           );
         })}

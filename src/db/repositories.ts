@@ -23,6 +23,30 @@ export const machineRepo = {
     return all.find((m) => m.isDefault) ?? all[0];
   },
   put: (m: Machine): Promise<unknown> => db.machines.put(m),
+  async create(machine: Omit<Machine, 'id' | 'isDefault'>): Promise<Machine> {
+    const full: Machine = { ...machine, id: newId(), isDefault: false };
+    await db.machines.add(full);
+    return full;
+  },
+  async setDefault(id: string): Promise<void> {
+    await db.transaction('rw', db.machines, async () => {
+      const all = await db.machines.toArray();
+      for (const m of all) await db.machines.put({ ...m, isDefault: m.id === id });
+    });
+  },
+  async removeIfUnused(id: string): Promise<'removed' | 'in-use' | 'last-one'> {
+    const all = await db.machines.toArray();
+    if (all.length <= 1) return 'last-one';
+    const used = await db.shots.where('machineId').equals(id).count();
+    if (used > 0) return 'in-use';
+    const wasDefault = all.find((m) => m.id === id)?.isDefault;
+    await db.machines.delete(id);
+    if (wasDefault) {
+      const rest = await db.machines.toArray();
+      if (rest[0]) await db.machines.put({ ...rest[0], isDefault: true });
+    }
+    return 'removed';
+  },
 };
 
 export const grinderRepo = {
@@ -37,6 +61,24 @@ export const grinderRepo = {
       const all = await db.grinders.toArray();
       for (const g of all) await db.grinders.put({ ...g, isDefault: g.id === id });
     });
+  },
+  async create(grinder: Omit<Grinder, 'id' | 'isDefault'>): Promise<Grinder> {
+    const full: Grinder = { ...grinder, id: newId(), isDefault: false };
+    await db.grinders.add(full);
+    return full;
+  },
+  async removeIfUnused(id: string): Promise<'removed' | 'in-use' | 'last-one'> {
+    const all = await db.grinders.toArray();
+    if (all.length <= 1) return 'last-one';
+    const used = await db.shots.where('grinderId').equals(id).count();
+    if (used > 0) return 'in-use';
+    const wasDefault = all.find((g) => g.id === id)?.isDefault;
+    await db.grinders.delete(id);
+    if (wasDefault) {
+      const rest = await db.grinders.toArray();
+      if (rest[0]) await db.grinders.put({ ...rest[0], isDefault: true });
+    }
+    return 'removed';
   },
 };
 

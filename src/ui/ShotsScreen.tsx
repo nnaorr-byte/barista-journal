@@ -2,9 +2,16 @@ import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import { shotRepo } from '../db/repositories';
-import { shotRatio, shotFlowRate, type Shot, type TasteTag } from '../domain/types';
-import { EmptyState, Field, RatingPicker } from './components';
-import { FLAVOR_LABELS, TASTE_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
+import {
+  shotRatio, shotFlowRate,
+  type FlavorNote, type MachineTempSetting, type QualityLevel, type Shot, type TasteTag,
+} from '../domain/types';
+import { Chips, EmptyState, Field, RatingPicker } from './components';
+import { FLAVOR_LABELS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
+
+const TASTE_OPTIONS = (Object.entries(TASTE_LABELS) as [TasteTag, string][]).map(([value, label]) => ({ value, label }));
+const FLAVOR_OPTIONS = (Object.entries(FLAVOR_LABELS) as [FlavorNote, string][]).map(([value, label]) => ({ value, label }));
+const QUALITY_OPTIONS = (Object.entries(QUALITY_LABELS) as [QualityLevel, string][]).map(([value, label]) => ({ value, label }));
 
 export function ShotsScreen() {
   const data = useLiveQuery(async () => {
@@ -153,19 +160,78 @@ function EditShotForm({ shot, onClose }: { shot: Shot; onClose: () => void }) {
   const [yieldG, setYieldG] = useState(String(shot.yieldGrams));
   const [time, setTime] = useState(String(shot.brewTimeSec));
   const [grind, setGrind] = useState(String(shot.grindSetting));
+  const [temp, setTemp] = useState<MachineTempSetting>(shot.machineTemp);
+  const [basketType, setBasketType] = useState(shot.basketType);
+  const [portafilterType, setPortafilterType] = useState(shot.portafilterType);
+  const [tasteTags, setTasteTags] = useState<TasteTag[]>(shot.tasteTags);
+  const [tasteOther, setTasteOther] = useState(shot.tasteOther);
+  const [flavorNotes, setFlavorNotes] = useState<FlavorNote[]>(shot.flavorNotes ?? []);
+  const [body, setBody] = useState<QualityLevel | null>(shot.body);
+  const [crema, setCrema] = useState<QualityLevel | null>(shot.crema);
+  const [aftertaste, setAftertaste] = useState<QualityLevel | null>(shot.aftertaste);
   const [notes, setNotes] = useState(shot.notes);
   const [rating, setRating] = useState(shot.rating);
 
   return (
     <div className="card">
-      <h2>✏️ עריכת שוט</h2>
+      <h2>✏️ עריכת שוט — {formatDateTime(shot.createdAt)}</h2>
       <div className="field-row thirds">
         <Field label="גרם נכנס"><input type="number" step="0.1" value={dose} onChange={(e) => setDose(e.target.value)} /></Field>
         <Field label="עצירה בפועל (גרם)"><input type="number" step="0.1" placeholder="לא תועד" value={yieldStop} onChange={(e) => setYieldStop(e.target.value)} /></Field>
         <Field label="סופי אחרי טפטוף"><input type="number" step="0.1" value={yieldG} onChange={(e) => setYieldG(e.target.value)} /></Field>
       </div>
-      <Field label="זמן (שניות)"><input type="number" value={time} onChange={(e) => setTime(e.target.value)} /></Field>
-      <Field label="דרגת טחינה"><input type="number" step="0.5" value={grind} onChange={(e) => setGrind(e.target.value)} /></Field>
+      <div className="field-row thirds">
+        <Field label="זמן (שניות)"><input type="number" value={time} onChange={(e) => setTime(e.target.value)} /></Field>
+        <Field label="דרגת טחינה"><input type="number" step="0.5" value={grind} onChange={(e) => setGrind(e.target.value)} /></Field>
+        <Field label="טמפרטורה">
+          <select value={temp} onChange={(e) => setTemp(e.target.value as MachineTempSetting)}>
+            {(Object.entries(TEMP_LABELS) as [MachineTempSetting, string][]).map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      <div className="field-row">
+        <Field label="סוג סלסלה">
+          <select value={basketType} onChange={(e) => setBasketType(e.target.value)}>
+            {['סטנדרטית', 'Pressurized (מקורית)', 'IMS / מקצועית', shot.basketType]
+              .filter((v, i, a) => a.indexOf(v) === i)
+              .map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+        </Field>
+        <Field label="פורטפילטר">
+          <select value={portafilterType} onChange={(e) => setPortafilterType(e.target.value)}>
+            {['Bottomless', 'Standard', shot.portafilterType]
+              .filter((v, i, a) => a.indexOf(v) === i)
+              .map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </Field>
+      </div>
+
+      <h3>טעם</h3>
+      <Chips
+        options={TASTE_OPTIONS} selected={tasteTags}
+        onToggle={(t) => setTasteTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]))}
+      />
+      {tasteTags.includes('other') && (
+        <div style={{ marginTop: 8 }}>
+          <input placeholder="תאר את הטעם…" value={tasteOther} onChange={(e) => setTasteOther(e.target.value)} />
+        </div>
+      )}
+
+      <h3>תווי טעם — גלגל הטעמים</h3>
+      <Chips
+        options={FLAVOR_OPTIONS} selected={flavorNotes}
+        onToggle={(f) => setFlavorNotes((prev) => (prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]))}
+      />
+
+      <h3>Body</h3>
+      <Chips options={QUALITY_OPTIONS} selected={body ? [body] : []} onToggle={(v) => setBody(body === v ? null : v)} />
+      <h3>Crema</h3>
+      <Chips options={QUALITY_OPTIONS} selected={crema ? [crema] : []} onToggle={(v) => setCrema(crema === v ? null : v)} />
+      <h3>Aftertaste</h3>
+      <Chips options={QUALITY_OPTIONS} selected={aftertaste ? [aftertaste] : []} onToggle={(v) => setAftertaste(aftertaste === v ? null : v)} />
+
       <Field label="הערות"><textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
       <h3>דירוג</h3>
       <RatingPicker value={rating} onChange={setRating} />
@@ -181,6 +247,15 @@ function EditShotForm({ shot, onClose }: { shot: Shot; onClose: () => void }) {
               yieldGrams: parseFloat(yieldG) || shot.yieldGrams,
               brewTimeSec: parseInt(time) || shot.brewTimeSec,
               grindSetting: parseFloat(grind) || shot.grindSetting,
+              machineTemp: temp,
+              basketType,
+              portafilterType,
+              tasteTags,
+              tasteOther: tasteTags.includes('other') ? tasteOther : '',
+              flavorNotes,
+              body,
+              crema,
+              aftertaste,
               notes,
               rating,
             });

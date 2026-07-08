@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
-import { grinderRepo, maintenanceRepo, userRepo, wipeAllData } from '../db/repositories';
+import { grinderRepo, machineRepo, maintenanceRepo, userRepo, wipeAllData } from '../db/repositories';
+import type { Grinder, GrinderType, Machine } from '../domain/types';
 import { seedIfEmpty } from '../db/database';
 import { MAINTENANCE_RULES, computeMaintenanceStatus } from '../services/maintenance';
 import { exportBackup, exportCsv, exportExcel, getLastBackupAt, restoreBackup, shareBackup } from '../services/importExport';
@@ -56,32 +57,8 @@ export function SettingsScreen() {
       </div>
 
       {/* ציוד */}
-      <div className="card">
-        <h2>🛠️ הציוד שלי</h2>
-        {machines.map((m) => (
-          <div key={m.id} style={{ marginBottom: 8 }}>
-            <strong>{m.name}</strong>
-            <div className="muted small">
-              פורטפילטרים: {m.portafilterTypes.join(', ')} · אביזרים: {m.accessories.join(', ')}
-            </div>
-          </div>
-        ))}
-        <hr className="sep" />
-        <h3 style={{ marginTop: 0 }}>מטחנות</h3>
-        {grinders.map((g) => (
-          <div key={g.id} className="shot-item" style={{ cursor: 'default' }}>
-            <div style={{ flex: 1 }}>
-              {g.name} <span className="muted small">({g.type === 'manual' ? 'ידנית' : 'חשמלית'})</span>
-              {g.isDefault && <span className="badge accent">ברירת מחדל</span>}
-            </div>
-            {!g.isDefault && (
-              <button className="btn small secondary" onClick={() => grinderRepo.setDefault(g.id)}>
-                הפוך לברירת מחדל
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
+      <EquipmentCard machines={machines} grinders={grinders} userId={user.id} />
+
 
       {/* תחזוקה */}
       <div className="card">
@@ -186,8 +163,211 @@ export function SettingsScreen() {
       </div>
 
       <p className="muted small" style={{ textAlign: 'center' }}>
-        יומן בריסטה חכם · גרסה 1.0 · הנתונים נשמרים מקומית במכשיר שלך בלבד
+        יומן בריסטה חכם · הנתונים נשמרים מקומית במכשיר שלך בלבד
       </p>
+    </div>
+  );
+}
+
+// ===== ניהול ציוד: מכונות ומטחנות =====
+function EquipmentCard({ machines, grinders, userId }: {
+  machines: Machine[];
+  grinders: Grinder[];
+  userId: string;
+}) {
+  const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
+  const [editingGrinder, setEditingGrinder] = useState<Grinder | null>(null);
+  const [addingGrinder, setAddingGrinder] = useState(false);
+  const [addingMachine, setAddingMachine] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  async function removeGrinder(g: Grinder) {
+    const result = await grinderRepo.removeIfUnused(g.id);
+    if (result === 'in-use') setMsg(`אי אפשר למחוק את "${g.name}" — יש שוטים שתועדו איתה. ההיסטוריה שלך חשובה!`);
+    else if (result === 'last-one') setMsg('חייבת להישאר מטחנה אחת לפחות.');
+    else setMsg(`"${g.name}" נמחקה.`);
+  }
+
+  async function removeMachine(m: Machine) {
+    const result = await machineRepo.removeIfUnused(m.id);
+    if (result === 'in-use') setMsg(`אי אפשר למחוק את "${m.name}" — יש שוטים שתועדו איתה.`);
+    else if (result === 'last-one') setMsg('חייבת להישאר מכונה אחת לפחות.');
+    else setMsg(`"${m.name}" נמחקה.`);
+  }
+
+  return (
+    <div className="card">
+      <h2>🛠️ הציוד שלי</h2>
+
+      <h3 style={{ marginTop: 4 }}>מכונות אספרסו</h3>
+      {machines.map((m) => (
+        <div key={m.id} className="shot-item" style={{ cursor: 'default' }}>
+          <div style={{ flex: 1 }}>
+            <strong>{m.name}</strong>
+            {m.isDefault && <span className="badge accent" style={{ marginInlineStart: 6 }}>ברירת מחדל</span>}
+            <div className="muted small">פורטפילטרים: {m.portafilterTypes.join(', ')}</div>
+          </div>
+          <div className="btn-row" style={{ marginTop: 0 }}>
+            {!m.isDefault && (
+              <button className="btn small secondary" onClick={() => machineRepo.setDefault(m.id)}>ברירת מחדל</button>
+            )}
+            <button className="btn small secondary" onClick={() => setEditingMachine(m)}>✏️</button>
+            {machines.length > 1 && (
+              <button className="btn small danger" onClick={() => removeMachine(m)}>🗑️</button>
+            )}
+          </div>
+        </div>
+      ))}
+      {editingMachine && (
+        <MachineForm
+          initial={editingMachine}
+          onClose={() => setEditingMachine(null)}
+          onSave={async (name, portafilters) => {
+            await machineRepo.put({ ...editingMachine, name, portafilterTypes: portafilters });
+            setEditingMachine(null);
+          }}
+        />
+      )}
+      {addingMachine ? (
+        <MachineForm
+          onClose={() => setAddingMachine(false)}
+          onSave={async (name, portafilters) => {
+            await machineRepo.create({
+              userId, name, brand: '', model: '', defaultTemp: 'medium',
+              portafilterTypes: portafilters, accessories: [],
+            });
+            setAddingMachine(false);
+          }}
+        />
+      ) : (
+        <button className="btn small secondary" onClick={() => setAddingMachine(true)}>➕ מכונה חדשה</button>
+      )}
+
+      <hr className="sep" />
+      <h3 style={{ marginTop: 0 }}>מטחנות</h3>
+      {grinders.map((g) => (
+        <div key={g.id} className="shot-item" style={{ cursor: 'default' }}>
+          <div style={{ flex: 1 }}>
+            {g.name} <span className="muted small">({g.type === 'manual' ? 'ידנית' : 'חשמלית'} · סקאלה {g.scaleMin}–{g.scaleMax})</span>
+            {g.isDefault && <span className="badge accent" style={{ marginInlineStart: 6 }}>ברירת מחדל</span>}
+          </div>
+          <div className="btn-row" style={{ marginTop: 0 }}>
+            {!g.isDefault && (
+              <button className="btn small secondary" onClick={() => grinderRepo.setDefault(g.id)}>ברירת מחדל</button>
+            )}
+            <button className="btn small secondary" onClick={() => setEditingGrinder(g)}>✏️</button>
+            {grinders.length > 1 && (
+              <button className="btn small danger" onClick={() => removeGrinder(g)}>🗑️</button>
+            )}
+          </div>
+        </div>
+      ))}
+      {editingGrinder && (
+        <GrinderForm
+          initial={editingGrinder}
+          onClose={() => setEditingGrinder(null)}
+          onSave={async (fields) => {
+            await grinderRepo.put({ ...editingGrinder, ...fields });
+            setEditingGrinder(null);
+          }}
+        />
+      )}
+      {addingGrinder ? (
+        <GrinderForm
+          onClose={() => setAddingGrinder(false)}
+          onSave={async (fields) => {
+            await grinderRepo.create({ userId, ...fields });
+            setAddingGrinder(false);
+          }}
+        />
+      ) : (
+        <button className="btn small secondary" onClick={() => setAddingGrinder(true)}>➕ מטחנה חדשה</button>
+      )}
+
+      {msg && <p className="small" style={{ marginTop: 10 }}>{msg}</p>}
+      <p className="muted small" style={{ marginTop: 10 }}>
+        דרגות הטחינה ביומן נשמרות ביחס למטחנה שנבחרה בכל שוט — לכל מטחנה סקאלה משלה.
+      </p>
+    </div>
+  );
+}
+
+function MachineForm({ initial, onSave, onClose }: {
+  initial?: Machine;
+  onSave: (name: string, portafilters: string[]) => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(initial?.name ?? '');
+  const [portafilters, setPortafilters] = useState((initial?.portafilterTypes ?? ['Bottomless', 'Standard']).join(', '));
+  return (
+    <div style={{ background: 'var(--bg-elevated)', borderRadius: 12, padding: 12, margin: '8px 0' }}>
+      <Field label="שם המכונה">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="למשל: DeLonghi EC685" />
+      </Field>
+      <Field label="סוגי פורטפילטר (מופרדים בפסיק)">
+        <input value={portafilters} onChange={(e) => setPortafilters(e.target.value)} />
+      </Field>
+      <div className="btn-row">
+        <button className="btn small secondary" onClick={onClose}>ביטול</button>
+        <button
+          className="btn small" disabled={!name.trim()}
+          onClick={() => onSave(name.trim(), portafilters.split(',').map((p) => p.trim()).filter(Boolean))}
+        >
+          💾 שמירה
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function GrinderForm({ initial, onSave, onClose }: {
+  initial?: Grinder;
+  onSave: (fields: { name: string; type: GrinderType; scaleMin: number; scaleMax: number; scaleStep: number }) => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(initial?.name ?? '');
+  const [type, setType] = useState<GrinderType>(initial?.type ?? 'electric');
+  const [scaleMin, setScaleMin] = useState(String(initial?.scaleMin ?? 0));
+  const [scaleMax, setScaleMax] = useState(String(initial?.scaleMax ?? 40));
+  const [scaleStep, setScaleStep] = useState(String(initial?.scaleStep ?? 1));
+  return (
+    <div style={{ background: 'var(--bg-elevated)', borderRadius: 12, padding: 12, margin: '8px 0' }}>
+      <div className="field-row">
+        <Field label="שם המטחנה">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="למשל: Timemore C2" />
+        </Field>
+        <Field label="סוג">
+          <select value={type} onChange={(e) => setType(e.target.value as GrinderType)}>
+            <option value="manual">ידנית</option>
+            <option value="electric">חשמלית</option>
+          </select>
+        </Field>
+      </div>
+      <div className="field-row thirds">
+        <Field label="סקאלה — מינימום">
+          <input type="number" value={scaleMin} onChange={(e) => setScaleMin(e.target.value)} />
+        </Field>
+        <Field label="מקסימום">
+          <input type="number" value={scaleMax} onChange={(e) => setScaleMax(e.target.value)} />
+        </Field>
+        <Field label="קפיצת דרגה">
+          <input type="number" step="0.1" value={scaleStep} onChange={(e) => setScaleStep(e.target.value)} />
+        </Field>
+      </div>
+      <div className="btn-row">
+        <button className="btn small secondary" onClick={onClose}>ביטול</button>
+        <button
+          className="btn small" disabled={!name.trim()}
+          onClick={() => onSave({
+            name: name.trim(), type,
+            scaleMin: parseFloat(scaleMin) || 0,
+            scaleMax: parseFloat(scaleMax) || 40,
+            scaleStep: parseFloat(scaleStep) || 1,
+          })}
+        >
+          💾 שמירה
+        </button>
+      </div>
     </div>
   );
 }

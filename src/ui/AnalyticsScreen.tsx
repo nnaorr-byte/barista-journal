@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
-import { shotRatio, shotFlowRate, type Bean, type FlavorNote, type Shot } from '../domain/types';
-import { LineChart, ScatterChart, Histogram, type Point } from './charts';
+import {
+  shotRatio, shotFlowRate,
+  type Bag, type Bean, type DialInSession, type FlavorNote, type Shot,
+} from '../domain/types';
+import { BarChart, LineChart, ScatterChart, Histogram, type Point } from './charts';
 import { StatTile, EmptyState } from './components';
 import { FLAVOR_LABELS, formatDateTime, shotWeights } from './labels';
 
@@ -45,6 +48,194 @@ function consistencyScore(shots: Shot[]): number | null {
 interface Insight {
   icon: string;
   text: string;
+}
+
+// ===== מפת חום: טחינה × זמן — "האזור החם" שלך =====
+const TIME_BUCKETS = [
+  { label: '<22', test: (t: number) => t < 22 },
+  { label: '22–25', test: (t: number) => t >= 22 && t < 25 },
+  { label: '25–28', test: (t: number) => t >= 25 && t < 28 },
+  { label: '28–32', test: (t: number) => t >= 28 && t <= 32 },
+  { label: '32+', test: (t: number) => t > 32 },
+];
+
+function GrindTimeHeatmap({ shots }: { shots: Shot[] }) {
+  const withGrind = shots.filter((s) => s.grindSetting > 0 && s.brewTimeSec > 0);
+  if (withGrind.length < 4) return null;
+
+  const grindValues = [...new Set(withGrind.map((s) => s.grindSetting))].sort((a, b) => b - a);
+  if (grindValues.length < 2) return null;
+
+  const cells = grindValues.map((g) =>
+    TIME_BUCKETS.map((b) => {
+      const inCell = withGrind.filter((s) => s.grindSetting === g && b.test(s.brewTimeSec));
+      return inCell.length
+        ? { avg: mean(inCell.map((s) => s.rating)), count: inCell.length }
+        : null;
+    }),
+  );
+
+  return (
+    <div className="card">
+      <h2>🔥 מפת חום: טחינה × זמן</h2>
+      <p className="muted small" style={{ marginTop: 0 }}>
+        כל תא = דירוג ממוצע. כהה יותר = טעים יותר. חפש את "האזור החם" שלך.
+      </p>
+      <div style={{ overflowX: 'auto' }}>
+        <table className="data" style={{ minWidth: 320 }}>
+          <thead>
+            <tr>
+              <th>טחינה \ זמן</th>
+              {TIME_BUCKETS.map((b) => <th key={b.label} style={{ textAlign: 'center' }}>{b.label}s</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {grindValues.map((g, gi) => (
+              <tr key={g}>
+                <td style={{ fontWeight: 700 }}>{g}</td>
+                {cells[gi].map((cell, ci) => (
+                  <td key={ci} style={{ textAlign: 'center' }}>
+                    {cell ? (
+                      <span
+                        title={`${cell.count} שוטים`}
+                        style={{
+                          display: 'inline-block',
+                          minWidth: 42,
+                          padding: '5px 6px',
+                          borderRadius: 8,
+                          fontWeight: 700,
+                          background: `color-mix(in srgb, var(--accent) ${Math.round((cell.avg / 10) * 85)}%, transparent)`,
+                        }}
+                      >
+                        {cell.avg.toFixed(1)}
+                        <span className="muted" style={{ fontWeight: 400 }}> ×{cell.count}</span>
+                      </span>
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ===== היסטוריית סשני כיול =====
+function DialInHistory({ sessions, shots, bags, beans }: {
+  sessions: DialInSession[];
+  shots: Shot[];
+  bags: Bag[];
+  beans: Bean[];
+}) {
+  if (sessions.length === 0) return null;
+  const bagMap = new Map(bags.map((b) => [b.id, b]));
+  const beanMap = new Map(beans.map((b) => [b.id, b]));
+  const sorted = [...sessions].sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+
+  const statusLabel = (s: DialInSession) =>
+    s.status === 'dialed-in' ? { text: '✓ מכויל', cls: 'good' }
+    : s.status === 'active' ? { text: 'פעיל', cls: 'accent' }
+    : { text: 'ננטש', cls: 'warn' };
+
+  // האם אתה מתכייל מהר יותר? ממוצע שוטים-עד-כיול, ראשונים מול אחרונים
+  const dialed = sorted.filter((s) => s.status === 'dialed-in').reverse(); // ישן→חדש
+  const shotsToDialed = dialed.map((s) => {
+    const sessionShots = shots.filter((x) => x.dialInSessionId === s.id);
+    return sessionShots.length;
+  });
+  let speedInsight: string | null = null;
+  if (shotsToDialed.length >= 4) {
+    const half = Math.floor(shotsToDialed.length / 2);
+    const early = mean(shotsToDialed.slice(0, half));
+    const late = mean(shotsToDialed.slice(half));
+    if (early - late >= 0.8) {
+      speedInsight = `אתה מתכייל מהר יותר: בעבר נדרשו לך בממוצע ${early.toFixed(1)} שוטים לכיול, היום ${late.toFixed(1)}. הניסיון עובד!`;
+    }
+  }
+
+  return (
+    <div className="card">
+      <h2>🎛️ סשני הכיול שלי</h2>
+      {speedInsight && <p className="small" style={{ color: 'var(--good)' }}>📈 {speedInsight}</p>}
+      {sorted.slice(0, 8).map((s) => {
+        const sessionShots = shots.filter((x) => x.dialInSessionId === s.id);
+        const bag = bagMap.get(s.bagId);
+        const bean = bag ? beanMap.get(bag.beanId) : null;
+        const best = s.bestShotId ? shots.find((x) => x.id === s.bestShotId) : null;
+        const st = statusLabel(s);
+        return (
+          <div key={s.id} className="shot-item" style={{ cursor: 'default' }}>
+            <div style={{ flex: 1 }}>
+              <div>
+                {bean?.name ?? 'פולים'} <span className={`badge ${st.cls}`}>{st.text}</span>
+              </div>
+              <div className="muted small">
+                {new Date(s.startedAt).toLocaleDateString('he-IL')} · {sessionShots.length} שוטים בסשן
+                {best && ` · השוט המנצח: ${best.rating}/10 (טחינה ${best.grindSetting}, ${best.brewTimeSec} שניות)`}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ===== דשבורד עלויות =====
+const CAFE_ESPRESSO_PRICE = 12; // ₪ — הנחת מחיר אספרסו ממוצע בבית קפה
+
+function CostDashboard({ shots, bags }: { shots: Shot[]; bags: Bag[] }) {
+  const bagMap = new Map(bags.map((b) => [b.id, b]));
+  const pricedShots = shots.filter((s) => {
+    const bag = bagMap.get(s.bagId);
+    return bag && bag.price !== null && bag.weightGrams > 0;
+  });
+  if (pricedShots.length < 2) return null;
+
+  const shotCost = (s: Shot) => {
+    const bag = bagMap.get(s.bagId)!;
+    return (bag.price! / bag.weightGrams) * s.doseGrams;
+  };
+  const totalConsumed = pricedShots.reduce((a, s) => a + shotCost(s), 0);
+  const avgCost = totalConsumed / pricedShots.length;
+  const totalBagSpend = bags.filter((b) => b.price !== null).reduce((a, b) => a + b.price!, 0);
+  const savings = pricedShots.length * CAFE_ESPRESSO_PRICE - totalConsumed;
+
+  // פילוח חודשי
+  const byMonth = new Map<string, number>();
+  for (const s of pricedShots) {
+    const month = s.createdAt.slice(0, 7);
+    byMonth.set(month, (byMonth.get(month) ?? 0) + shotCost(s));
+  }
+  const monthly = [...byMonth.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .slice(-6)
+    .map(([month, cost]) => ({ label: month, value: Math.round(cost) }));
+
+  return (
+    <div className="card">
+      <h2>💰 עלויות הקפה שלי</h2>
+      <div className="stat-grid">
+        <StatTile value={`₪${avgCost.toFixed(1)}`} label="עלות לשוט" />
+        <StatTile value={`₪${Math.round(totalConsumed)}`} label="קפה שנצרך" />
+        <StatTile value={`₪${Math.round(totalBagSpend)}`} label="הושקע בפולים" />
+        <StatTile value={`₪${Math.round(savings)}`} label="חיסכון מול בית קפה" />
+      </div>
+      {monthly.length > 1 && (
+        <>
+          <h3>הוצאה חודשית (₪, לפי צריכה בפועל)</h3>
+          <BarChart points={monthly} unit="₪" />
+        </>
+      )}
+      <p className="muted small" style={{ marginTop: 8 }}>
+        החיסכון מחושב מול אספרסו ממוצע בבית קפה (~₪{CAFE_ESPRESSO_PRICE}). מבוסס רק על שוטים משקיות שהוזן להן מחיר.
+      </p>
+    </div>
+  );
 }
 
 // ===== Coffee Wrapped — סיכום השנה =====
@@ -253,17 +444,19 @@ function buildInsights(shots: Shot[]): Insight[] {
 
 export function AnalyticsScreen() {
   const data = useLiveQuery(async () => {
-    const [shots, grinders, beans] = await Promise.all([
+    const [shots, grinders, beans, bags, sessions] = await Promise.all([
       db.shots.orderBy('createdAt').toArray(), // ישן→חדש
       db.grinders.toArray(),
       db.beans.toArray(),
+      db.bags.toArray(),
+      db.dialInSessions.toArray(),
     ]);
-    return { shots, grinders, beans };
+    return { shots, grinders, beans, bags, sessions };
   });
   const [wrapped, setWrapped] = useState(false);
 
   if (!data) return null;
-  const { shots, grinders, beans } = data;
+  const { shots, grinders, beans, bags, sessions } = data;
 
   if (wrapped) {
     return <CoffeeWrapped shots={shots} beans={beans} onBack={() => setWrapped(false)} />;
@@ -422,6 +615,15 @@ export function AnalyticsScreen() {
           </p>
         </div>
       )}
+
+      {/* מפת חום: טחינה × זמן */}
+      <GrindTimeHeatmap shots={valid} />
+
+      {/* היסטוריית סשני כיול */}
+      <DialInHistory sessions={sessions} shots={shots} bags={bags} beans={beans} />
+
+      {/* עלויות */}
+      <CostDashboard shots={shots} bags={bags} />
 
       {/* התפלגות הצלחה */}
       <div className="card">

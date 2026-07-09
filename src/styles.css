@@ -417,13 +417,48 @@ button.btn.small { padding: 8px 15px; font-size: 0.84rem; font-weight: 600; bord
 }
 .timer-ring { width: 100%; height: auto; display: block; }
 .timer-display.in-ring {
+  font-size: 2.5rem;
+  margin: 0;
+  line-height: 1;
+}
+
+/* כפתור ההפעלה בתוך הטבעת */
+.timer-center {
   position: absolute;
-  inset: 0;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 63%;
+  height: 63%;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: var(--crema);
+  cursor: pointer;
+  font-family: inherit;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 2.7rem;
-  margin: 0;
+  gap: 4px;
+  box-shadow: inset 0 1px 0 rgba(255, 226, 180, 0.25);
+  transition: transform 0.15s var(--spring), box-shadow 0.3s, background 0.3s;
+}
+.timer-center:hover { background: var(--glass-bg-hover); box-shadow: inset 0 1px 0 rgba(255, 226, 180, 0.25), 0 0 24px var(--glow); }
+.timer-center:active { transform: translate(-50%, -50%) scale(0.95); }
+.timer-center.running { border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+.timer-center-icon {
+  font-size: 2.6rem;
+  color: var(--accent-strong);
+  line-height: 1;
+  margin-inline-start: 6px; /* איזון חזותי של משולש ה-▶ */
+}
+.timer-center-hint {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
 /* ---- טיימר ---- */

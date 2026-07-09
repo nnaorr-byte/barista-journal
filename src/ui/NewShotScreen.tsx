@@ -641,33 +641,21 @@ function BrewStep({
   const overZone = elapsed > targetMax;
   const progressColor = overZone ? 'var(--bad)' : inZone ? 'var(--good)' : 'var(--accent)';
 
+  // לחיצה על מרכז הטבעת: התחלה ← עצירה ← איפוס והתחלה מחדש
+  function toggleTimer() {
+    if (running) {
+      setRunning(false);
+      return;
+    }
+    startRef.current = Date.now();
+    setElapsed(0);
+    vibratedRef.current = { enter: false, exceed: false };
+    setRunning(true);
+  }
+
   return (
     <div>
-      <div className="card accent">
-        <h2>🎯 שלב 2: ההמלצה עבור {beanName}</h2>
-        <div className="stat-grid">
-          <StatTile value={recommendation.doseGrams} label="גרם נכנס" />
-          <StatTile value={recommendation.yieldGrams} label="יעד גרם יוצא" />
-          <StatTile value={`${recommendation.brewTimeSecMin}–${recommendation.brewTimeSecMax}`} label="יעד שניות" />
-          <StatTile value={`1:${recommendation.ratio}`} label="יחס" />
-          {recommendation.grindSetting !== null && <StatTile value={recommendation.grindSetting} label="טחינה" />}
-        </div>
-        <p className="muted small" style={{ marginTop: 8 }}>
-          {confidenceLabel(recommendation.confidence, recommendation.basedOnShots)}
-        </p>
-        {recommendation.reasons.map((r, i) => (
-          <p key={i} className="muted small" style={{ margin: '4px 0' }}>• {r}</p>
-        ))}
-        {recommendation.beanNotes.length > 0 && (
-          <>
-            <h3>📝 הערות על הפולים</h3>
-            {recommendation.beanNotes.map((n, i) => (
-              <p key={i} className="small" style={{ margin: '4px 0', color: 'var(--crema)' }}>• {n}</p>
-            ))}
-          </>
-        )}
-      </div>
-
+      {/* הטיימר למעלה */}
       <div className="card">
         <h2>⏱️ טיימר חליטה — יעד {targetMin}–{targetMax} שניות</h2>
         <div className="timer-ring-wrap" dir="ltr">
@@ -691,35 +679,37 @@ function BrewStep({
               style={{ transition: 'stroke 0.3s' }}
             />
           </svg>
-          <div className={`timer-display in-ring ${running ? 'running' : ''}`} style={overZone && running ? { color: 'var(--bad)' } : inZone && running ? { color: 'var(--good)' } : undefined}>
-            {String(Math.floor(displaySec / 60)).padStart(2, '0')}:{String(displaySec % 60).padStart(2, '0')}
-          </div>
+          {/* כפתור ההפעלה בתוך הטבעת */}
+          <button
+            className={`timer-center ${running ? 'running' : ''}`}
+            onClick={toggleTimer}
+            aria-label={running ? 'עצור טיימר' : 'התחל טיימר'}
+          >
+            {!running && elapsed === 0 ? (
+              <>
+                <span className="timer-center-icon">▶</span>
+                <span className="timer-center-hint">התחל</span>
+              </>
+            ) : (
+              <>
+                <span
+                  className={`timer-display in-ring ${running ? 'running' : ''}`}
+                  style={overZone && running ? { color: 'var(--bad)' } : inZone && running ? { color: 'var(--good)' } : undefined}
+                >
+                  {String(Math.floor(displaySec / 60)).padStart(2, '0')}:{String(displaySec % 60).padStart(2, '0')}
+                </span>
+                <span className="timer-center-hint">{running ? 'לחץ לעצירה' : 'לחץ להתחלה מחדש'}</span>
+              </>
+            )}
+          </button>
         </div>
         <p className="muted small" style={{ textAlign: 'center', margin: '4px 0 0' }}>
           {!running && elapsed === 0 && 'הטבעת הירוקה מסמנת את חלון היעד'}
           {running && !inZone && !overZone && 'בדרך לחלון היעד…'}
           {running && inZone && '🎯 בתוך חלון היעד!'}
           {running && overZone && 'חלון היעד חלף — שקול לעצור'}
+          {!running && elapsed > 0 && `נעצר על ${displaySec} שניות`}
         </p>
-        <div className="btn-row">
-          {!running ? (
-            <button
-              className="btn" style={{ flex: 1 }}
-              onClick={() => {
-                startRef.current = Date.now();
-                setElapsed(0);
-                vibratedRef.current = { enter: false, exceed: false };
-                setRunning(true);
-              }}
-            >
-              ▶ התחל טיימר
-            </button>
-          ) : (
-            <button className="btn danger" style={{ flex: 1 }} onClick={() => setRunning(false)}>
-              ⏹ עצור ({displaySec} שניות)
-            </button>
-          )}
-        </div>
         <div className="btn-row">
           <button className="btn secondary" onClick={onBack}>→ חזרה</button>
           <button className="btn" style={{ flex: 1 }} onClick={() => onDone(Math.round(elapsed))}>
@@ -729,6 +719,32 @@ function BrewStep({
         <p className="muted small" style={{ marginTop: 8 }}>
           אפשר לדלג על הטיימר ולהזין את הזמן ידנית במסך הבא.
         </p>
+      </div>
+
+      {/* ההמלצה מתחת לטיימר */}
+      <div className="card accent">
+        <h2>🎯 ההמלצה עבור {beanName}</h2>
+        <div className="stat-grid">
+          <StatTile value={recommendation.doseGrams} label="גרם נכנס" />
+          <StatTile value={recommendation.yieldGrams} label="יעד גרם יוצא" />
+          <StatTile value={`${recommendation.brewTimeSecMin}–${recommendation.brewTimeSecMax}`} label="יעד שניות" />
+          <StatTile value={`1:${recommendation.ratio}`} label="יחס" />
+          {recommendation.grindSetting !== null && <StatTile value={recommendation.grindSetting} label="טחינה" />}
+        </div>
+        <p className="muted small" style={{ marginTop: 8 }}>
+          {confidenceLabel(recommendation.confidence, recommendation.basedOnShots)}
+        </p>
+        {recommendation.reasons.map((r, i) => (
+          <p key={i} className="muted small" style={{ margin: '4px 0' }}>• {r}</p>
+        ))}
+        {recommendation.beanNotes.length > 0 && (
+          <>
+            <h3>📝 הערות על הפולים</h3>
+            {recommendation.beanNotes.map((n, i) => (
+              <p key={i} className="small" style={{ margin: '4px 0', color: 'var(--crema)' }}>• {n}</p>
+            ))}
+          </>
+        )}
       </div>
     </div>
   );

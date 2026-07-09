@@ -3,10 +3,45 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import { bagRepo, beanRepo } from '../db/repositories';
 import { computeBagUsage } from '../services/stats';
-import { daysSince } from '../services/recommendation';
+import { computeFreshness, formatDeadline } from '../services/freshness';
 import type { RoastLevel } from '../domain/types';
 import { EmptyState, Field } from './components';
 import { ROAST_LEVELS, formatDate, ratingClass } from './labels';
+
+// אפשרויות כמות מוכנות לשקית קפה
+const BAG_SIZES = [
+  { grams: 250, label: '250 גרם' },
+  { grams: 500, label: '500 גרם' },
+  { grams: 1000, label: 'קילו (1000 גרם)' },
+];
+
+function bagSizeLabel(grams: number): string {
+  return BAG_SIZES.find((s) => s.grams === grams)?.label ?? `${grams} גרם`;
+}
+
+// פס טריות: 0 עד 60 יום. הסמן זז לאורך הפס לפי גיל הקלייה.
+function FreshnessBar({ ageDays }: { ageDays: number }) {
+  const pct = Math.min(100, (ageDays / 60) * 100);
+  return (
+    <div style={{ margin: '6px 0' }} dir="ltr">
+      <div style={{
+        position: 'relative', height: 6, borderRadius: 999,
+        background: 'linear-gradient(90deg, var(--warn) 0%, var(--good) 12% 50%, var(--warn) 75%, var(--bad) 100%)',
+        opacity: 0.55,
+      }}>
+        <div style={{
+          position: 'absolute', top: '50%', left: `${pct}%`,
+          width: 12, height: 12, borderRadius: '50%',
+          background: 'var(--crema)', border: '2px solid var(--bg-elevated)',
+          transform: 'translate(-50%, -50%)', boxShadow: '0 0 6px rgba(0,0,0,0.4)',
+        }} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 2 }}>
+        <span>קלייה</span><span>שיא ~14י'</span><span>דד-ליין 60י'</span>
+      </div>
+    </div>
+  );
+}
 
 export function BeansScreen() {
   const data = useLiveQuery(async () => {
@@ -68,20 +103,30 @@ export function BeansScreen() {
 
             {beanBags.map((bag) => {
               const usage = computeBagUsage(bag, shots);
-              const roastAge = daysSince(bag.roastDate);
+              const fresh = computeFreshness(bag.roastDate);
               return (
                 <div key={bag.id} style={{ background: 'var(--bg-elevated)', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
                   <div className="small">
-                    <strong>שקית {bag.weightGrams} גרם</strong>
-                    {bag.finished && <span className="badge">נגמרה</span>}
-                    {!bag.finished && roastAge !== null && roastAge > 30 && (
-                      <span className="badge warn">{roastAge} ימים מקלייה</span>
+                    <strong>שקית {bagSizeLabel(bag.weightGrams)}</strong>
+                    {bag.finished && <span className="badge" style={{ marginInlineStart: 6 }}>נגמרה</span>}
+                    {!bag.finished && fresh.stage !== 'unknown' && (
+                      <span className={`badge ${fresh.cls}`} style={{ marginInlineStart: 6 }}>{fresh.label}</span>
                     )}
                   </div>
                   <div className="muted small">
                     נקלתה: {formatDate(bag.roastDate)} · נפתחה: {formatDate(bag.openDate)}
                     {bag.price !== null && ` · ₪${bag.price}`}
                   </div>
+                  {!bag.finished && fresh.deadlineDate && (
+                    <div className="small" style={{ margin: '4px 0', color: fresh.stage === 'expired' ? 'var(--bad)' : 'var(--crema)' }}>
+                      {fresh.stage === 'expired' ? '⚠️' : '📅'} דד-ליין טריות: {formatDeadline(fresh.deadlineDate)}
+                      {fresh.daysToDeadline !== null && fresh.daysToDeadline > 0 && ` · עוד ${fresh.daysToDeadline} ימים`}
+                    </div>
+                  )}
+                  {/* פס טריות ויזואלי — 0 עד 60 יום */}
+                  {!bag.finished && fresh.ageDays !== null && (
+                    <FreshnessBar ageDays={fresh.ageDays} />
+                  )}
                   <div className="muted small">
                     {usage.shotsCount} שוטים · נצרכו {usage.gramsUsed.toFixed(0)} גרם · נשארו ~{usage.gramsLeft.toFixed(0)} גרם
                     {usage.costPerShot !== null && ` · ₪${usage.costPerShot.toFixed(1)} לשוט`}
@@ -185,8 +230,12 @@ function NewBeanForm({ onClose }: { onClose: () => void }) {
 function NewBagForm({ beanId, onClose }: { beanId: string; onClose: () => void }) {
   const [roastDate, setRoastDate] = useState('');
   const [openDate, setOpenDate] = useState('');
-  const [weight, setWeight] = useState('250');
+  const [weight, setWeight] = useState(250);
+  const [customWeight, setCustomWeight] = useState('');
   const [price, setPrice] = useState('');
+
+  const isCustom = !BAG_SIZES.some((s) => s.grams === weight);
+  const effectiveWeight = isCustom ? parseInt(customWeight) || 0 : weight;
 
   return (
     <div style={{ marginTop: 10 }}>
@@ -198,25 +247,53 @@ function NewBagForm({ beanId, onClose }: { beanId: string; onClose: () => void }
           <input type="date" value={openDate} onChange={(e) => setOpenDate(e.target.value)} />
         </Field>
       </div>
-      <div className="field-row">
-        <Field label="משקל (גרם)">
-          <input type="number" value={weight} onChange={(e) => setWeight(e.target.value)} />
+
+      <Field label="כמות בשקית">
+        <div className="chips">
+          {BAG_SIZES.map((s) => (
+            <button
+              key={s.grams} type="button"
+              className={`chip ${weight === s.grams ? 'selected' : ''}`}
+              onClick={() => setWeight(s.grams)}
+            >
+              {s.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            className={`chip ${isCustom ? 'selected' : ''}`}
+            onClick={() => setWeight(-1)}
+          >
+            אחר
+          </button>
+        </div>
+      </Field>
+      {isCustom && (
+        <Field label="משקל מותאם (גרם)">
+          <input type="number" inputMode="numeric" value={customWeight} onChange={(e) => setCustomWeight(e.target.value)} placeholder="למשל: 340" />
         </Field>
-        <Field label="מחיר (₪)">
-          <input type="number" step="0.5" value={price} onChange={(e) => setPrice(e.target.value)} />
-        </Field>
-      </div>
+      )}
+
+      <Field label="מחיר (₪)">
+        <input type="number" step="0.5" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="מחיר השקית" />
+      </Field>
+      {price && effectiveWeight > 0 && (
+        <p className="muted small" style={{ marginTop: -4 }}>
+          ₪{(parseFloat(price) / effectiveWeight * 100).toFixed(1)} ל-100 גרם
+        </p>
+      )}
+
       <div className="btn-row">
         <button className="btn small secondary" onClick={onClose}>ביטול</button>
         <button
-          className="btn small"
+          className="btn small" disabled={effectiveWeight <= 0}
           onClick={async () => {
             await bagRepo.create({
               beanId,
               roastDate: roastDate || null,
               openDate: openDate || null,
               price: price ? parseFloat(price) : null,
-              weightGrams: parseInt(weight) || 250,
+              weightGrams: effectiveWeight,
             });
             onClose();
           }}

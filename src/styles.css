@@ -450,10 +450,8 @@ button.btn.small { padding: 8px 15px; font-size: 0.84rem; font-weight: 600; bord
 .timer-center:active { transform: translate(-50%, -50%) scale(0.95); }
 .timer-center.running { border-color: color-mix(in srgb, var(--good) 45%, transparent); }
 .timer-center-icon {
-  font-size: 2.6rem;
   color: var(--accent-strong);
-  line-height: 1;
-  margin-inline-start: 6px; /* איזון חזותי של משולש ה-▶ */
+  display: block;
 }
 .timer-center-hint {
   font-size: 0.72rem;

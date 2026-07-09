@@ -687,7 +687,9 @@ function BrewStep({
           >
             {!running && elapsed === 0 ? (
               <>
-                <span className="timer-center-icon">▶</span>
+                <svg className="timer-center-icon" viewBox="0 0 100 100" width="52" height="52" aria-hidden="true">
+                  <polygon points="34,24 78,50 34,76" fill="currentColor" />
+                </svg>
                 <span className="timer-center-hint">התחל</span>
               </>
             ) : (

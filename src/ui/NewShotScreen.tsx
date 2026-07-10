@@ -628,7 +628,6 @@ function BrewStep({
     return () => cancelAnimationFrame(raf);
   }, [running, targetMin, targetMax]);
 
-  const displaySec = Math.floor(elapsed);
 
   // טבעת התקדמות: הסקאלה עד יעד-מקסימום + מרווח קטן
   const ringMax = targetMax + 8;
@@ -698,7 +697,7 @@ function BrewStep({
                   className={`timer-display in-ring ${running ? 'running' : ''}`}
                   style={overZone && running ? { color: 'var(--bad)' } : inZone && running ? { color: 'var(--good)' } : undefined}
                 >
-                  {String(Math.floor(displaySec / 60)).padStart(2, '0')}:{String(displaySec % 60).padStart(2, '0')}
+                  {elapsed.toFixed(1)}
                 </span>
                 <span className="timer-center-hint">{running ? 'לחץ לעצירה' : 'לחץ להתחלה מחדש'}</span>
               </>
@@ -710,7 +709,7 @@ function BrewStep({
           {running && !inZone && !overZone && 'בדרך לחלון היעד…'}
           {running && inZone && '🎯 בתוך חלון היעד!'}
           {running && overZone && 'חלון היעד חלף — שקול לעצור'}
-          {!running && elapsed > 0 && `נעצר על ${displaySec} שניות`}
+          {!running && elapsed > 0 && `נעצר על ${elapsed.toFixed(1)} שניות`}
         </p>
         <div className="btn-row">
           <button className="btn secondary" onClick={onBack}>→ חזרה</button>

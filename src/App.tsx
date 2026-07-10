@@ -8,21 +8,20 @@ import { AnalyticsScreen } from './ui/AnalyticsScreen';
 import { SettingsScreen } from './ui/SettingsScreen';
 import { BeansBackground } from './ui/BeansBackground';
 import {
-  BeanIcon, ChartIcon, CupIcon, HomeIcon, JournalIcon, SettingsIcon, TrendIcon,
+  BeanIcon, ChartIcon, CupIcon, HomeIcon, JournalIcon, SettingsIcon,
 } from './ui/icons';
 import type { ReactNode } from 'react';
 
-export type Screen = 'home' | 'new-shot' | 'shots' | 'beans' | 'dashboard' | 'analytics' | 'settings';
+export type Screen = 'home' | 'new-shot' | 'shots' | 'beans' | 'dashboard' | 'settings';
 
-// "שוט חדש" הוא הכפתור המרכזי המורם (FAB); השאר אייקוני קו משני צדדיו
+// "שוט חדש" הוא הכפתור המרכזי המורם (FAB); השאר אייקוני קו משני צדדיו.
+// הגדרות — בכפתור העליון ליד מתג יום/לילה; הניתוח מוזג לעמוד הנתונים.
 const NAV: { screen: Screen; icon: ReactNode; label: string; fab?: boolean }[] = [
   { screen: 'home', icon: <HomeIcon />, label: 'בית' },
   { screen: 'shots', icon: <JournalIcon />, label: 'יומן' },
-  { screen: 'analytics', icon: <TrendIcon />, label: 'ניתוח' },
   { screen: 'new-shot', icon: <CupIcon />, label: 'שוט חדש', fab: true },
   { screen: 'beans', icon: <BeanIcon />, label: 'פולים' },
   { screen: 'dashboard', icon: <ChartIcon />, label: 'נתונים' },
-  { screen: 'settings', icon: <SettingsIcon />, label: 'הגדרות' },
 ];
 
 export default function App() {
@@ -42,13 +41,22 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <h1>☕ יומן בריסטה חכם</h1>
-        <button
-          className="theme-toggle"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          aria-label="החלפת מצב תצוגה"
-        >
-          {theme === 'dark' ? '☀️' : '🌙'}
-        </button>
+        <div className="topbar-actions">
+          <button
+            className={`theme-toggle ${screen === 'settings' ? 'active' : ''}`}
+            onClick={() => setScreen('settings')}
+            aria-label="הגדרות"
+          >
+            <SettingsIcon size={19} />
+          </button>
+          <button
+            className="theme-toggle"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            aria-label="החלפת מצב תצוגה"
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+        </div>
       </header>
 
       {/* key על העטיפה מפעיל את אנימציית הכניסה בכל החלפת מסך */}
@@ -57,8 +65,13 @@ export default function App() {
         {screen === 'new-shot' && <NewShotScreen navigate={setScreen} />}
         {screen === 'shots' && <ShotsScreen />}
         {screen === 'beans' && <BeansScreen />}
-        {screen === 'dashboard' && <DashboardScreen />}
-        {screen === 'analytics' && <AnalyticsScreen />}
+        {screen === 'dashboard' && (
+          <>
+            <DashboardScreen />
+            {/* הניתוח ממשיך את עמוד הנתונים — נתונים קודם, ניתוח אחריהם */}
+            <AnalyticsScreen />
+          </>
+        )}
         {screen === 'settings' && <SettingsScreen />}
       </main>
 

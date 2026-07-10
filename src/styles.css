@@ -201,15 +201,51 @@ body {
   transition: color var(--speed), background var(--speed), transform var(--speed) var(--spring);
 }
 .bottom-nav button .icon {
-  font-size: 1.3rem;
+  display: flex;
   transition: transform var(--speed) var(--spring);
 }
+.bottom-nav button .icon svg { display: block; }
 .bottom-nav button:active { transform: scale(0.92); }
 .bottom-nav button.active {
   color: var(--accent-strong);
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
-.bottom-nav button.active .icon { transform: translateY(-1px) scale(1.08); }
+.bottom-nav button.active .icon { transform: translateY(-1px) scale(1.06); }
+
+/* כפתור "שוט חדש" המרכזי — מורם, טרקוטה, עם הילה רכה.
+   הסלקטור כולל את .bottom-nav כדי לגבור על כללי הכפתור הכלליים של הניווט */
+.bottom-nav button.nav-fab {
+  flex: none;
+  width: 58px;
+  height: 58px;
+  margin-top: -24px; /* מורם מעל סרגל הניווט */
+  padding: 0;
+  border: none;
+  border-radius: 19px;
+  background: linear-gradient(165deg, #cf7240 0%, #b45830 55%, #98431f 100%);
+  color: #fff6ec;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* טבעת "חיתוך" בצבע הרקע + צל עומק + זוהר חם */
+  box-shadow:
+    0 0 0 6px var(--bg-elevated),
+    0 6px 16px rgba(0, 0, 0, 0.35),
+    0 2px 30px color-mix(in srgb, var(--accent) 35%, transparent);
+  transition: transform 0.16s var(--spring), box-shadow var(--speed), filter var(--speed);
+}
+.bottom-nav button.nav-fab:hover { filter: brightness(1.08); }
+.bottom-nav button.nav-fab:active { transform: scale(0.9); }
+.bottom-nav button.nav-fab.active {
+  color: #fff6ec;
+  background: linear-gradient(165deg, #cf7240 0%, #b45830 55%, #98431f 100%);
+  filter: brightness(1.1);
+  box-shadow:
+    0 0 0 6px var(--bg-elevated),
+    0 6px 16px rgba(0, 0, 0, 0.35),
+    0 2px 34px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.bottom-nav button.nav-fab svg { display: block; }
 
 /* ---- כרטיסים ---- */
 .card {

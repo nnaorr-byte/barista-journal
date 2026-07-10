@@ -139,17 +139,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 16px 2px 12px;
+  /* צמודה תמיד — אך שקופה לגמרי, בלי רקע ובלי קו */
   position: sticky;
   top: 0;
   z-index: 10;
-  /* נמתח לרוחב המלא (מבטל את שולי ה-.app) כמו הסרגל התחתון */
-  margin: 0 -16px 6px;
-  padding: 14px 18px 10px;
-  /* זכוכית מטושטשת — אותו מתכון כמו הסרגל התחתון */
-  background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--hairline);
+  background: transparent;
 }
 .topbar h1 {
   font-size: 1.3rem;

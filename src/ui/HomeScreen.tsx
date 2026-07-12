@@ -106,6 +106,9 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
             </div>
             <div className="stat-grid">
               <StatTile value={recommendation.doseGrams} label="גרם נכנס" />
+              {recommendation.stopAtGrams !== null && (
+                <StatTile value={recommendation.stopAtGrams} label="✋ עצירה בפועל" />
+              )}
               <StatTile value={recommendation.yieldGrams} label="גרם יוצא" />
               <StatTile value={`${recommendation.brewTimeSecMin}–${recommendation.brewTimeSecMax}`} label="שניות" />
               <StatTile value={`1:${recommendation.ratio}`} label="יחס" />

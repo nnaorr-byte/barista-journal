@@ -197,7 +197,8 @@ export interface MaintenanceRule {
 
 export interface ShotRecommendation {
   doseGrams: number;
-  yieldGrams: number;
+  yieldGrams: number; // יעד סופי בכוס (אחרי טפטוף)
+  stopAtGrams: number | null; // איפה לעצור בפועל — לפי הטפטוף הנמדד/משוער
   brewTimeSecMin: number;
   brewTimeSecMax: number;
   ratio: number;

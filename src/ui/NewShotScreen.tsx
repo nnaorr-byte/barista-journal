@@ -97,6 +97,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     setRecommendation({
       doseGrams: recipeShot.doseGrams,
       yieldGrams: recipeShot.yieldGrams,
+      stopAtGrams: recipeShot.yieldStopGrams ?? Math.round((recipeShot.yieldGrams - 3.5) * 10) / 10,
       brewTimeSecMin: Math.max(1, recipeShot.brewTimeSec - 2),
       brewTimeSecMax: recipeShot.brewTimeSec + 2,
       ratio: Math.round((recipeShot.yieldGrams / recipeShot.doseGrams) * 10) / 10,
@@ -761,7 +762,10 @@ function BrewStep({
         <h2>🎯 ההמלצה עבור {beanName}</h2>
         <div className="stat-grid">
           <StatTile value={recommendation.doseGrams} label="גרם נכנס" />
-          <StatTile value={recommendation.yieldGrams} label="יעד גרם יוצא" />
+          {recommendation.stopAtGrams !== null && (
+            <StatTile value={recommendation.stopAtGrams} label="✋ עצירה בפועל" />
+          )}
+          <StatTile value={recommendation.yieldGrams} label="יעד סופי בכוס" />
           <StatTile value={`${recommendation.brewTimeSecMin}–${recommendation.brewTimeSecMax}`} label="יעד שניות" />
           <StatTile value={`1:${recommendation.ratio}`} label="יחס" />
           {recommendation.grindSetting !== null && <StatTile value={recommendation.grindSetting} label="טחינה" />}

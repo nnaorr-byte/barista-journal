@@ -139,14 +139,15 @@ export function recommendShot(params: {
     );
   }
 
-  // חישוב טפטוף: אם תועדו גם משקל עצירה וגם משקל סופי, ממליצים איפה לעצור
+  // נקודת עצירה בפועל: לפי הטפטוף הנמדד שלך (אם תועד), אחרת ~3.5 גרם משוער
   const drips = beanShots
     .filter((s) => s.yieldStopGrams && s.yieldGrams > (s.yieldStopGrams ?? 0))
     .map((s) => s.yieldGrams - (s.yieldStopGrams ?? 0));
-  if (drips.length >= 2) {
-    const avgDrip = drips.reduce((a, b) => a + b, 0) / drips.length;
-    const stopAt = round1(dose * ratio - avgDrip);
-    reasons.push(`הטפטוף הממוצע שלך אחרי עצירה הוא ~${round1(avgDrip)} גרם — עצור בערך ב-${stopAt} גרם כדי לנחות על היעד הסופי.`);
+  const dripMeasured = drips.length >= 2;
+  const avgDrip = dripMeasured ? drips.reduce((a, b) => a + b, 0) / drips.length : 3.5;
+  const stopAtGrams = round1(Math.max(dose, dose * ratio - avgDrip));
+  if (dripMeasured) {
+    reasons.push(`הטפטוף הממוצע שלך אחרי עצירה הוא ~${round1(avgDrip)} גרם — עצור בערך ב-${stopAtGrams} גרם כדי לנחות על היעד הסופי.`);
   }
 
   // הערות היסטוריות חופשיות אחרונות
@@ -158,6 +159,7 @@ export function recommendShot(params: {
   return {
     doseGrams: round1(dose),
     yieldGrams: round1(dose * ratio),
+    stopAtGrams,
     brewTimeSecMin: timeMin,
     brewTimeSecMax: timeMax,
     ratio: Math.round(ratio * 10) / 10,

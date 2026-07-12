@@ -51,6 +51,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
           grinderShots: shots.filter(
             (s) => s.beanId === lastBean.id && s.grinderId === (lastShot?.grinderId ?? defaultGrinder?.id),
           ),
+          grinder: grinders.find((g) => g.id === (lastShot?.grinderId ?? defaultGrinder?.id)),
         })
       : null;
 
@@ -111,7 +112,12 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 <StatTile value={recommendation.grindSetting} label="טחינה" />
               )}
             </div>
-            <p className="muted small" style={{ marginTop: 10 }}>
+            {recommendation.reasons[0]?.startsWith('🧠') && (
+              <p className="small" style={{ marginTop: 10, color: 'var(--crema)' }}>
+                {recommendation.reasons[0]}
+              </p>
+            )}
+            <p className="muted small" style={{ marginTop: 6 }}>
               {confidenceLabel(recommendation.confidence, recommendation.basedOnShots)}
             </p>
             <button className="btn block" onClick={() => navigate('new-shot')}>

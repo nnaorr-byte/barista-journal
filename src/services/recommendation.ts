@@ -1,8 +1,9 @@
 import {
-  shotRatio, type Bag, type Bean, type RoastLevel, type Shot, type ShotRecommendation,
-  type UserProfile,
+  shotRatio, type Bag, type Bean, type Grinder, type RoastLevel, type Shot,
+  type ShotRecommendation, type UserProfile,
 } from '../domain/types';
 import { learningConfidence } from './learning';
+import { aiRecommend } from './aiEngine';
 
 // מנוע ההמלצות: שרשרת של שלושה מודולים —
 // 1. חוקים כלליים של אספרסו לפי רמת קלייה
@@ -39,8 +40,9 @@ export function recommendShot(params: {
   beanShots: Shot[]; // כל השוטים ההיסטוריים של סוג הפולים הזה
   grinderShots: Shot[]; // שוטים של הפולים האלה על המטחנה הנוכחית
   doseGrams?: number; // אם המשתמש כבר בחר מנה
+  grinder?: Grinder; // המטחנה הנוכחית — לחישובי מוח ה-AI
 }): ShotRecommendation {
-  const { user, bean, bag, beanShots, grinderShots } = params;
+  const { user, bean, bag, beanShots, grinderShots, grinder } = params;
   const reasons: string[] = [];
   const beanNotes: string[] = [];
   const defaults = ROAST_DEFAULTS[bean.roastLevel];
@@ -95,6 +97,36 @@ export function recommendShot(params: {
     reasons.push(`דרגת טחינה ${grindSetting} — מהשוט הכי מוצלח שלך עם הפולים האלה על המטחנה הנוכחית.`);
   } else {
     reasons.push('אין עדיין היסטוריית טחינה לפולים האלה על המטחנה הנוכחית — התחל מאמצע הסקאלה ועדן לפי זמן החליטה.');
+  }
+
+  // ---- מוח ה-AI: השוט האחרון קובע את הצעד הבא (docs/Espresso_AI_Engine_Guide.md) ----
+  // המוח מנתח את השוט האחרון של הפולים ומכריע: מה המשתנה היחיד שמשתנה בשוט הבא.
+  if (beanShots.length > 0) {
+    const history = [...beanShots].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const last = history[history.length - 1];
+    const ai = aiRecommend({ lastShot: last, beanShots: history, grinder });
+
+    // Yield: יעד המוח, מותאם פרופורציונלית אם המשתמש בחר מנה שונה
+    const aiRatio = ai.targets.doseGrams > 0 ? ai.targets.yieldGrams / ai.targets.doseGrams : ratio;
+    ratio = aiRatio;
+
+    // דרגת טחינה: רק אם השוט האחרון היה על המטחנה הנוכחית (סקאלות שונות בין מטחנות)
+    const lastOnCurrentGrinder = grinderShots.some((s) => s.id === last.id);
+    if (lastOnCurrentGrinder) {
+      grindSetting = ai.targets.grindSetting;
+    }
+
+    // זמן יעד: אם המוח אומר "לא לשנות" — מכוונים לזמן של השוט המוצלח
+    if (ai.changeKind === 'none' && last.brewTimeSec > 0) {
+      timeMin = Math.max(15, last.brewTimeSec - 2);
+      timeMax = last.brewTimeSec + 2;
+    }
+
+    reasons.unshift(
+      `🧠 מוח ה-AI (ביטחון ${ai.confidencePct}%): ${ai.changeKind === 'none'
+        ? 'השוט האחרון היה במקום הנכון — חוזרים עליו במדויק.'
+        : ai.instruction}`,
+    );
   }
 
   // חישוב טפטוף: אם תועדו גם משקל עצירה וגם משקל סופי, ממליצים איפה לעצור

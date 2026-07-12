@@ -651,6 +651,23 @@ table.data th { color: var(--text-muted); font-weight: 700; font-size: 0.76rem; 
 .dist-legend span { font-size: 0.78rem; color: var(--text-muted); display: flex; align-items: center; gap: 5px; }
 .dist-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 
+/* ---- מוח ה-AI: פס רמת ביטחון ---- */
+.conf-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  overflow: hidden;
+  margin: 6px 0 8px;
+}
+.conf-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent-strong), var(--accent));
+  box-shadow: 0 0 10px var(--glow);
+  transition: width 0.6s ease;
+}
+
 .insight-item {
   display: flex;
   gap: 10px;

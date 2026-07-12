@@ -3,9 +3,9 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import { bagRepo, dialInRepo, shotRepo } from '../db/repositories';
 import { recommendShot, confidenceLabel } from '../services/recommendation';
-import { analyzeShot } from '../services/dialInCoach';
+import { aiRecommend, type AiAdvice } from '../services/aiEngine';
 import type {
-  Bag, CoachAdvice, FlavorNote, MachineTempSetting, QualityLevel, Shot, ShotRecommendation, TasteTag,
+  Bag, FlavorNote, MachineTempSetting, QualityLevel, Shot, ShotRecommendation, TasteTag,
 } from '../domain/types';
 import { Chips, Field, RatingPicker, StatTile } from './components';
 import { TastingCoach } from './TastingCoach';
@@ -64,7 +64,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const [notes, setNotes] = useState('');
   const [rating, setRating] = useState(0);
 
-  const [advice, setAdvice] = useState<CoachAdvice | null>(null);
+  const [advice, setAdvice] = useState<AiAdvice | null>(null);
   const [multiVarWarning, setMultiVarWarning] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedShotId, setSavedShotId] = useState<string | null>(null);
@@ -134,6 +134,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       beanShots: shots.filter((s) => s.beanId === selectedBean.id),
       grinderShots: shots.filter((s) => s.beanId === selectedBean.id && s.grinderId === gId),
       doseGrams: parseFloat(dose) || user.defaultDoseGrams,
+      grinder: grinders.find((g) => g.id === gId),
     });
     setRecommendation(rec);
     if (rec.grindSetting !== null && grindSetting === '') {
@@ -196,7 +197,15 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
         });
       }
 
-      setAdvice(analyzeShot(shot, grinders.find((g) => g.id === gId)));
+      // מוח ה-AI: היסטוריית הפולים מהישן לחדש + השוט שזה עתה נשמר
+      const beanHistory = [...shots.filter((s) => s.beanId === selectedBean.id)]
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      beanHistory.push(shot);
+      setAdvice(aiRecommend({
+        lastShot: shot,
+        beanShots: beanHistory,
+        grinder: grinders.find((g) => g.id === gId),
+      }));
       setStep('coach');
     } finally {
       setSaving(false);
@@ -493,39 +502,55 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
   // --- שלב 4: AI Coach ---
   if (step === 'coach' && advice) {
+    const toneClass = { good: 'balanced', warn: 'under', bad: 'over', info: 'unclear' }[advice.tone];
     return (
       <div>
         <div className="card accent">
-          <h2>🤖 AI Coach — ניתוח השוט</h2>
-          <div className={`coach-verdict ${advice.verdict}`}>{advice.verdictLabel}</div>
+          <h2>🧠 מוח ה-AI — ההמלצה לשוט הבא</h2>
+          <div className={`coach-verdict ${toneClass}`}>
+            {advice.changeKind === 'none' ? '✓ שמור על המתכון — אין מה לשנות' : `השינוי הבא: ${advice.changeLabel}`}
+          </div>
 
           {multiVarWarning && (
             <div className="one-var-banner" style={{ borderColor: 'var(--bad)', marginBottom: 10 }}>
               ⚠️ {multiVarWarning}
             </div>
           )}
+          {advice.warnings.map((w, i) => (
+            <div key={i} className="one-var-banner" style={{ borderColor: 'var(--warn)', marginBottom: 10 }}>
+              ⚠️ {w}
+            </div>
+          ))}
+          {advice.recipeNote && (
+            <div className="one-var-banner" style={{ marginBottom: 10 }}>{advice.recipeNote}</div>
+          )}
 
           <div className="coach-section">
-            <div className="coach-label">האבחנה</div>
-            <p style={{ margin: '4px 0' }}>{advice.explanation}</p>
+            <div className="coach-label">1 · סיכום השוט האחרון</div>
+            <p style={{ margin: '4px 0' }} className="muted small">{advice.lastShotSummary}</p>
           </div>
           <div className="coach-section">
-            <div className="coach-label">המשתנה לשינוי: {advice.changeVariable}</div>
-            <p style={{ margin: '4px 0' }}>{advice.changeInstruction}</p>
+            <div className="coach-label">2 · אבחון</div>
+            <p style={{ margin: '4px 0' }}>{advice.diagnosis}</p>
           </div>
           <div className="coach-section">
-            <div className="coach-label">למה דווקא זה?</div>
-            <p style={{ margin: '4px 0' }}>{advice.whyThisVariable}</p>
+            <div className="coach-label">3 · השינוי — אחד בלבד</div>
+            <p style={{ margin: '4px 0', fontWeight: 600 }}>{advice.instruction}</p>
           </div>
           <div className="coach-section">
-            <div className="coach-label">לא לגעת כרגע</div>
-            <p style={{ margin: '4px 0' }}>{advice.doNotChange.join(' · ')}</p>
+            <div className="coach-label">4 · תוצאה צפויה</div>
+            <p style={{ margin: '4px 0' }}>{advice.expectedResult}</p>
           </div>
           <div className="coach-section">
-            <div className="coach-label">הניסיון הבא</div>
-            <p style={{ margin: '4px 0' }}>{advice.nextShotPreview}</p>
+            <div className="coach-label">5 · רמת ביטחון: {advice.confidencePct}%</div>
+            <div className="conf-bar" dir="ltr">
+              <div className="conf-bar-fill" style={{ width: `${advice.confidencePct}%` }} />
+            </div>
+            {advice.confidenceReasons.map((r, i) => (
+              <p key={i} className="muted small" style={{ margin: '3px 0' }}>• {r}</p>
+            ))}
           </div>
-          <div className="one-var-banner">💡 {advice.oneVariableReminder}</div>
+          <div className="one-var-banner">💡 {advice.reminder}</div>
 
           {savedShotId && (
             <button

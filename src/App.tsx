@@ -25,7 +25,7 @@ const NAV: { screen: Screen; icon: ReactNode; label: string; fab?: boolean }[] =
 ];
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>('home');
+  const [screen, setScreenState] = useState<Screen>('home');
   const [theme, setTheme] = useState<'dark' | 'light'>(
     () => (localStorage.getItem('theme') as 'dark' | 'light') ?? 'dark',
   );
@@ -34,6 +34,24 @@ export default function App() {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // אינטגרציית כפתור Back: כל מסך נרשם ב-history של הדפדפן,
+  // כך ש-Back (בדפדפן/אנדרואיד) חוזר מסך אחורה במקום לצאת מהאפליקציה.
+  useEffect(() => {
+    history.replaceState({ screen: 'home' }, '');
+    const onPop = (e: PopStateEvent) => {
+      const s = (e.state as { screen?: Screen } | null)?.screen;
+      setScreenState(s ?? 'home');
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  // ניווט קדימה — דוחף רשומת היסטוריה (לחיצה חוזרת על אותו מסך לא נרשמת)
+  const setScreen = (s: Screen) => {
+    if (s !== screen) history.pushState({ screen: s }, '');
+    setScreenState(s);
+  };
 
   return (
     <>

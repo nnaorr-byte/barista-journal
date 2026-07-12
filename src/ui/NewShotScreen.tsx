@@ -38,6 +38,10 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   });
 
   const [step, setStep] = useState<Step>('setup');
+  const stepRef = useRef(step);
+  stepRef.current = step;
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
   const [beanId, setBeanId] = useState('');
   const [bagId, setBagId] = useState('');
   const [grinderId, setGrinderId] = useState('');
@@ -63,6 +67,30 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const [aftertaste, setAftertaste] = useState<QualityLevel | null>(null);
   const [notes, setNotes] = useState('');
   const [rating, setRating] = useState(0);
+
+  // אינטגרציית כפתור Back בתוך הזרימה: כל שלב נרשם ב-history,
+  // Back חוזר שלב אחורה; מ-Coach (אחרי שמירה) — הביתה, לא בחזרה לטופס.
+  useEffect(() => {
+    history.replaceState({ screen: 'new-shot', step: 'setup' }, '');
+    const onPop = (e: PopStateEvent) => {
+      const st = e.state as { screen?: string; step?: Step } | null;
+      if (st?.screen !== 'new-shot' || !st.step) return; // מעבר מסך — מטופל ב-App
+      if (stepRef.current === 'coach') {
+        navigateRef.current('home');
+        return;
+      }
+      if (st.step === 'setup') setQuick(false);
+      setStep(st.step);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  // מעבר שלב קדימה — נרשם בהיסטוריה
+  function goStep(s: Step) {
+    history.pushState({ screen: 'new-shot', step: s }, '');
+    setStep(s);
+  }
 
   const [advice, setAdvice] = useState<AiAdvice | null>(null);
   const [multiVarWarning, setMultiVarWarning] = useState<string | null>(null);
@@ -110,7 +138,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       ],
       beanNotes: recipeShot.notes ? [`מהמתכון: "${recipeShot.notes}"`] : [],
     });
-    setStep('brew');
+    goStep('brew');
   }
 
   function applyLastShot() {
@@ -143,7 +171,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       setGrindSetting(String(rec.grindSetting));
     }
     if (yieldGrams === '') setYieldGrams(String(rec.yieldGrams));
-    setStep('brew');
+    goStep('brew');
   }
 
   async function saveShot() {
@@ -217,6 +245,8 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       await shotRepo.put({ ...shot, aiAdvice: newAdvice });
       setAdvice(newAdvice);
       setStep('coach');
+      // רשומת ה"תוצאות" מוחלפת ב"coach" — Back מכאן לא יחזיר לטופס שכבר נשמר
+      history.replaceState({ screen: 'new-shot', step: 'coach' }, '');
     } finally {
       setSaving(false);
     }
@@ -240,7 +270,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                   applyLastShot();
                   setYieldGrams(String(lastShot.yieldGrams));
                   setQuick(true);
-                  setStep('results');
+                  goStep('results');
                 }}
               >
                 ⚡ שוט מהיר (תיעוד ב-10 שניות)
@@ -327,9 +357,9 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
         beanName={selectedBean?.name ?? ''}
         onDone={(seconds) => {
           if (seconds > 0) setBrewTime(String(seconds));
-          setStep('results');
+          goStep('results');
         }}
-        onBack={() => setStep('setup')}
+        onBack={() => history.back()}
       />
     );
   }
@@ -380,7 +410,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
             <h3>דירוג אישי (1–10)</h3>
             <RatingPicker value={rating} onChange={setRating} />
             <div className="btn-row">
-              <button className="btn secondary" onClick={() => { setQuick(false); setStep('setup'); }}>→ ביטול</button>
+              <button className="btn secondary" onClick={() => history.back()}>→ ביטול</button>
               <button
                 className="btn" style={{ flex: 1 }}
                 disabled={!dose || !yieldGrams || !brewTime || rating === 0 || saving}
@@ -389,6 +419,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 💾 שמור וקבל ניתוח
               </button>
             </div>
+            <MissingFieldsHint dose={dose} yieldGrams={yieldGrams} brewTime={brewTime} rating={rating} />
           </div>
         </div>
       );
@@ -496,7 +527,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           <RatingPicker value={rating} onChange={setRating} />
 
           <div className="btn-row">
-            <button className="btn secondary" onClick={() => setStep('brew')}>→ חזרה</button>
+            <button className="btn secondary" onClick={() => history.back()}>→ חזרה</button>
             <button
               className="btn" style={{ flex: 1 }}
               disabled={!dose || !yieldGrams || !brewTime || rating === 0 || saving}
@@ -505,6 +536,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
               💾 שמור וקבל ניתוח AI Coach
             </button>
           </div>
+          <MissingFieldsHint dose={dose} yieldGrams={yieldGrams} brewTime={brewTime} rating={rating} />
         </div>
       </div>
     );
@@ -603,6 +635,26 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   }
 
   return null;
+}
+
+// שורת עזרה מתחת לכפתור שמירה מנוטרל — אומרת בדיוק אילו שדות חסרים
+function MissingFieldsHint({
+  dose, yieldGrams, brewTime, rating,
+}: {
+  dose: string; yieldGrams: string; brewTime: string; rating: number;
+}) {
+  const missing = [
+    !dose && 'גרם נכנס',
+    !yieldGrams && 'גרם סופי בכוס',
+    !brewTime && 'זמן חליטה',
+    rating === 0 && 'דירוג אישי',
+  ].filter(Boolean);
+  if (missing.length === 0) return null;
+  return (
+    <p className="muted small" style={{ marginTop: 8, marginBottom: 0 }} role="status">
+      כדי לשמור נשאר להשלים: {missing.join(', ')}
+    </p>
+  );
 }
 
 async function checkOneVariable(shot: Shot, sessionId: string): Promise<string | null> {

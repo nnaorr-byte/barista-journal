@@ -197,14 +197,19 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
         });
       }
 
-      // מוח ה-AI: היסטוריית הפולים מהישן לחדש + השוט שזה עתה נשמר
-      const beanHistory = [...shots.filter((s) => s.beanId === selectedBean.id)]
+      // מוח ה-AI: היסטוריית הפולים על המטחנה הנוכחית בלבד (דרגות טחינה
+      // אינן ברות-השוואה בין מטחנות) + השוט שזה עתה נשמר
+      const beanAll = shots.filter((s) => s.beanId === selectedBean.id); // מהחדש לישן
+      const grinderChanged = beanAll.length > 0 && beanAll[0].grinderId !== gId;
+      const beanHistory = beanAll
+        .filter((s) => s.grinderId === gId)
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
       beanHistory.push(shot);
       setAdvice(aiRecommend({
         lastShot: shot,
         beanShots: beanHistory,
         grinder: grinders.find((g) => g.id === gId),
+        grinderChanged,
       }));
       setStep('coach');
     } finally {

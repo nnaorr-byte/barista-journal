@@ -100,21 +100,16 @@ export function recommendShot(params: {
   }
 
   // ---- מוח ה-AI: השוט האחרון קובע את הצעד הבא (docs/Espresso_AI_Engine_Guide.md) ----
-  // המוח מנתח את השוט האחרון של הפולים ומכריע: מה המשתנה היחיד שמשתנה בשוט הבא.
-  if (beanShots.length > 0) {
-    const history = [...beanShots].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  // הניתוח מתבסס אך ורק על שוטים מהמטחנה הנוכחית — דרגות טחינה אינן
+  // ברות-השוואה בין מטחנות. החלפת מטחנה = הניתוח מתחיל מחדש.
+  if (grinderShots.length > 0) {
+    const history = [...grinderShots].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     const last = history[history.length - 1];
     const ai = aiRecommend({ lastShot: last, beanShots: history, grinder });
 
     // Yield: יעד המוח, מותאם פרופורציונלית אם המשתמש בחר מנה שונה
-    const aiRatio = ai.targets.doseGrams > 0 ? ai.targets.yieldGrams / ai.targets.doseGrams : ratio;
-    ratio = aiRatio;
-
-    // דרגת טחינה: רק אם השוט האחרון היה על המטחנה הנוכחית (סקאלות שונות בין מטחנות)
-    const lastOnCurrentGrinder = grinderShots.some((s) => s.id === last.id);
-    if (lastOnCurrentGrinder) {
-      grindSetting = ai.targets.grindSetting;
-    }
+    ratio = ai.targets.doseGrams > 0 ? ai.targets.yieldGrams / ai.targets.doseGrams : ratio;
+    grindSetting = ai.targets.grindSetting;
 
     // זמן יעד: אם המוח אומר "לא לשנות" — מכוונים לזמן של השוט המוצלח
     if (ai.changeKind === 'none' && last.brewTimeSec > 0) {
@@ -126,6 +121,10 @@ export function recommendShot(params: {
       `🧠 מוח ה-AI (ביטחון ${ai.confidencePct}%): ${ai.changeKind === 'none'
         ? 'השוט האחרון היה במקום הנכון — חוזרים עליו במדויק.'
         : ai.instruction}`,
+    );
+  } else if (beanShots.length > 0) {
+    reasons.unshift(
+      `🧠 מוח ה-AI: ${grinder ? `המטחנה "${grinder.name}"` : 'המטחנה הנוכחית'} עדיין בלי שוטים של הפולים האלה — הניתוח יתחיל מהשוט הראשון עליה. דרגות טחינה מהמטחנה הקודמת אינן תקפות כאן.`,
     );
   }
 

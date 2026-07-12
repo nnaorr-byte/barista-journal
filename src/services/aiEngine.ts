@@ -153,10 +153,11 @@ function computeConfidence(
 // ============================================================
 export function aiRecommend(params: {
   lastShot: Shot;
-  beanShots: Shot[]; // היסטוריית הפולים, מהישן לחדש (כולל האחרון)
+  beanShots: Shot[]; // היסטוריית הפולים על המטחנה הנוכחית בלבד, מהישן לחדש (כולל האחרון)
   grinder?: Grinder;
+  grinderChanged?: boolean; // המטחנה שונה מזו של השוט הקודם של הפולים
 }): AiAdvice {
-  const { lastShot: last, beanShots, grinder } = params;
+  const { lastShot: last, beanShots, grinder, grinderChanged } = params;
   const history = beanShots;
   const grindStep = grinder?.scaleStep || 1;
   const prev = prevSameBeanShot(history, last);
@@ -174,6 +175,13 @@ export function aiRecommend(params: {
     yieldGrams: last.yieldGrams,
     grindSetting: last.grindSetting,
   };
+
+  // ---- הפרדת מטחנות: החלפת מטחנה = ניתוח מתחיל מחדש ----
+  if (grinderChanged) {
+    warnings.push(
+      `המטחנה השתנתה${grinder ? ` ל"${grinder.name}"` : ''} — הניתוח מתבסס רק על שוטים מהמטחנה הנוכחית. דרגות טחינה מהמטחנה הקודמת אינן ברות-השוואה.`,
+    );
+  }
 
   // ---- כלל זהב: זמן קיצוני ----
   if (t > 0 && (t < 15 || t > 45)) {
@@ -207,13 +215,13 @@ export function aiRecommend(params: {
     targets.yieldGrams = round1(last.yieldGrams + 3);
     changeKind = 'yield';
     changeLabel = 'Yield — הגדלה';
-    instruction = `הגדל את ה-Yield ב-2–4 גרם: עצור הפעם סביב ${targets.yieldGrams} גרם (במקום ${last.yieldGrams}). טחינה ומנה נשארות זהות.`;
+    instruction = `הגדל את ה-Yield ב-2–4 גרם: כוון ליעד סופי של ${targets.yieldGrams} גרם בכוס (במקום ${last.yieldGrams}). טחינה ומנה נשארות זהות.`;
   };
   const yieldDown = () => {
     targets.yieldGrams = round1(Math.max(last.doseGrams, last.yieldGrams - 3));
     changeKind = 'yield';
     changeLabel = 'Yield — הקטנה';
-    instruction = `הקטן את ה-Yield ב-2–4 גרם: עצור הפעם סביב ${targets.yieldGrams} גרם (במקום ${last.yieldGrams}). טחינה ומנה נשארות זהות.`;
+    instruction = `הקטן את ה-Yield ב-2–4 גרם: כוון ליעד סופי של ${targets.yieldGrams} גרם בכוס (במקום ${last.yieldGrams}). טחינה ומנה נשארות זהות.`;
   };
 
   // ---- עדיפות למתכון מוצלח (עיקרון 4) ----
@@ -225,7 +233,7 @@ export function aiRecommend(params: {
     changeKind = 'recipe';
     changeLabel = 'חזרה למתכון המוצלח';
     diagnosis = `השוט (${last.rating}/10) התרחק מהמתכון שכבר הוכיח את עצמו אצלך (${recipe.rating}/10). לפי הכללים — מתכון מוצלח מקבל עדיפות על ניסויים.`;
-    instruction = `חזור למתכון: ${recipe.doseGrams} גרם ← ${recipe.yieldGrams} גרם, טחינה ${recipe.grindSetting}, ${recipe.brewTimeSec} שניות.`;
+    instruction = `חזור למתכון: ${recipe.doseGrams} גרם ← ${recipe.yieldGrams} גרם, טחינה ${recipe.grindSetting}${grinder ? ` (${grinder.name})` : ''}, ${recipe.brewTimeSec} שניות.`;
     expectedResult = `שחזור התוצאה של ${recipe.rating}/10 מ-${new Date(recipe.createdAt).toLocaleDateString('he-IL')}.`;
     tone = 'info';
     recipeNote = '⭐ קיים מתכון מוצלח לפולים האלה — ההמלצה החזקה ביותר היא לחזור אליו לפני ניסויים חדשים.';
@@ -348,6 +356,20 @@ export function aiRecommend(params: {
         tone = 'info';
         break;
     }
+  }
+
+  // ---- נקודת עצירה: יעד סופי ⟵ איפה לעצור בפועל ----
+  // לפי הטפטוף הנמדד של המשתמש (אם תועדו עצירה+סופי), אחרת ברירת מחדל 3–4 גרם.
+  if (changeKind !== 'prep') {
+    const measuredDrips = history
+      .filter((s) => s.yieldStopGrams && s.yieldGrams > (s.yieldStopGrams ?? 0))
+      .map((s) => s.yieldGrams - (s.yieldStopGrams ?? 0));
+    const measured = measuredDrips.length >= 2;
+    const drip = measured
+      ? round1(measuredDrips.reduce((a, b) => a + b, 0) / measuredDrips.length)
+      : 3.5;
+    const stopAt = round1(Math.max(targets.doseGrams, targets.yieldGrams - drip));
+    instruction += ` עצור בפועל סביב ${stopAt} גרם — הטפטוף (${measured ? `~${drip} גרם בממוצע אצלך` : 'משוער 3–4 גרם'}) ישלים ליעד הסופי של ${targets.yieldGrams} גרם.`;
   }
 
   const { pct, reasons } = computeConfidence(history, targets, recipe, grindStep);

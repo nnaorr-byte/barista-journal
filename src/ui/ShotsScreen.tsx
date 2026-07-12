@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import { shotRepo } from '../db/repositories';
@@ -30,6 +30,27 @@ export function ShotsScreen() {
   const [tasteFilter, setTasteFilter] = useState<TasteTag | ''>('');
   const [editing, setEditing] = useState<Shot | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  // ביטול מחיקה: השוט האחרון שנמחק נשמר בצד 6 שניות עם אפשרות שחזור
+  const [deletedShot, setDeletedShot] = useState<Shot | null>(null);
+  const undoTimerRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+  }, []);
+
+  async function deleteWithUndo(s: Shot) {
+    await shotRepo.remove(s.id);
+    setDeletedShot(s);
+    if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+    undoTimerRef.current = window.setTimeout(() => setDeletedShot(null), 6000);
+  }
+
+  async function undoDelete() {
+    if (!deletedShot) return;
+    if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+    await shotRepo.put(deletedShot); // אותו id — השוט חוזר למקומו
+    setDeletedShot(null);
+  }
 
   const beanMap = useMemo(
     () => new Map((data?.beans ?? []).map((b) => [b.id, b])),
@@ -147,9 +168,7 @@ export function ShotsScreen() {
                   <button className="btn small secondary" onClick={() => setEditing(s)}>✏️ עריכה</button>
                   <button
                     className="btn small danger"
-                    onClick={async () => {
-                      if (confirm('למחוק את השוט הזה לצמיתות?')) await shotRepo.remove(s.id);
-                    }}
+                    onClick={() => deleteWithUndo(s)}
                   >
                     🗑️ מחיקה
                   </button>
@@ -159,6 +178,14 @@ export function ShotsScreen() {
           </div>
         ))}
       </div>
+
+      {/* טוסט ביטול מחיקה — לא גונב פוקוס, מוכרז לקורא מסך */}
+      {deletedShot && (
+        <div className="undo-toast" role="status">
+          <span>השוט נמחק</span>
+          <button className="btn small" onClick={undoDelete}>↩️ ביטול</button>
+        </div>
+      )}
     </div>
   );
 }

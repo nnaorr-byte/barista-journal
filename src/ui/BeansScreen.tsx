@@ -131,12 +131,19 @@ export function BeansScreen() {
                     {usage.shotsCount} שוטים · נצרכו {usage.gramsUsed.toFixed(0)} גרם · נשארו ~{usage.gramsLeft.toFixed(0)} גרם
                     {usage.costPerShot !== null && ` · ₪${usage.costPerShot.toFixed(1)} לשוט`}
                   </div>
-                  {!bag.finished && (
+                  {!bag.finished ? (
                     <button
                       className="btn small secondary" style={{ marginTop: 6 }}
                       onClick={() => bagRepo.put({ ...bag, finished: true })}
                     >
                       סמן כנגמרה
+                    </button>
+                  ) : (
+                    <button
+                      className="btn small secondary" style={{ marginTop: 6 }}
+                      onClick={() => bagRepo.put({ ...bag, finished: false })}
+                    >
+                      ↩️ החזר שקית
                     </button>
                   )}
                 </div>

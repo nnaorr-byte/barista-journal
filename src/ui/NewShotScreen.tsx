@@ -9,10 +9,39 @@ import type {
 } from '../domain/types';
 import { Chips, Field, RatingPicker, StatTile } from './components';
 import { TastingCoach } from './TastingCoach';
+import { WarmupChecklist } from './WarmupChecklist';
 import { FLAVOR_LABELS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS } from './labels';
 import type { Screen } from '../App';
 
 type Step = 'setup' | 'brew' | 'results' | 'coach';
+
+// ---- צליל התראה לטיימר (Web Audio) ----
+// באייפון אין רטט בדפדפן — צפצוף קצר הוא המשוב כשנכנסים/חורגים מחלון היעד.
+let audioCtx: AudioContext | null = null;
+
+// חייב להיקרא מתוך מחוות משתמש (לחיצת ההפעלה) — דרישת iOS לאודיו
+function ensureAudio() {
+  if (typeof AudioContext === 'undefined') return;
+  audioCtx ??= new AudioContext();
+  if (audioCtx.state === 'suspended') void audioCtx.resume();
+}
+
+function beep(times: number, freq: number) {
+  if (!audioCtx || audioCtx.state !== 'running') return;
+  for (let i = 0; i < times; i++) {
+    const t = audioCtx.currentTime + i * 0.2;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.frequency.value = freq;
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.exponentialRampToValueAtTime(0.35, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+    osc.start(t);
+    osc.stop(t + 0.16);
+  }
+}
 
 const TASTE_OPTIONS = (Object.entries(TASTE_LABELS) as [TasteTag, string][]).map(
   ([value, label]) => ({ value, label }),
@@ -258,6 +287,8 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       <div>
         <div className="card">
           <h2>☕ שוט חדש — שלב 1: לפני החליטה</h2>
+
+          <WarmupChecklist machineName={machine?.name ?? 'המכונה'} />
 
           {lastShot && (
             <div className="btn-row" style={{ marginTop: 0, marginBottom: 12 }}>
@@ -700,20 +731,49 @@ function BrewStep({
     const loop = () => {
       const sec = (Date.now() - startRef.current) / 1000;
       setElapsed(sec);
-      // רטט (באנדרואיד; באייפון אין תמיכה — הצבע משתנה במקום)
+      // רטט (אנדרואיד) + צפצוף (עובד גם באייפון, שם אין רטט בדפדפן)
       if (sec >= targetMin && !vibratedRef.current.enter) {
         vibratedRef.current.enter = true;
         navigator.vibrate?.(120);
+        beep(1, 880); // צפצוף יחיד — נכנסת לחלון היעד
       }
       if (sec > targetMax && !vibratedRef.current.exceed) {
         vibratedRef.current.exceed = true;
         navigator.vibrate?.([90, 70, 90]);
+        beep(2, 660); // צפצוף כפול נמוך — חלון היעד חלף
       }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, [running, targetMin, targetMax]);
+
+  // Wake Lock: המסך לא נכבה בזמן שהטיימר רץ (נתמך באייפון מ-iOS 16.4).
+  // הנעילה משתחררת אוטומטית כשהטאב מוסתר — לכן נרכשת מחדש בחזרה אליו.
+  useEffect(() => {
+    if (!running || !('wakeLock' in navigator)) return;
+    let lock: WakeLockSentinel | null = null;
+    let active = true;
+    const acquire = () => {
+      if (lock && !lock.released) return;
+      navigator.wakeLock.request('screen')
+        .then((l) => {
+          if (active) lock = l;
+          else void l.release().catch(() => {});
+        })
+        .catch(() => { /* נדחה (חיסכון בסוללה וכו') — ממשיכים בלי */ });
+    };
+    acquire();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') acquire();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      active = false;
+      document.removeEventListener('visibilitychange', onVisible);
+      void lock?.release().catch(() => {});
+    };
+  }, [running]);
 
 
   // טבעת התקדמות: הסקאלה עד יעד-מקסימום + מרווח קטן
@@ -733,6 +793,7 @@ function BrewStep({
       setRunning(false);
       return;
     }
+    ensureAudio(); // הפעלת אודיו מתוך מחוות המשתמש — דרישת iOS
     startRef.current = Date.now();
     setElapsed(0);
     vibratedRef.current = { enter: false, exceed: false };

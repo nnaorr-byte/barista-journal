@@ -697,6 +697,48 @@ table.data th { color: var(--text-muted); font-weight: 700; font-size: 0.76rem; 
 .insight-item:last-child { border-bottom: none; }
 .insight-item .insight-icon { font-size: 1.1rem; line-height: 1.3; }
 
+/* ---- טוסט ביטול מחיקה ---- */
+.undo-toast {
+  position: fixed;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  right: 16px;
+  left: 16px;
+  max-width: 420px;
+  margin: 0 auto;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 8px 8px 8px 16px;
+  box-shadow: var(--shadow);
+  animation: screen-in var(--speed) ease-out;
+}
+
+/* ---- שגרת חימום: שורת צ'ק-ליסט ---- */
+.warmup-step {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--hairline);
+  cursor: pointer;
+}
+.warmup-step:last-of-type { border-bottom: none; }
+.warmup-step input[type='checkbox'] {
+  width: 22px;
+  height: 22px;
+  margin: 2px 0 0;
+  padding: 0;
+  accent-color: var(--accent);
+  flex: none;
+  cursor: pointer;
+}
+.warmup-done { text-decoration: line-through; opacity: 0.6; }
+
 /* ---- הפחתת תנועה: כיבוי כל האנימציות ---- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

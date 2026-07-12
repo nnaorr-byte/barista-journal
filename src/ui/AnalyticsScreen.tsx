@@ -104,11 +104,12 @@ function GrindTimeHeatmap({ shots }: { shots: Shot[] }) {
                           padding: '5px 6px',
                           borderRadius: 8,
                           fontWeight: 700,
-                          background: `color-mix(in srgb, var(--accent) ${Math.round((cell.avg / 10) * 85)}%, transparent)`,
+                          /* מקסימום 45% — מעבר לזה הטקסט טובע ברקע הענברי */
+                          background: `color-mix(in srgb, var(--accent) ${Math.round((cell.avg / 10) * 45)}%, transparent)`,
                         }}
                       >
                         {cell.avg.toFixed(1)}
-                        <span className="muted" style={{ fontWeight: 400 }}> ×{cell.count}</span>
+                        <span style={{ fontWeight: 400, opacity: 0.85 }}> ×{cell.count}</span>
                       </span>
                     ) : (
                       <span className="muted">—</span>

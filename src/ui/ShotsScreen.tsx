@@ -90,17 +90,22 @@ export function ShotsScreen() {
         )}
         {filtered.map((s) => (
           <div key={s.id}>
-            <div className="shot-item" onClick={() => setExpanded(expanded === s.id ? null : s.id)}>
-              <div className={`shot-rating ${ratingClass(s.rating)}`}>{s.rating}</div>
-              <div style={{ flex: 1 }}>
-                <div>{s.favorite && '⭐ '}{beanMap.get(s.beanId)?.name ?? 'פולים שנמחקו'}</div>
-                <div className="muted small">
+            <button
+              type="button"
+              className="shot-item"
+              onClick={() => setExpanded(expanded === s.id ? null : s.id)}
+              aria-expanded={expanded === s.id}
+            >
+              <span className={`shot-rating ${ratingClass(s.rating)}`}>{s.rating}</span>
+              <span style={{ flex: 1 }}>
+                <span style={{ display: 'block' }}>{s.favorite && '⭐ '}{beanMap.get(s.beanId)?.name ?? 'פולים שנמחקו'}</span>
+                <span className="muted small" style={{ display: 'block' }}>
                   {shotWeights(s)} · {s.brewTimeSec} שניות · טחינה {s.grindSetting}
-                </div>
-                <div className="muted small">{formatDateTime(s.createdAt)}</div>
-              </div>
-              <span className="muted">{expanded === s.id ? '▲' : '▼'}</span>
-            </div>
+                </span>
+                <span className="muted small" style={{ display: 'block' }}>{formatDateTime(s.createdAt)}</span>
+              </span>
+              <span className="muted" aria-hidden="true">{expanded === s.id ? '▲' : '▼'}</span>
+            </button>
             {expanded === s.id && (
               <div style={{ padding: '4px 8px 12px' }}>
                 <p className="small" style={{ margin: '4px 0' }}>

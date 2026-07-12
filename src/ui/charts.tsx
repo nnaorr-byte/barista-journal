@@ -75,7 +75,10 @@ export function LineChart({
 
   return (
     <div className="chart-wrap" dir="ltr">
-      <svg className="chart-svg" viewBox={`0 0 ${W} ${H}`} role="img">
+      <svg
+        className="chart-svg" viewBox={`0 0 ${W} ${H}`} role="img"
+        aria-label={`גרף מגמה, ${points.length} נקודות — ערך אחרון ${points[points.length - 1].value}${unit}`}
+      >
         {band && (
           <g>
             <rect
@@ -142,7 +145,10 @@ export function BarChart({ points, unit = '', maxValue }: { points: Point[]; uni
   return (
     // dir=ltr כדי ש-textAnchor יתנהג עקבית; המחרוזות בעברית מוצגות נכון בזכות bidi
     <div className="chart-wrap" dir="ltr">
-      <svg className="chart-svg" viewBox={`0 0 ${W} ${height}`} role="img">
+      <svg
+        className="chart-svg" viewBox={`0 0 ${W} ${height}`} role="img"
+        aria-label={`גרף השוואה: ${points.map((p) => `${p.label} ${formatVal(p.value)}${unit}`).join(', ')}`}
+      >
         {points.map((p, i) => {
           const barW = Math.max(3, (p.value / max) * barMax);
           const yPos = i * rowH + 6;
@@ -209,7 +215,10 @@ export function ScatterChart({
 
   return (
     <div className="chart-wrap" dir="ltr">
-      <svg className="chart-svg" viewBox={`0 0 ${W} ${H}`} role="img">
+      <svg
+        className="chart-svg" viewBox={`0 0 ${W} ${H}`} role="img"
+        aria-label={`תרשים פיזור: ${yLabel} מול ${xLabel}, ${points.length} שוטים`}
+      >
         {yTicks.map((t) => (
           <g key={`y${t}`}>
             <line x1={M.left} x2={W - M.right} y1={py(t)} y2={py(t)} stroke={GRID} strokeWidth="1" opacity="0.5" />
@@ -247,7 +256,10 @@ export function Histogram({ bins, unit = '' }: { bins: Point[]; unit?: string })
 
   return (
     <div className="chart-wrap" dir="ltr">
-      <svg className="chart-svg" viewBox={`0 0 ${W} ${H}`} role="img">
+      <svg
+        className="chart-svg" viewBox={`0 0 ${W} ${H}`} role="img"
+        aria-label={`היסטוגרמת התפלגות: ${bins.filter((b) => b.value > 0).map((b) => `${b.label}: ${b.value}${unit}`).join(', ')}`}
+      >
         {bins.map((b, i) => {
           const h = max > 0 ? (b.value / max) * ih : 0;
           const cx = M.left + gap * i + gap / 2;

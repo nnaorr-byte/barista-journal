@@ -211,9 +211,9 @@ function EquipmentCard({ machines, grinders, userId }: {
             {!m.isDefault && (
               <button className="btn small secondary" onClick={() => machineRepo.setDefault(m.id)}>ברירת מחדל</button>
             )}
-            <button className="btn small secondary" onClick={() => setEditingMachine(m)}>✏️</button>
+            <button className="btn small secondary" aria-label={`עריכת ${m.name}`} onClick={() => setEditingMachine(m)}>✏️</button>
             {machines.length > 1 && (
-              <button className="btn small danger" onClick={() => removeMachine(m)}>🗑️</button>
+              <button className="btn small danger" aria-label={`מחיקת ${m.name}`} onClick={() => removeMachine(m)}>🗑️</button>
             )}
           </div>
         </div>
@@ -255,9 +255,9 @@ function EquipmentCard({ machines, grinders, userId }: {
             {!g.isDefault && (
               <button className="btn small secondary" onClick={() => grinderRepo.setDefault(g.id)}>ברירת מחדל</button>
             )}
-            <button className="btn small secondary" onClick={() => setEditingGrinder(g)}>✏️</button>
+            <button className="btn small secondary" aria-label={`עריכת ${g.name}`} onClick={() => setEditingGrinder(g)}>✏️</button>
             {grinders.length > 1 && (
-              <button className="btn small danger" onClick={() => removeGrinder(g)}>🗑️</button>
+              <button className="btn small danger" aria-label={`מחיקת ${g.name}`} onClick={() => removeGrinder(g)}>🗑️</button>
             )}
           </div>
         </div>

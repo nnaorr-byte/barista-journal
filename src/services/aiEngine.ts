@@ -1,4 +1,4 @@
-import type { Grinder, Shot, TasteTag } from '../domain/types';
+import type { AiAdvice, AiTargets, Grinder, Shot, TasteTag } from '../domain/types';
 
 // ============================================================
 // מוח ה-AI — מנוע ההמלצות לשוט הבא
@@ -6,29 +6,10 @@ import type { Grinder, Shot, TasteTag } from '../domain/types';
 //   עקרונות: שינוי משתנה אחד בלבד · סדר עדיפות טחינה→Yield→Dose ·
 //   הטעם הוא המדד העליון, זמן החליטה כלי אבחון · עדיפות למתכון מוצלח.
 // רץ כולו במכשיר — אפס שירותים חיצוניים, אפס עלות.
+// הטיפוסים AiAdvice/AiTargets מוגדרים ב-domain/types.ts (נשמרים עם כל שוט).
 // ============================================================
 
-export interface AiTargets {
-  doseGrams: number;
-  yieldGrams: number;
-  grindSetting: number;
-}
-
-export interface AiAdvice {
-  tone: 'good' | 'warn' | 'bad' | 'info';
-  lastShotSummary: string; // 1. סיכום השוט האחרון
-  diagnosis: string; // 2. אבחון
-  changeKind: 'none' | 'grind' | 'yield' | 'dose' | 'prep' | 'recipe';
-  changeLabel: string; // 3. השינוי היחיד
-  instruction: string;
-  targets: AiTargets; // הפרמטרים המומלצים לשוט הבא
-  expectedResult: string; // 4. תוצאה צפויה
-  confidencePct: number; // 5. רמת ביטחון 0–100
-  confidenceReasons: string[];
-  warnings: string[]; // כללי זהב: זמן קיצוני וכו'
-  recipeNote: string | null;
-  reminder: string; // 6. תזכורת
-}
+export type { AiAdvice, AiTargets };
 
 const REMINDER =
   'שנה אך ורק את הפרמטר הזה. טחינה, Yield ו-Dose לעולם לא משתנים יחד — כך יודעים בוודאות מה השפיע.';

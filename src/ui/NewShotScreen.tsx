@@ -206,12 +206,15 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
         .filter((s) => s.grinderId === gId)
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
       beanHistory.push(shot);
-      setAdvice(aiRecommend({
+      const newAdvice = aiRecommend({
         lastShot: shot,
         beanShots: beanHistory,
         grinder: grinders.find((g) => g.id === gId),
         grinderChanged,
-      }));
+      });
+      // ההמלצה נשמרת עם השוט — תופיע גם ביומן לצד פרטי השוט
+      await shotRepo.put({ ...shot, aiAdvice: newAdvice });
+      setAdvice(newAdvice);
       setStep('coach');
     } finally {
       setSaving(false);

@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import { shotRepo } from '../db/repositories';
+import { aiRecommend } from '../services/aiEngine';
 import {
   shotRatio, shotFlowRate,
-  type FlavorNote, type MachineTempSetting, type QualityLevel, type Shot, type TasteTag,
+  type AiAdvice, type FlavorNote, type Grinder, type MachineTempSetting,
+  type QualityLevel, type Shot, type TasteTag,
 } from '../domain/types';
 import { Chips, EmptyState, Field, RatingPicker } from './components';
 import { FLAVOR_LABELS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
@@ -15,11 +17,12 @@ const QUALITY_OPTIONS = (Object.entries(QUALITY_LABELS) as [QualityLevel, string
 
 export function ShotsScreen() {
   const data = useLiveQuery(async () => {
-    const [shots, beans] = await Promise.all([
+    const [shots, beans, grinders] = await Promise.all([
       db.shots.orderBy('createdAt').reverse().toArray(),
       db.beans.toArray(),
+      db.grinders.toArray(),
     ]);
-    return { shots, beans };
+    return { shots, beans, grinders };
   });
 
   const [query, setQuery] = useState('');
@@ -119,6 +122,7 @@ export function ShotsScreen() {
                   </p>
                 )}
                 {s.notes && <p className="small muted" style={{ margin: '4px 0' }}>"{s.notes}"</p>}
+                <ShotAdviceBlock shot={s} shots={data.shots} grinders={data.grinders} />
                 <div className="btn-row">
                   <button
                     className="btn small secondary"
@@ -150,6 +154,46 @@ export function ShotsScreen() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ההמלצה שמוח ה-AI נתן על השוט: מהתיעוד שנשמר איתו, או שחזור
+// מהנתונים ההיסטוריים עבור שוטים שנשמרו לפני שהמוח נוסף.
+function reconstructAdvice(shot: Shot, shots: Shot[], grinders: Grinder[]): AiAdvice | null {
+  try {
+    const history = shots
+      .filter((x) => x.beanId === shot.beanId && x.grinderId === shot.grinderId && x.createdAt <= shot.createdAt)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    if (!history.some((x) => x.id === shot.id)) history.push(shot);
+    const prevBeanShot = shots
+      .filter((x) => x.beanId === shot.beanId && x.createdAt < shot.createdAt)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    return aiRecommend({
+      lastShot: shot,
+      beanShots: history,
+      grinder: grinders.find((g) => g.id === shot.grinderId),
+      grinderChanged: !!prevBeanShot && prevBeanShot.grinderId !== shot.grinderId,
+    });
+  } catch {
+    return null;
+  }
+}
+
+function ShotAdviceBlock({ shot, shots, grinders }: { shot: Shot; shots: Shot[]; grinders: Grinder[] }) {
+  const stored = shot.aiAdvice ?? null;
+  const advice = stored ?? reconstructAdvice(shot, shots, grinders);
+  if (!advice) return null;
+  return (
+    <div style={{ background: 'var(--bg-elevated)', borderRadius: 10, padding: '9px 12px', margin: '6px 0' }}>
+      <div className="coach-label" style={{ marginBottom: 4 }}>
+        🧠 ההמלצה שקיבלת על השוט הזה{stored ? '' : ' (שחזור)'}
+      </div>
+      <p className="small" style={{ margin: '3px 0' }}>{advice.diagnosis}</p>
+      <p className="small" style={{ margin: '3px 0', fontWeight: 600 }}>
+        {advice.changeKind === 'none' ? '✓ ' : '← '}{advice.instruction}
+      </p>
+      <p className="muted small" style={{ margin: '3px 0' }}>רמת ביטחון: {advice.confidencePct}%</p>
     </div>
   );
 }

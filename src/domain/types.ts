@@ -125,6 +125,7 @@ export interface Shot {
   notes: string;
   rating: number; // 1-10
   favorite?: boolean; // ⭐ מסומן כמתכון שמור
+  aiAdvice?: AiAdvice | null; // ההמלצה שהמוח נתן על השוט הזה, כפי שנשמרה בזמן אמת
 }
 
 // ערכים נגזרים (מחושבים, לא נשמרים)
@@ -133,6 +134,30 @@ export function shotRatio(s: Pick<Shot, 'doseGrams' | 'yieldGrams'>): number {
 }
 export function shotFlowRate(s: Pick<Shot, 'yieldGrams' | 'brewTimeSec'>): number {
   return s.brewTimeSec > 0 ? s.yieldGrams / s.brewTimeSec : 0;
+}
+
+// --- המלצת מוח ה-AI (נשמרת עם כל שוט) ---
+
+export interface AiTargets {
+  doseGrams: number;
+  yieldGrams: number;
+  grindSetting: number;
+}
+
+export interface AiAdvice {
+  tone: 'good' | 'warn' | 'bad' | 'info';
+  lastShotSummary: string; // 1. סיכום השוט האחרון
+  diagnosis: string; // 2. אבחון
+  changeKind: 'none' | 'grind' | 'yield' | 'dose' | 'prep' | 'recipe';
+  changeLabel: string; // 3. השינוי היחיד
+  instruction: string;
+  targets: AiTargets; // הפרמטרים המומלצים לשוט הבא
+  expectedResult: string; // 4. תוצאה צפויה
+  confidencePct: number; // 5. רמת ביטחון 0–100
+  confidenceReasons: string[];
+  warnings: string[];
+  recipeNote: string | null;
+  reminder: string; // 6. תזכורת
 }
 
 // --- Dial-In Session ---

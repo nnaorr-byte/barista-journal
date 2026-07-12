@@ -199,17 +199,30 @@ export function aiRecommend(params: {
   let tone: AiAdvice['tone'] = 'info';
   let recipeNote: string | null = null;
 
+  // תמיד ביחס לדרגה האחרונה שהוזנה על המטחנה הזו, ובגבולות הסקאלה שלה
+  const clampGrind = (v: number): number => {
+    if (!grinder) return round1(v);
+    return round1(Math.min(grinder.scaleMax, Math.max(grinder.scaleMin, v)));
+  };
   const grindFiner = () => {
-    targets.grindSetting = round1(last.grindSetting - grindStep);
+    targets.grindSetting = clampGrind(last.grindSetting - grindStep);
     changeKind = 'grind';
     changeLabel = 'דרגת טחינה — דק יותר';
-    instruction = `טחן דק יותר: עבור מדרגה ${last.grindSetting} לדרגה ${targets.grindSetting}${grinder ? ` (${grinder.name})` : ''}. מנה ו-Yield נשארים זהים.`;
+    if (targets.grindSetting === last.grindSetting) {
+      instruction = `הטחינה כבר בקצה הדק של הסקאלה (${last.grindSetting}${grinder ? `, ${grinder.name}` : ''}) — אי אפשר לרדת עוד. אם הבעיה נמשכת, בדוק את הגדרות הסקאלה של המטחנה.`;
+    } else {
+      instruction = `טחן דק יותר: עבור מדרגה ${last.grindSetting} לדרגה ${targets.grindSetting}${grinder ? ` (${grinder.name})` : ''}. מנה ו-Yield נשארים זהים.`;
+    }
   };
   const grindCoarser = () => {
-    targets.grindSetting = round1(last.grindSetting + grindStep);
+    targets.grindSetting = clampGrind(last.grindSetting + grindStep);
     changeKind = 'grind';
     changeLabel = 'דרגת טחינה — גס יותר';
-    instruction = `טחן גס יותר: עבור מדרגה ${last.grindSetting} לדרגה ${targets.grindSetting}${grinder ? ` (${grinder.name})` : ''}. מנה ו-Yield נשארים זהים.`;
+    if (targets.grindSetting === last.grindSetting) {
+      instruction = `הטחינה כבר בקצה הגס של הסקאלה (${last.grindSetting}${grinder ? `, ${grinder.name}` : ''}) — אי אפשר לעלות עוד. אם הבעיה נמשכת, בדוק את הגדרות הסקאלה של המטחנה.`;
+    } else {
+      instruction = `טחן גס יותר: עבור מדרגה ${last.grindSetting} לדרגה ${targets.grindSetting}${grinder ? ` (${grinder.name})` : ''}. מנה ו-Yield נשארים זהים.`;
+    }
   };
   const yieldUp = () => {
     targets.yieldGrams = round1(last.yieldGrams + 3);

@@ -52,6 +52,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
             (s) => s.beanId === lastBean.id && s.grinderId === (lastShot?.grinderId ?? defaultGrinder?.id),
           ),
           grinder: grinders.find((g) => g.id === (lastShot?.grinderId ?? defaultGrinder?.id)),
+          lastGrinderShot: shots.find((s) => s.grinderId === (lastShot?.grinderId ?? defaultGrinder?.id)),
         })
       : null;
 

@@ -41,8 +41,9 @@ export function recommendShot(params: {
   grinderShots: Shot[]; // שוטים של הפולים האלה על המטחנה הנוכחית
   doseGrams?: number; // אם המשתמש כבר בחר מנה
   grinder?: Grinder; // המטחנה הנוכחית — לחישובי מוח ה-AI
+  lastGrinderShot?: Shot; // השוט האחרון על המטחנה הנוכחית, מכל סוג פולים
 }): ShotRecommendation {
-  const { user, bean, bag, beanShots, grinderShots, grinder } = params;
+  const { user, bean, bag, beanShots, grinderShots, grinder, lastGrinderShot } = params;
   const reasons: string[] = [];
   const beanNotes: string[] = [];
   const defaults = ROAST_DEFAULTS[bean.roastLevel];
@@ -95,8 +96,12 @@ export function recommendShot(params: {
     const best = [...goodGrinderShots].sort((a, b) => b.rating - a.rating)[0];
     grindSetting = best.grindSetting;
     reasons.push(`דרגת טחינה ${grindSetting} — מהשוט הכי מוצלח שלך עם הפולים האלה על המטחנה הנוכחית.`);
+  } else if (lastGrinderShot) {
+    // אין היסטוריה לפולים האלה על המטחנה — ממשיכים מהדרגה האחרונה שהוזנה עליה
+    grindSetting = lastGrinderShot.grindSetting;
+    reasons.push(`דרגת טחינה ${grindSetting} — הדרגה האחרונה שציינת על ${grinder?.name ?? 'המטחנה הזו'} (בפולים אחרים). נקודת פתיחה — עדן ממנה לפי זמן החליטה.`);
   } else {
-    reasons.push('אין עדיין היסטוריית טחינה לפולים האלה על המטחנה הנוכחית — התחל מאמצע הסקאלה ועדן לפי זמן החליטה.');
+    reasons.push('אין עדיין היסטוריית טחינה על המטחנה הנוכחית — התחל מאמצע הסקאלה ועדן לפי זמן החליטה.');
   }
 
   // ---- מוח ה-AI: השוט האחרון קובע את הצעד הבא (docs/Espresso_AI_Engine_Guide.md) ----
@@ -109,7 +114,13 @@ export function recommendShot(params: {
 
     // Yield: יעד המוח, מותאם פרופורציונלית אם המשתמש בחר מנה שונה
     ratio = ai.targets.doseGrams > 0 ? ai.targets.yieldGrams / ai.targets.doseGrams : ratio;
+
+    // דרגת הטחינה של המוח מעוגנת תמיד לדרגה האחרונה שהוזנה על המטחנה הזו
+    // (שינוי של צעד אחד לכל היותר, או אותה דרגה אם אין צורך בשינוי) —
+    // והיא מחליפה את שורת ההסבר הישנה כדי שלא יהיו שני מספרים סותרים.
     grindSetting = ai.targets.grindSetting;
+    const oldGrindReason = reasons.findIndex((r) => r.startsWith('דרגת טחינה'));
+    if (oldGrindReason !== -1) reasons.splice(oldGrindReason, 1);
 
     // זמן יעד: אם המוח אומר "לא לשנות" — מכוונים לזמן של השוט המוצלח
     if (ai.changeKind === 'none' && last.brewTimeSec > 0) {

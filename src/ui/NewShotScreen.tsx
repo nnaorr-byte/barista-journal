@@ -135,6 +135,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       grinderShots: shots.filter((s) => s.beanId === selectedBean.id && s.grinderId === gId),
       doseGrams: parseFloat(dose) || user.defaultDoseGrams,
       grinder: grinders.find((g) => g.id === gId),
+      lastGrinderShot: shots.find((s) => s.grinderId === gId), // האחרון על המטחנה, מכל פולים
     });
     setRecommendation(rec);
     if (rec.grindSetting !== null && grindSetting === '') {

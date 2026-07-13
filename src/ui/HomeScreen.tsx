@@ -9,6 +9,7 @@ import { ratingTrend } from '../services/stats';
 import { shotRatio, type RoastLevel } from '../domain/types';
 import { StatTile, EmptyState } from './components';
 import { formatDateTime, ratingClass, shotWeights } from './labels';
+import { BeanIcon, BellIcon, CupIcon, SaveIcon, SoapIcon, TargetIcon, TrendIcon, TrophyIcon } from './icons';
 import type { Screen } from '../App';
 
 export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
@@ -71,7 +72,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       {/* תזכורת גיבוי */}
       {backupStatus.needsBackup && !backupDismissed && (
         <div className="card warn">
-          <h2>💾 הגיע הזמן לגבות</h2>
+          <h2><SaveIcon size={18} /> הגיע הזמן לגבות</h2>
           <p className="muted small" style={{ margin: '0 0 8px' }}>
             {backupStatus.lastBackupAt === null
               ? `יש לך ${backupStatus.shotsSinceBackup} שוטים שמעולם לא גובו. אם המכשיר יאבד — היומן יאבד איתו.`
@@ -88,7 +89,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 else if (result === 'fallback') setBackupMsg('✅ קובץ הגיבוי ירד למכשיר!');
               }}
             >
-              💾 גבה עכשיו
+              <SaveIcon size={16} /> גבה עכשיו
             </button>
             <button className="btn secondary small" onClick={() => setBackupDismissed(true)}>
               אחר כך
@@ -98,7 +99,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       )}
       {/* המלצת השוט הבא */}
       <div className="card accent">
-        <h2>🎯 המלצת השוט הבא</h2>
+        <h2><TargetIcon size={18} /> המלצת השוט הבא</h2>
         {recommendation && lastBean ? (
           <>
             <div className="muted small" style={{ marginBottom: 8 }}>
@@ -125,7 +126,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
               {confidenceLabel(recommendation.confidence, recommendation.basedOnShots)}
             </p>
             <button className="btn block" onClick={() => navigate('new-shot')}>
-              ☕ התחל שוט חדש
+              <CupIcon size={18} /> התחל שוט חדש
             </button>
           </>
         ) : (
@@ -136,7 +137,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
               hint="הוסף פולים והכן את השוט הראשון — ההמלצות יתחילו לזרום מיד."
             />
             <button className="btn block" onClick={() => navigate(beans.length ? 'new-shot' : 'beans')}>
-              {beans.length ? '☕ התחל שוט ראשון' : '🫘 הוסף פולים ראשונים'}
+              {beans.length ? <><CupIcon size={18} /> התחל שוט ראשון</> : <><BeanIcon size={17} /> הוסף פולים ראשונים</>}
             </button>
           </>
         )}
@@ -145,7 +146,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       {/* תזכורות תחזוקה */}
       {overdueMaintenance.length > 0 && shots.length > 0 && (
         <div className="card warn">
-          <h2>🔔 תזכורות תחזוקה</h2>
+          <h2><BellIcon size={18} /> תזכורות תחזוקה</h2>
           {overdueMaintenance.map((m) => (
             <div key={m.rule.kind} style={{ marginBottom: 6 }}>
               <span className="badge warn">
@@ -162,7 +163,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
       {/* סטטיסטיקה אישית */}
       <div className="card">
-        <h2>📈 הסטטיסטיקה שלי</h2>
+        <h2><TrendIcon size={18} /> הסטטיסטיקה שלי</h2>
         <div className="stat-grid">
           <StatTile value={insights.shotCount} label="שוטים סה״כ" />
           <StatTile value={insights.shotCount ? insights.avgRating.toFixed(1) : '—'} label="דירוג ממוצע" />
@@ -183,7 +184,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       {/* השוט הטוב ביותר אי פעם */}
       {insights.bestShot && (
         <div className="card">
-          <h2>🏆 השוט הטוב ביותר אי פעם</h2>
+          <h2><TrophyIcon size={18} /> השוט הטוב ביותר אי פעם</h2>
           <div className="shot-item" style={{ cursor: 'default' }}>
             <div className={`shot-rating ${ratingClass(insights.bestShot.rating)}`}>
               {insights.bestShot.rating}
@@ -204,7 +205,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       {/* פולים אחרונים */}
       {recentBeanIds.length > 0 && (
         <div className="card">
-          <h2>🫘 הפולים האחרונים שלי</h2>
+          <h2><BeanIcon size={18} /> הפולים האחרונים שלי</h2>
           {recentBeanIds.map((id) => {
             const bean = beanMap.get(id);
             if (!bean) return null;
@@ -226,7 +227,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       {/* ימי ניקיון */}
       {shots.length > 0 && (
         <div className="card">
-          <h2>🧼 תחזוקה</h2>
+          <h2><SoapIcon size={18} /> תחזוקה</h2>
           <div className="stat-grid">
             {maintenance.map((m) => (
               <StatTile

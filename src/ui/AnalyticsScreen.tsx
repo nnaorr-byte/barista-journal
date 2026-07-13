@@ -5,9 +5,10 @@ import {
   shotRatio, shotFlowRate,
   type Bag, type Bean, type DialInSession, type FlavorNote, type Shot,
 } from '../domain/types';
-import { BarChart, LineChart, ScatterChart, Histogram, type Point } from './charts';
+import { BarChart, LineChart, ScatterChart, Histogram, type Point, type ScatterPoint } from './charts';
 import { StatTile, EmptyState } from './components';
 import { FLAVOR_LABELS, formatDateTime, shotWeights } from './labels';
+import { BeanIcon, BulbIcon, ChartIcon, CoinIcon, CupIcon, FlameIcon, GearIcon, GiftIcon, LeafIcon, MedalIcon, ScaleIcon, SettingsIcon, StarIcon, TargetIcon, TasteIcon, TimerIcon, TrendIcon, TrophyIcon } from './icons';
 
 // ===== Coffee Shot Analytics =====
 // ניתוח ויזואלי של איכות ועקביות ההכנה, מהנתונים הקיימים בלבד.
@@ -77,7 +78,7 @@ function GrindTimeHeatmap({ shots }: { shots: Shot[] }) {
 
   return (
     <div className="card">
-      <h2>🔥 מפת חום: טחינה × זמן</h2>
+      <h2><FlameIcon size={18} /> מפת חום: טחינה × זמן</h2>
       <p className="muted small" style={{ marginTop: 0 }}>
         כל תא = דירוג ממוצע. כהה יותר = טעים יותר. חפש את "האזור החם" שלך.
       </p>
@@ -160,7 +161,7 @@ function DialInHistory({ sessions, shots, bags, beans }: {
 
   return (
     <div className="card">
-      <h2>🎛️ סשני הכיול שלי</h2>
+      <h2><SettingsIcon size={18} /> סשני הכיול שלי</h2>
       {speedInsight && <p className="small" style={{ color: 'var(--good)' }}>📈 {speedInsight}</p>}
       {sorted.slice(0, 8).map((s) => {
         const sessionShots = shots.filter((x) => x.dialInSessionId === s.id);
@@ -219,7 +220,7 @@ function CostDashboard({ shots, bags }: { shots: Shot[]; bags: Bag[] }) {
 
   return (
     <div className="card">
-      <h2>💰 עלויות הקפה שלי</h2>
+      <h2><CoinIcon size={18} /> עלויות הקפה שלי</h2>
       <div className="stat-grid">
         <StatTile value={`₪${avgCost.toFixed(1)}`} label="עלות לשוט" />
         <StatTile value={`₪${Math.round(totalConsumed)}`} label="קפה שנצרך" />
@@ -248,7 +249,7 @@ function CoffeeWrapped({ shots, beans, onBack }: { shots: Shot[]; beans: Bean[];
   if (yearShots.length === 0) {
     return (
       <div className="card">
-        <h2>🎁 Coffee Wrapped {year}</h2>
+        <h2><GiftIcon size={18} /> Coffee Wrapped {year}</h2>
         <EmptyState icon="🎁" text={`עדיין אין שוטים ב-${year}`} hint="ברגע שתתעד — הסיכום יתמלא." />
         <button className="btn block" onClick={onBack}>→ חזרה לניתוח</button>
       </div>
@@ -288,7 +289,7 @@ function CoffeeWrapped({ shots, beans, onBack }: { shots: Shot[]; beans: Bean[];
   return (
     <div>
       <div className="card accent">
-        <h2>🎁 Coffee Wrapped {year}</h2>
+        <h2><GiftIcon size={18} /> Coffee Wrapped {year}</h2>
         <p className="muted small" style={{ marginTop: 0 }}>השנה שלך באספרסו, במספרים.</p>
         <div className="stat-grid">
           <StatTile value={yearShots.length} label="שוטים השנה" />
@@ -300,7 +301,7 @@ function CoffeeWrapped({ shots, beans, onBack }: { shots: Shot[]; beans: Bean[];
       </div>
 
       <div className="card">
-        <h2>🏆 השוט של השנה</h2>
+        <h2><TrophyIcon size={18} /> השוט של השנה</h2>
         <p style={{ margin: '4px 0' }}>
           <strong>{best.rating}/10</strong> · {beanMap.get(best.beanId)?.name ?? 'פולים'} ·{' '}
           {shotWeights(best)} ב-{best.brewTimeSec} שניות
@@ -309,7 +310,7 @@ function CoffeeWrapped({ shots, beans, onBack }: { shots: Shot[]; beans: Bean[];
       </div>
 
       <div className="card">
-        <h2>🫘 הפול של השנה</h2>
+        <h2><BeanIcon size={18} /> הפול של השנה</h2>
         <p style={{ margin: '4px 0' }}>
           <strong>{beanMap.get(topBeanId)?.name ?? 'פולים'}</strong>
           {beanMap.get(topBeanId)?.roastery && ` · ${beanMap.get(topBeanId)!.roastery}`}
@@ -320,7 +321,7 @@ function CoffeeWrapped({ shots, beans, onBack }: { shots: Shot[]; beans: Bean[];
 
       {topFlavors.length > 0 && (
         <div className="card">
-          <h2>👅 הטעמים של השנה</h2>
+          <h2><TasteIcon size={18} /> הטעמים של השנה</h2>
           <div className="chips">
             {topFlavors.map(([f, n]) => (
               <span key={f} className="chip selected">{FLAVOR_LABELS[f]} × {n}</span>
@@ -331,7 +332,7 @@ function CoffeeWrapped({ shots, beans, onBack }: { shots: Shot[]; beans: Bean[];
 
       {firstAvg !== null && secondAvg !== null && (
         <div className="card">
-          <h2>📈 המסע שלך</h2>
+          <h2><TrendIcon size={18} /> המסע שלך</h2>
           <div className="stat-grid">
             <StatTile value={firstAvg.toFixed(1)} label="ממוצע — תחילת השנה" />
             <StatTile value={secondAvg.toFixed(1)} label="ממוצע — ההמשך" />
@@ -443,6 +444,59 @@ function buildInsights(shots: Shot[]): Insight[] {
   return insights;
 }
 
+// ===== עקומת הטריות: דירוג מול גיל קלייה =====
+// כל שוט ממופה לגיל הפולים ביום ההכנה (לפי תאריך הקלייה של השקית).
+// כך רואים מתי הפולים בשיא — ומתי הם כבר "עייפים".
+const AGE_BUCKETS = [
+  { label: '0–6', from: 0, to: 6 },
+  { label: '7–13', from: 7, to: 13 },
+  { label: '14–20', from: 14, to: 20 },
+  { label: '21–29', from: 21, to: 29 },
+  { label: '30–44', from: 30, to: 44 },
+  { label: '45+', from: 45, to: 999 },
+];
+
+function FreshnessCurve({ shots, bags }: { shots: Shot[]; bags: Bag[] }) {
+  const bagMap = new Map(bags.map((b) => [b.id, b]));
+  const points: ScatterPoint[] = shots.flatMap((s) => {
+    const roast = bagMap.get(s.bagId)?.roastDate;
+    if (!roast || !s.rating) return [];
+    const age = Math.floor((new Date(s.createdAt).getTime() - new Date(roast).getTime()) / 86400000);
+    if (age < 0 || age > 90) return [];
+    return [{
+      x: age,
+      y: s.rating,
+      highlight: s.rating >= GOOD_RATING,
+      label: `יום ${age} מהקלייה: דירוג ${s.rating}`,
+    }];
+  });
+  if (points.length < 3) return null;
+
+  // חלון הטריות המנצח: טווח הגיל עם הדירוג הממוצע הגבוה ביותר
+  const buckets = AGE_BUCKETS
+    .map((b) => {
+      const inB = points.filter((p) => p.x >= b.from && p.x <= b.to);
+      return { ...b, count: inB.length, avg: inB.length ? inB.reduce((a, p) => a + p.y, 0) / inB.length : 0 };
+    })
+    .filter((b) => b.count >= 2)
+    .sort((a, b) => b.avg - a.avg);
+
+  return (
+    <div className="card">
+      <h2><LeafIcon size={18} /> עקומת הטריות — דירוג מול גיל קלייה</h2>
+      <ScatterChart points={points} xLabel="ימים מהקלייה" yLabel="דירוג" />
+      <p className="muted small">
+        ● מלא = שוט מצוין ({GOOD_RATING}+) · ○ מתאר = שאר השוטים. איפה שהמלאים מתקבצים — שם הפולים שלך בשיא.
+      </p>
+      {buckets.length >= 2 && (
+        <p className="small" style={{ color: 'var(--crema)' }}>
+          חלון הטריות המנצח שלך: ימים {buckets[0].label} מהקלייה — ממוצע {buckets[0].avg.toFixed(1)} ({buckets[0].count} שוטים).
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function AnalyticsScreen() {
   const data = useLiveQuery(async () => {
     const [shots, grinders, beans, bags, sessions] = await Promise.all([
@@ -466,7 +520,7 @@ export function AnalyticsScreen() {
   if (shots.length < 2) {
     return (
       <div className="card">
-        <h2>📈 Coffee Shot Analytics</h2>
+        <h2><TrendIcon size={18} /> Coffee Shot Analytics</h2>
         <EmptyState
           icon="📈"
           text="הניתוח מתעורר אחרי 2 שוטים לפחות"
@@ -538,12 +592,12 @@ export function AnalyticsScreen() {
   return (
     <div>
       <div className="card accent">
-        <h2>📈 Coffee Shot Analytics</h2>
+        <h2><TrendIcon size={18} /> Coffee Shot Analytics</h2>
         <p className="muted small" style={{ marginTop: 0 }}>
           ניתוח {shots.length} השוטים שלך — איכות, עקביות ומגמות.
         </p>
         <button className="btn secondary block" style={{ marginBottom: 12 }} onClick={() => setWrapped(true)}>
-          🎁 Coffee Wrapped — סיכום השנה שלי
+          <GiftIcon size={16} /> Coffee Wrapped — סיכום השנה שלי
         </button>
         <div className="stat-grid">
           <StatTile value={avgRating.toFixed(1)} label="דירוג ממוצע" />
@@ -558,7 +612,7 @@ export function AnalyticsScreen() {
       {/* עקביות */}
       {consistency !== null && (
         <div className="card">
-          <h2>🎯 מדד העקביות שלי</h2>
+          <h2><TargetIcon size={18} /> מדד העקביות שלי</h2>
           <div className="stat-grid">
             <StatTile value={consistency} label="ציון עקביות (10 אחרונים)" />
             {prevConsistency !== null && <StatTile value={prevConsistency} label="10 הקודמים" />}
@@ -574,7 +628,7 @@ export function AnalyticsScreen() {
 
       {/* דירוג לאורך זמן */}
       <div className="card">
-        <h2>⭐ דירוג לאורך זמן</h2>
+        <h2><StarIcon size={18} /> דירוג לאורך זמן</h2>
         <LineChart points={ratingPoints} overlay={ratingMA} overlayLabel="ממוצע נע (5 שוטים)" />
         <p className="muted small">הקו המקווקו הוא הממוצע הנע — הוא מראה את המגמה האמיתית בלי רעש של שוט בודד.</p>
       </div>
@@ -582,7 +636,7 @@ export function AnalyticsScreen() {
       {/* זמן חליטה */}
       {timePoints.length >= 2 && (
         <div className="card">
-          <h2>⏱️ זמן חליטה לאורך זמן</h2>
+          <h2><TimerIcon size={18} /> זמן חליטה לאורך זמן</h2>
           <LineChart points={timePoints} unit="s" band={{ from: 25, to: 32, label: 'טווח יעד 25–32' }} />
           <p className="muted small">הרצועה המודגשת היא טווח היעד הקלאסי לאספרסו. שוטים מחוץ לה — סימן לכיול נדרש.</p>
         </div>
@@ -591,7 +645,7 @@ export function AnalyticsScreen() {
       {/* יחס חליטה */}
       {ratioPoints.length >= 2 && (
         <div className="card">
-          <h2>⚖️ יחס חליטה (Brew Ratio) לאורך זמן</h2>
+          <h2><ScaleIcon size={18} /> יחס חליטה (Brew Ratio) לאורך זמן</h2>
           <LineChart points={ratioPoints} band={{ from: 1.8, to: 2.4, label: 'טווח קלאסי 1:1.8–1:2.4' }} />
         </div>
       )}
@@ -599,7 +653,7 @@ export function AnalyticsScreen() {
       {/* דרגת טחינה */}
       {grindPoints.length >= 2 && topGrinder && (
         <div className="card">
-          <h2>⚙️ דרגת טחינה לאורך זמן — {topGrinder.name}</h2>
+          <h2><GearIcon size={18} /> דרגת טחינה לאורך זמן — {topGrinder.name}</h2>
           <LineChart points={grindPoints} />
           <p className="muted small">מסע הכיול שלך: שינויי הטחינה מספרים איך התאמת את עצמך לפולים ולטריות שלהם.</p>
         </div>
@@ -608,7 +662,7 @@ export function AnalyticsScreen() {
       {/* Dose מול Yield */}
       {scatterPoints.length >= 2 && (
         <div className="card">
-          <h2>☕ מנה (Dose) מול תוצאה (Yield)</h2>
+          <h2><CupIcon size={18} /> מנה (Dose) מול תוצאה (Yield)</h2>
           <ScatterChart points={scatterPoints} xLabel="גרם נכנס (Dose)" yLabel="גרם יוצא (Yield)" />
           <p className="muted small">
             ● עיגול מלא = שוט מצוין (דירוג {GOOD_RATING}+) · ○ מתאר = שאר השוטים.
@@ -620,6 +674,9 @@ export function AnalyticsScreen() {
       {/* מפת חום: טחינה × זמן */}
       <GrindTimeHeatmap shots={valid} />
 
+      {/* עקומת הטריות: דירוג מול גיל קלייה */}
+      <FreshnessCurve shots={shots} bags={bags} />
+
       {/* היסטוריית סשני כיול */}
       <DialInHistory sessions={sessions} shots={shots} bags={bags} beans={beans} />
 
@@ -628,7 +685,7 @@ export function AnalyticsScreen() {
 
       {/* התפלגות הצלחה */}
       <div className="card">
-        <h2>🏅 התפלגות הצלחה</h2>
+        <h2><MedalIcon size={18} /> התפלגות הצלחה</h2>
         <div className="dist-bar">
           {excellent > 0 && (
             <div className="dist-seg" style={{ flex: excellent, background: 'var(--good)' }}>
@@ -655,14 +712,14 @@ export function AnalyticsScreen() {
 
       {/* היסטוגרמת דירוגים */}
       <div className="card">
-        <h2>📊 התפלגות הדירוגים</h2>
+        <h2><ChartIcon size={18} /> התפלגות הדירוגים</h2>
         <Histogram bins={histBins} />
       </div>
 
       {/* תובנות */}
       {insights.length > 0 && (
         <div className="card accent">
-          <h2>💡 תובנות אישיות</h2>
+          <h2><BulbIcon size={18} /> תובנות אישיות</h2>
           {insights.map((ins, i) => (
             <div key={i} className="insight-item">
               <span className="insight-icon">{ins.icon}</span>

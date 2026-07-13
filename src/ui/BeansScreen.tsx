@@ -7,6 +7,7 @@ import { computeFreshness, formatDeadline } from '../services/freshness';
 import type { RoastLevel } from '../domain/types';
 import { EmptyState, Field } from './components';
 import { ROAST_LEVELS, formatDate, ratingClass } from './labels';
+import { BeanIcon, PlusIcon, SaveIcon, TrashIcon, UndoIcon } from './icons';
 
 // אפשרויות כמות מוכנות לשקית קפה
 const BAG_SIZES = [
@@ -63,9 +64,9 @@ export function BeansScreen() {
   return (
     <div>
       <div className="card">
-        <h2>🫘 ניהול פולים</h2>
+        <h2><BeanIcon size={18} /> ניהול פולים</h2>
         {!showForm && (
-          <button className="btn block" onClick={() => setShowForm(true)}>➕ פולים חדשים</button>
+          <button className="btn block" onClick={() => setShowForm(true)}><PlusIcon size={16} /> פולים חדשים</button>
         )}
         {showForm && <NewBeanForm onClose={() => setShowForm(false)} />}
       </div>
@@ -143,7 +144,7 @@ export function BeansScreen() {
                       className="btn small secondary" style={{ marginTop: 6 }}
                       onClick={() => bagRepo.put({ ...bag, finished: false })}
                     >
-                      ↩️ החזר שקית
+                      <UndoIcon size={15} /> החזר שקית
                     </button>
                   )}
                 </div>
@@ -155,7 +156,7 @@ export function BeansScreen() {
             ) : (
               <div className="btn-row">
                 <button className="btn small secondary" onClick={() => setAddingBagFor(bean.id)}>
-                  ➕ שקית חדשה
+                  <PlusIcon size={15} /> שקית חדשה
                 </button>
                 <button
                   className="btn small danger"
@@ -165,7 +166,7 @@ export function BeansScreen() {
                     }
                   }}
                 >
-                  🗑️ מחיקת פולים
+                  <TrashIcon size={15} /> מחיקת פולים
                 </button>
               </div>
             )}
@@ -227,7 +228,7 @@ function NewBeanForm({ onClose }: { onClose: () => void }) {
             onClose();
           }}
         >
-          💾 שמירת פולים
+          <SaveIcon size={16} /> שמירת פולים
         </button>
       </div>
     </div>
@@ -305,7 +306,7 @@ function NewBagForm({ beanId, onClose }: { beanId: string; onClose: () => void }
             onClose();
           }}
         >
-          ➕ הוספת שקית
+          <PlusIcon size={15} /> הוספת שקית
         </button>
       </div>
     </div>

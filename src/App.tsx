@@ -8,7 +8,7 @@ import { AnalyticsScreen } from './ui/AnalyticsScreen';
 import { SettingsScreen } from './ui/SettingsScreen';
 import { BeansBackground } from './ui/BeansBackground';
 import {
-  BeanIcon, ChartIcon, CupIcon, HomeIcon, JournalIcon, SettingsIcon,
+  BeanIcon, ChartIcon, CupIcon, HomeIcon, JournalIcon, MoonIcon, SettingsIcon, SunIcon,
 } from './ui/icons';
 import type { ReactNode } from 'react';
 
@@ -58,7 +58,7 @@ export default function App() {
     <BeansBackground />
     <div className="app">
       <header className="topbar">
-        <h1>☕ יומן בריסטה חכם</h1>
+        <h1><CupIcon size={22} /> יומן בריסטה חכם</h1>
         <div className="topbar-actions">
           <button
             className={`theme-toggle ${screen === 'settings' ? 'active' : ''}`}
@@ -72,7 +72,7 @@ export default function App() {
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             aria-label="החלפת מצב תצוגה"
           >
-            {theme === 'dark' ? '☀️' : '🌙'}
+            {theme === 'dark' ? <SunIcon size={19} /> : <MoonIcon size={19} />}
           </button>
         </div>
       </header>

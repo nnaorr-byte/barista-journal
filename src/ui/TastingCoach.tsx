@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { TasteIcon } from './icons';
 import type { QualityLevel, TasteTag } from '../domain/types';
 
 // אימון טעימה מודרך: שלוש לגימות, שלוש שאלות — והתוצאה ממלאת
@@ -102,7 +103,7 @@ export function TastingCoach({ onComplete, onCancel }: {
 
   return (
     <div className="card accent" style={{ marginTop: 10 }}>
-      <h2>👅 אימון טעימה — שלב {stepIdx + 1} מתוך 3</h2>
+      <h2><TasteIcon size={18} /> אימון טעימה — שלב {stepIdx + 1} מתוך 3</h2>
       <h3 style={{ marginTop: 4 }}>{step.title}</h3>
       <p className="small" style={{ color: 'var(--crema)' }}>{step.guidance}</p>
       <div className="btn-row" style={{ flexDirection: 'column' }}>

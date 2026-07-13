@@ -11,6 +11,7 @@ import { Chips, Field, RatingPicker, StatTile } from './components';
 import { TastingCoach } from './TastingCoach';
 import { WarmupChecklist } from './WarmupChecklist';
 import { FLAVOR_LABELS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS } from './labels';
+import { BoltIcon, BrainIcon, CheckIcon, ClipboardIcon, CupIcon, PlusIcon, SaveIcon, StarIcon, TargetIcon, TasteIcon, TimerIcon } from './icons';
 import type { Screen } from '../App';
 
 type Step = 'setup' | 'brew' | 'results' | 'coach';
@@ -286,14 +287,14 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     return (
       <div>
         <div className="card">
-          <h2>☕ שוט חדש — שלב 1: לפני החליטה</h2>
+          <h2><CupIcon size={18} /> שוט חדש — שלב 1: לפני החליטה</h2>
 
           <WarmupChecklist machineName={machine?.name ?? 'המכונה'} />
 
           {lastShot && (
             <div className="btn-row" style={{ marginTop: 0, marginBottom: 12 }}>
               <button className="btn secondary" style={{ flex: 1 }} onClick={applyLastShot}>
-                📋 כמו הקודם
+                <ClipboardIcon size={16} /> כמו הקודם
               </button>
               <button
                 className="btn" style={{ flex: 1.4 }}
@@ -304,7 +305,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                   goStep('results');
                 }}
               >
-                ⚡ שוט מהיר (תיעוד ב-10 שניות)
+                <BoltIcon size={16} /> שוט מהיר (תיעוד ב-10 שניות)
               </button>
             </div>
           )}
@@ -363,7 +364,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
           {recipeShot && bagId && (
             <button className="btn block" style={{ marginBottom: 10 }} onClick={applyRecipe}>
-              ⭐ הכן לפי המתכון השמור ({recipeShot.doseGrams}←{recipeShot.yieldGrams} גרם
+              <StarIcon size={16} /> הכן לפי המתכון השמור ({recipeShot.doseGrams}←{recipeShot.yieldGrams} גרם
               {recipeShot.yieldStopGrams ? `, עצירה ב-${recipeShot.yieldStopGrams}` : ''} · טחינה {recipeShot.grindSetting} · דירוג {recipeShot.rating}/10)
             </button>
           )}
@@ -429,7 +430,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       return (
         <div>
           <div className="card accent">
-            <h2>⚡ שוט מהיר</h2>
+            <h2><BoltIcon size={18} /> שוט מהיר</h2>
             <p className="muted small" style={{ marginTop: 0 }}>
               טחינה, טמפרטורה וסלסלה שוכפלו מהשוט הקודם. טעמים והערות אפשר להשלים אחר-כך מהיומן (✏️ עריכה).
             </p>
@@ -447,7 +448,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 disabled={!dose || !yieldGrams || !brewTime || rating === 0 || saving}
                 onClick={saveShot}
               >
-                💾 שמור וקבל ניתוח
+                <SaveIcon size={16} /> שמור וקבל ניתוח
               </button>
             </div>
             <MissingFieldsHint dose={dose} yieldGrams={yieldGrams} brewTime={brewTime} rating={rating} />
@@ -459,7 +460,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     return (
       <div>
         <div className="card">
-          <h2>📋 שלב 3: תוצאות השוט</h2>
+          <h2><ClipboardIcon size={18} /> שלב 3: תוצאות השוט</h2>
 
           {weightFields}
           {ratioLine}
@@ -499,7 +500,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
           {!tasting && (
             <button className="btn secondary block" style={{ marginTop: 6 }} onClick={() => setTasting(true)}>
-              👅 אימון טעימה מודרך — תן לי להוביל אותך לגימה-לגימה
+              <TasteIcon size={16} /> אימון טעימה מודרך — תן לי להוביל אותך לגימה-לגימה
             </button>
           )}
           {tasting && (
@@ -564,7 +565,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
               disabled={!dose || !yieldGrams || !brewTime || rating === 0 || saving}
               onClick={saveShot}
             >
-              💾 שמור וקבל ניתוח AI Coach
+              <SaveIcon size={16} /> שמור וקבל ניתוח AI Coach
             </button>
           </div>
           <MissingFieldsHint dose={dose} yieldGrams={yieldGrams} brewTime={brewTime} rating={rating} />
@@ -579,7 +580,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     return (
       <div>
         <div className="card accent">
-          <h2>🧠 מוח ה-AI — ההמלצה לשוט הבא</h2>
+          <h2><BrainIcon size={18} /> מוח ה-AI — ההמלצה לשוט הבא</h2>
           <div className={`coach-verdict ${toneClass}`}>
             {advice.changeKind === 'none' ? '✓ שמור על המתכון — אין מה לשנות' : `השינוי הבא: ${advice.changeLabel}`}
           </div>
@@ -640,7 +641,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 setMarkedFavorite(true);
               }}
             >
-              {markedFavorite ? '✔ נשמר כמתכון עבור הפולים האלה' : '⭐ שמור כמתכון — זה השוט שאליו אחזור'}
+              {markedFavorite ? <><CheckIcon size={16} /> נשמר כמתכון עבור הפולים האלה</> : <><StarIcon size={16} /> שמור כמתכון — זה השוט שאליו אחזור</>}
             </button>
           )}
 
@@ -657,7 +658,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 computeRecommendation();
               }}
             >
-              ☕ שוט נוסף
+              <CupIcon size={17} /> שוט נוסף
             </button>
           </div>
         </div>
@@ -804,7 +805,7 @@ function BrewStep({
     <div>
       {/* הטיימר למעלה */}
       <div className="card">
-        <h2>⏱️ טיימר חליטה — יעד {targetMin}–{targetMax} שניות</h2>
+        <h2><TimerIcon size={18} /> טיימר חליטה — יעד {targetMin}–{targetMax} שניות</h2>
         <div className="timer-ring-wrap" dir="ltr">
           <svg viewBox="0 0 220 220" className="timer-ring">
             {/* מסילה */}
@@ -872,7 +873,7 @@ function BrewStep({
 
       {/* ההמלצה מתחת לטיימר */}
       <div className="card accent">
-        <h2>🎯 ההמלצה עבור {beanName}</h2>
+        <h2><TargetIcon size={18} /> ההמלצה עבור {beanName}</h2>
         <div className="stat-grid">
           <StatTile value={recommendation.doseGrams} label="גרם נכנס" />
           {recommendation.stopAtGrams !== null && (
@@ -940,7 +941,7 @@ function QuickBagForm({ beanId, onCreated }: { beanId: string; onCreated: (bag: 
           onCreated(bag);
         }}
       >
-        ➕ צור שקית
+        <PlusIcon size={15} /> צור שקית
       </button>
     </div>
   );

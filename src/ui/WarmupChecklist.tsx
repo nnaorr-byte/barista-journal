@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FlameIcon } from './icons';
 
 // שגרת חימום מודרכת למכונת Single Boiler (DeLonghi EC685).
 // צ'ק-ליסט לכל ביקור במסך — לא נשמר ב-DB, רק מלווה את ההכנה.
@@ -37,7 +38,7 @@ export function WarmupChecklist({ machineName }: { machineName: string }) {
   if (!open) {
     return (
       <button className="btn secondary block" style={{ marginBottom: 10 }} onClick={() => setOpen(true)}>
-        🔥 שגרת חימום ({machineName})
+        <FlameIcon size={16} /> שגרת חימום ({machineName})
       </button>
     );
   }
@@ -52,7 +53,7 @@ export function WarmupChecklist({ machineName }: { machineName: string }) {
 
   return (
     <div className="card" style={{ background: 'var(--bg-elevated)' }}>
-      <h3 style={{ marginTop: 0 }}>🔥 שגרת חימום — {machineName}</h3>
+      <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 6 }}><FlameIcon size={16} /> שגרת חימום — {machineName}</h3>
       {STEPS.map((s, i) => (
         <label key={s.key} className="warmup-step">
           <input type="checkbox" checked={done.has(s.key)} onChange={() => toggle(s.key)} />

@@ -10,6 +10,7 @@ import {
 } from '../domain/types';
 import { Chips, EmptyState, Field, RatingPicker } from './components';
 import { FLAVOR_LABELS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
+import { BrainIcon, EditIcon, JournalIcon, SaveIcon, SearchIcon, StarIcon, TrashIcon, UndoIcon } from './icons';
 
 const TASTE_OPTIONS = (Object.entries(TASTE_LABELS) as [TasteTag, string][]).map(([value, label]) => ({ value, label }));
 const FLAVOR_OPTIONS = (Object.entries(FLAVOR_LABELS) as [FlavorNote, string][]).map(([value, label]) => ({ value, label }));
@@ -82,7 +83,7 @@ export function ShotsScreen() {
   return (
     <div>
       <div className="card">
-        <h2>🔍 חיפוש ביומן</h2>
+        <h2><SearchIcon size={18} /> חיפוש ביומן</h2>
         <Field label="חיפוש חופשי (פולים, הערות, תאריך, דירוג…)">
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="למשל: אתיופיה, מר, 8…" />
         </Field>
@@ -105,7 +106,7 @@ export function ShotsScreen() {
       </div>
 
       <div className="card">
-        <h2>📖 היומן ({filtered.length} שוטים)</h2>
+        <h2><JournalIcon size={18} /> היומן ({filtered.length} שוטים)</h2>
         {filtered.length === 0 && (
           <EmptyState icon="📭" text="אין שוטים תואמים" hint="נסה לשנות את הסינון או להכין שוט חדש." />
         )}
@@ -163,14 +164,14 @@ export function ShotsScreen() {
                       }
                     }}
                   >
-                    {s.favorite ? '⭐ הסר מתכון' : '☆ שמור כמתכון'}
+                    {s.favorite ? <><StarIcon size={15} filled /> הסר מתכון</> : <><StarIcon size={15} /> שמור כמתכון</>}
                   </button>
-                  <button className="btn small secondary" onClick={() => setEditing(s)}>✏️ עריכה</button>
+                  <button className="btn small secondary" onClick={() => setEditing(s)}><EditIcon size={15} /> עריכה</button>
                   <button
                     className="btn small danger"
                     onClick={() => deleteWithUndo(s)}
                   >
-                    🗑️ מחיקה
+                    <TrashIcon size={15} /> מחיקה
                   </button>
                 </div>
               </div>
@@ -183,7 +184,7 @@ export function ShotsScreen() {
       {deletedShot && (
         <div className="undo-toast" role="status">
           <span>השוט נמחק</span>
-          <button className="btn small" onClick={undoDelete}>↩️ ביטול</button>
+          <button className="btn small" onClick={undoDelete}><UndoIcon size={15} /> ביטול</button>
         </div>
       )}
     </div>
@@ -219,7 +220,7 @@ function ShotAdviceBlock({ shot, shots, grinders }: { shot: Shot; shots: Shot[];
   return (
     <div style={{ background: 'var(--bg-elevated)', borderRadius: 10, padding: '9px 12px', margin: '6px 0' }}>
       <div className="coach-label" style={{ marginBottom: 4 }}>
-        🧠 ההמלצה שקיבלת על השוט הזה{stored ? '' : ' (שחזור)'}
+        <BrainIcon size={13} /> ההמלצה שקיבלת על השוט הזה{stored ? '' : ' (שחזור)'}
       </div>
       <p className="small" style={{ margin: '3px 0' }}>{advice.diagnosis}</p>
       <p className="small" style={{ margin: '3px 0', fontWeight: 600 }}>
@@ -250,7 +251,7 @@ function EditShotForm({ shot, onClose }: { shot: Shot; onClose: () => void }) {
 
   return (
     <div className="card">
-      <h2>✏️ עריכת שוט — {formatDateTime(shot.createdAt)}</h2>
+      <h2><EditIcon size={18} /> עריכת שוט — {formatDateTime(shot.createdAt)}</h2>
       <div className="field-row thirds">
         <Field label="גרם נכנס"><input type="number" step="0.1" value={dose} onChange={(e) => setDose(e.target.value)} /></Field>
         <Field label="עצירה בפועל (גרם)"><input type="number" step="0.1" placeholder="לא תועד" value={yieldStop} onChange={(e) => setYieldStop(e.target.value)} /></Field>
@@ -338,7 +339,7 @@ function EditShotForm({ shot, onClose }: { shot: Shot; onClose: () => void }) {
             onClose();
           }}
         >
-          💾 שמירה
+          <SaveIcon size={16} /> שמירה
         </button>
       </div>
     </div>

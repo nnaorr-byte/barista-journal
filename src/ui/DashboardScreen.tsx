@@ -8,6 +8,7 @@ import { shotRatio, type RoastLevel, type Shot } from '../domain/types';
 import { BarChart, LineChart, type Point } from './charts';
 import { StatTile, EmptyState } from './components';
 import { FLAVOR_LABELS, TASTE_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
+import { BeanIcon, CalendarIcon, ChartIcon, FlameIcon, GearIcon, TasteIcon, TrendDownIcon, TrendIcon, TrophyIcon } from './icons';
 import type { FlavorNote } from '../domain/types';
 
 type Metric = 'rating' | 'yield' | 'time' | 'grind';
@@ -98,7 +99,7 @@ export function DashboardScreen() {
   return (
     <div>
       <div className="card">
-        <h2>📊 מבט על</h2>
+        <h2><ChartIcon size={18} /> מבט על</h2>
         <div className="stat-grid">
           <StatTile value={shots.length} label="שוטים סה״כ" />
           <StatTile value={insights.avgRating.toFixed(1)} label="דירוג ממוצע" />
@@ -121,7 +122,7 @@ export function DashboardScreen() {
       </div>
 
       <div className="card">
-        <h2>📈 מגמה לאורך זמן (30 שוטים אחרונים)</h2>
+        <h2><TrendIcon size={18} /> מגמה לאורך זמן (30 שוטים אחרונים)</h2>
         <div className="chips" style={{ marginBottom: 10 }}>
           {METRICS.map((m) => (
             <button
@@ -138,7 +139,7 @@ export function DashboardScreen() {
 
       {beanComparison.length > 0 && (
         <div className="card">
-          <h2>🫘 השוואת פולים (דירוג ממוצע)</h2>
+          <h2><BeanIcon size={18} /> השוואת פולים (דירוג ממוצע)</h2>
           <BarChart
             points={beanComparison.map((b) => ({
               label: `${b.bean.name} (${b.shots})`,
@@ -151,21 +152,21 @@ export function DashboardScreen() {
 
       {roastPoints.length > 1 && (
         <div className="card">
-          <h2>🔥 השוואת קליות (דירוג ממוצע)</h2>
+          <h2><FlameIcon size={18} /> השוואת קליות (דירוג ממוצע)</h2>
           <BarChart points={roastPoints} maxValue={10} />
         </div>
       )}
 
       {grinderPoints.length > 1 && (
         <div className="card">
-          <h2>⚙️ פילוח לפי מטחנה (דירוג ממוצע)</h2>
+          <h2><GearIcon size={18} /> פילוח לפי מטחנה (דירוג ממוצע)</h2>
           <BarChart points={grinderPoints} maxValue={10} />
         </div>
       )}
 
       {monthly.length > 1 && (
         <div className="card">
-          <h2>🗓️ פילוח חודשי (שוטים)</h2>
+          <h2><CalendarIcon size={18} /> פילוח חודשי (שוטים)</h2>
           <BarChart
             points={monthly.slice(-12).map((m) => ({
               label: `${m.month} (ממוצע ${m.avgRating.toFixed(1)})`,
@@ -177,7 +178,7 @@ export function DashboardScreen() {
 
       {(insights.tasteProfile.length > 0 || flavorProfile.length > 0) && (
         <div className="card">
-          <h2>👅 פרופיל הטעם שלי</h2>
+          <h2><TasteIcon size={18} /> פרופיל הטעם שלי</h2>
           <p className="muted small">אילו טעמים מופיעים בשוטים שלך, ומה הדירוג הממוצע כשהם מופיעים:</p>
           {insights.tasteProfile.length > 0 && (
             <table className="data">
@@ -218,13 +219,13 @@ export function DashboardScreen() {
       )}
 
       <div className="card">
-        <h2>🏆 Top 10 שוטים</h2>
+        <h2><TrophyIcon size={18} /> Top 10 שוטים</h2>
         {best10.map((s) => <ShotRow key={s.id} shot={s} beanName={beanMap.get(s.beanId)?.name} />)}
       </div>
 
       {worst5.length > 0 && (
         <div className="card">
-          <h2>📉 השוטים הפחות מוצלחים</h2>
+          <h2><TrendDownIcon size={18} /> השוטים הפחות מוצלחים</h2>
           <p className="muted small">כדאי להציץ מה השתבש — לרוב יש דפוס חוזר.</p>
           {worst5.map((s) => <ShotRow key={s.id} shot={s} beanName={beanMap.get(s.beanId)?.name} />)}
         </div>

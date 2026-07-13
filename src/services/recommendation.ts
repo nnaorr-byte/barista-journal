@@ -110,7 +110,12 @@ export function recommendShot(params: {
   if (grinderShots.length > 0) {
     const history = [...grinderShots].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     const last = history[history.length - 1];
-    const ai = aiRecommend({ lastShot: last, beanShots: history, grinder });
+    // פער הימים מאז השוט האחרון — להתראת הזדקנות של המוח
+    const gapDays = Math.floor((Date.now() - new Date(last.createdAt).getTime()) / 86400000);
+    const ai = aiRecommend({
+      lastShot: last, beanShots: history, grinder,
+      agingGapDays: gapDays, roastAgeDays: roastAge,
+    });
 
     // Yield: יעד המוח, מותאם פרופורציונלית אם המשתמש בחר מנה שונה
     ratio = ai.targets.doseGrams > 0 ? ai.targets.yieldGrams / ai.targets.doseGrams : ratio;
@@ -133,6 +138,8 @@ export function recommendShot(params: {
         ? 'השוט האחרון היה במקום הנכון — חוזרים עליו במדויק.'
         : ai.instruction}`,
     );
+    // התראות המוח (הזדקנות, זמן קיצוני וכו') — מוצגות גם בשלב התכנון
+    for (const w of ai.warnings) reasons.push(`⚠️ ${w}`);
   } else if (beanShots.length > 0) {
     reasons.unshift(
       `🧠 מוח ה-AI: ${grinder ? `המטחנה "${grinder.name}"` : 'המטחנה הנוכחית'} עדיין בלי שוטים של הפולים האלה — הניתוח יתחיל מהשוט הראשון עליה. דרגות טחינה מהמטחנה הקודמת אינן תקפות כאן.`,

@@ -8,8 +8,9 @@ import {
 import { BarChart, LineChart, ScatterChart, Histogram, type Point, type ScatterPoint } from './charts';
 import { StatTile, EmptyState } from './components';
 import { computeWinningWindow, shotAgeRatings } from '../services/freshness';
+import { auditAllAdvice } from '../services/adviceAudit';
 import { FLAVOR_LABELS, formatDateTime, shotWeights } from './labels';
-import { BeanIcon, BulbIcon, ChartIcon, CoinIcon, CupIcon, FlameIcon, GearIcon, GiftIcon, LeafIcon, MedalIcon, ScaleIcon, SettingsIcon, StarIcon, TargetIcon, TasteIcon, TimerIcon, TrendIcon, TrophyIcon } from './icons';
+import { BeanIcon, BrainIcon, BulbIcon, ChartIcon, CoinIcon, CupIcon, FlameIcon, GearIcon, GiftIcon, LeafIcon, MedalIcon, ScaleIcon, SettingsIcon, StarIcon, TargetIcon, TasteIcon, TimerIcon, TrendIcon, TrophyIcon } from './icons';
 
 // ===== Coffee Shot Analytics =====
 // ניתוח ויזואלי של איכות ועקביות ההכנה, מהנתונים הקיימים בלבד.
@@ -475,6 +476,34 @@ function FreshnessCurve({ shots, bags }: { shots: Shot[]; bags: Bag[] }) {
   );
 }
 
+// ===== מדד אמינות המוח: כמה מההמלצות שיושמו באמת עבדו =====
+function AdviceReliabilityCard({ shots }: { shots: Shot[] }) {
+  const outcomes = auditAllAdvice(shots);
+  const followed = outcomes.filter((o) => o.followed);
+  const notFollowed = outcomes.length - followed.length;
+  if (followed.length < 3) return null; // אין מספיק מדגם לשיפוט הוגן
+
+  const succeeded = followed.filter((o) => o.improved).length;
+  const pct = Math.round((succeeded / followed.length) * 100);
+
+  return (
+    <div className="card">
+      <h2><BrainIcon size={18} /> מדד אמינות המוח</h2>
+      <div className="stat-grid">
+        <StatTile value={followed.length} label="המלצות שיישמת" />
+        <StatTile value={succeeded} label="שיפרו / שמרו רמה" />
+        <StatTile value={`${pct}%`} label="אחוז הצלחה" />
+      </div>
+      <p className="muted small" style={{ marginTop: 10 }}>
+        המוח בודק את עצמו: על כל המלצה שיישמת, הוא משווה את דירוג השוט הבא לקודם.
+        {pct >= 70 && ' רקורד חזק — ההמלצות עובדות בשבילך.'}
+        {pct < 50 && ' רקורד חלש מהרצוי — ייתכן שהטעמים לא תמיד מתויגים מדויק, או שהפאק לא אחיד (תיעול מטשטש כל כיול).'}
+        {notFollowed > 0 && ` (${notFollowed} המלצות נוספות לא יושמו — הן לא נספרות במדד.)`}
+      </p>
+    </div>
+  );
+}
+
 export function AnalyticsScreen() {
   const data = useLiveQuery(async () => {
     const [shots, grinders, beans, bags, sessions] = await Promise.all([
@@ -603,6 +632,9 @@ export function AnalyticsScreen() {
           </p>
         </div>
       )}
+
+      {/* מדד אמינות המוח: המוח בודק את עצמו */}
+      <AdviceReliabilityCard shots={shots} />
 
       {/* דירוג לאורך זמן */}
       <div className="card">

@@ -1,4 +1,5 @@
 import type { AiAdvice, AiTargets, Grinder, Shot, TasteTag } from '../domain/types';
+import { auditAdviceHistory } from './adviceAudit';
 
 // ============================================================
 // מוח ה-AI — מנוע ההמלצות לשוט הבא
@@ -137,6 +138,8 @@ export function aiRecommend(params: {
   beanShots: Shot[]; // היסטוריית הפולים על המטחנה הנוכחית בלבד, מהישן לחדש (כולל האחרון)
   grinder?: Grinder;
   grinderChanged?: boolean; // המטחנה שונה מזו של השוט הקודם של הפולים
+  agingGapDays?: number | null; // ימים שעברו מאז השוט הקודם על הפולים האלה
+  roastAgeDays?: number | null; // גיל הקלייה בימים בזמן השוט המתוכנן
 }): AiAdvice {
   const { lastShot: last, beanShots, grinder, grinderChanged } = params;
   const history = beanShots;
@@ -161,6 +164,17 @@ export function aiRecommend(params: {
   if (grinderChanged) {
     warnings.push(
       `המטחנה השתנתה${grinder ? ` ל"${grinder.name}"` : ''} — הניתוח מתבסס רק על שוטים מהמטחנה הנוכחית. דרגות טחינה מהמטחנה הקודמת אינן ברות-השוואה.`,
+    );
+  }
+
+  // ---- הזדקנות בין שוטים: פער ימים = פולים שאיבדו גזים בינתיים ----
+  // רלוונטי רק אחרי שלב ה-Degassing (גיל 10+), כשהקצב של איבוד הגזים מורגש.
+  const gap = params.agingGapDays ?? null;
+  if (gap !== null && gap >= 5 && (params.roastAgeDays == null || params.roastAgeDays > 10)) {
+    warnings.push(
+      `עברו ${gap} ימים מהשוט הקודם על הפולים האלה${params.roastAgeDays != null ? ` (גיל קלייה: ${params.roastAgeDays} ימים)` : ''} — ` +
+      'הפולים איבדו גזים בינתיים והזרימה עשויה להיות מהירה מהצפוי. ' +
+      'אם השוט ירוץ מהר — זה כנראה הגיל ולא הטכניקה; ייתכן שתידרש טחינה עדינה בדרגה.',
     );
   }
 
@@ -364,6 +378,21 @@ export function aiRecommend(params: {
       : 3.5;
     const stopAt = round1(Math.max(targets.doseGrams, targets.yieldGrams - drip));
     instruction += ` עצור בפועל סביב ${stopAt} גרם — הטפטוף (${measured ? `~${drip} גרם בממוצע אצלך` : 'משוער 3–4 גרם'}) ישלים ליעד הסופי של ${targets.yieldGrams} גרם.`;
+  }
+
+  // ---- מודעות עצמית: המלצה דומה שיושמה בעבר ולא שיפרה ----
+  // ההיסטוריה נושאת את ההמלצות שנשמרו עם כל שוט — המוח בודק את הרקורד של עצמו.
+  // (cast: TS לא עוקב אחרי השמות שקורות בתוך ה-closures של grindFiner וכו')
+  const finalKind = changeKind as AiAdvice['changeKind'];
+  if (finalKind === 'grind' || finalKind === 'yield' || finalKind === 'dose') {
+    const sameKindFollowed = auditAdviceHistory(history)
+      .filter((o) => o.changeKind === finalKind && o.followed);
+    if (sameKindFollowed.length > 0 && sameKindFollowed.every((o) => !o.improved)) {
+      warnings.push(
+        `שקיפות מלאה: המלצת "${changeLabel}" כבר יושמה ${sameKindFollowed.length === 1 ? 'פעם אחת' : `${sameKindFollowed.length} פעמים`} בעבר על הפולים האלה ולא העלתה את הדירוג. ` +
+        'מנסים שוב כי זו האבחנה לפי הטעם — אבל אם גם הפעם לא יהיה שיפור, נפנה למשתנה אחר.',
+      );
+    }
   }
 
   const { pct, reasons } = computeConfidence(history, targets, recipe, grindStep);

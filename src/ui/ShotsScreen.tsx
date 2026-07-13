@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import { shotRepo } from '../db/repositories';
 import { aiRecommend } from '../services/aiEngine';
+import { adviceOutcomeForShot } from '../services/adviceAudit';
 import {
   shotRatio, shotFlowRate,
   type AiAdvice, type FlavorNote, type Grinder, type MachineTempSetting,
@@ -10,7 +11,7 @@ import {
 } from '../domain/types';
 import { Chips, EmptyState, Field, RatingPicker } from './components';
 import { FLAVOR_LABELS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
-import { BrainIcon, EditIcon, JournalIcon, SaveIcon, SearchIcon, StarIcon, TrashIcon, UndoIcon } from './icons';
+import { BrainIcon, EditIcon, JournalIcon, SaveIcon, ScaleIcon, SearchIcon, StarIcon, TrashIcon, UndoIcon } from './icons';
 
 const TASTE_OPTIONS = (Object.entries(TASTE_LABELS) as [TasteTag, string][]).map(([value, label]) => ({ value, label }));
 const FLAVOR_OPTIONS = (Object.entries(FLAVOR_LABELS) as [FlavorNote, string][]).map(([value, label]) => ({ value, label }));
@@ -31,6 +32,11 @@ export function ShotsScreen() {
   const [tasteFilter, setTasteFilter] = useState<TasteTag | ''>('');
   const [editing, setEditing] = useState<Shot | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  // השוואת שוטים: עד שני שוטים נבחרים — טבלת "מה שונה" מעל היומן
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const toggleCompare = (id: string) =>
+    setCompareIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].slice(-2)));
 
   // ביטול מחיקה: השוט האחרון שנמחק נשמר בצד 6 שניות עם אפשרות שחזור
   const [deletedShot, setDeletedShot] = useState<Shot | null>(null);
@@ -105,8 +111,27 @@ export function ShotsScreen() {
         </div>
       </div>
 
+      {compareIds.length === 2 && (() => {
+        const a = data.shots.find((s) => s.id === compareIds[0]);
+        const b = data.shots.find((s) => s.id === compareIds[1]);
+        if (!a || !b) return null;
+        return (
+          <ShotCompare
+            a={a} b={b}
+            beanName={(id: string) => beanMap.get(id)?.name ?? 'פולים שנמחקו'}
+            grinderName={(id: string) => data.grinders.find((g) => g.id === id)?.name ?? '—'}
+            onClose={() => setCompareIds([])}
+          />
+        );
+      })()}
+
       <div className="card">
         <h2><JournalIcon size={18} /> היומן ({filtered.length} שוטים)</h2>
+        {compareIds.length === 1 && (
+          <p className="muted small" style={{ marginTop: 0 }}>
+            נבחר שוט אחד להשוואה — פתח שוט נוסף ולחץ "השווה".
+          </p>
+        )}
         {filtered.length === 0 && (
           <EmptyState icon="📭" text="אין שוטים תואמים" hint="נסה לשנות את הסינון או להכין שוט חדש." />
         )}
@@ -167,6 +192,9 @@ export function ShotsScreen() {
                     {s.favorite ? <><StarIcon size={15} filled /> הסר מתכון</> : <><StarIcon size={15} /> שמור כמתכון</>}
                   </button>
                   <button className="btn small secondary" onClick={() => setEditing(s)}><EditIcon size={15} /> עריכה</button>
+                  <button className="btn small secondary" onClick={() => toggleCompare(s.id)}>
+                    <ScaleIcon size={15} /> {compareIds.includes(s.id) ? 'הסר מהשוואה' : 'השווה'}
+                  </button>
                   <button
                     className="btn small danger"
                     onClick={() => deleteWithUndo(s)}
@@ -187,6 +215,68 @@ export function ShotsScreen() {
           <button className="btn small" onClick={undoDelete}><UndoIcon size={15} /> ביטול</button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ===== השוואת שני שוטים: טבלת "מה שונה" =====
+// הבדלים מודגשים — כך רואים מיד איזה משתנה עשה את ההבדל בין שוט טוב לפחות טוב.
+function ShotCompare({
+  a, b, beanName, grinderName, onClose,
+}: {
+  a: Shot;
+  b: Shot;
+  beanName: (beanId: string) => string;
+  grinderName: (grinderId: string) => string;
+  onClose: () => void;
+}) {
+  const rows: { label: string; va: string; vb: string }[] = [
+    { label: 'פולים', va: beanName(a.beanId), vb: beanName(b.beanId) },
+    { label: 'תאריך', va: formatDateTime(a.createdAt), vb: formatDateTime(b.createdAt) },
+    { label: 'דירוג', va: `${a.rating}/10`, vb: `${b.rating}/10` },
+    { label: 'מנה (גרם)', va: String(a.doseGrams), vb: String(b.doseGrams) },
+    { label: 'סופי בכוס (גרם)', va: String(a.yieldGrams), vb: String(b.yieldGrams) },
+    { label: 'יחס', va: `1:${shotRatio(a).toFixed(1)}`, vb: `1:${shotRatio(b).toFixed(1)}` },
+    { label: 'זמן (שניות)', va: String(a.brewTimeSec), vb: String(b.brewTimeSec) },
+    { label: 'זרימה (גרם/שנ׳)', va: shotFlowRate(a).toFixed(1), vb: shotFlowRate(b).toFixed(1) },
+    { label: 'טחינה', va: `${a.grindSetting} (${grinderName(a.grinderId)})`, vb: `${b.grindSetting} (${grinderName(b.grinderId)})` },
+    { label: 'טמפרטורה', va: TEMP_LABELS[a.machineTemp], vb: TEMP_LABELS[b.machineTemp] },
+    { label: 'סלסלה', va: a.basketType, vb: b.basketType },
+    { label: 'טעמים', va: a.tasteTags.map((t) => TASTE_LABELS[t]).join(', ') || '—', vb: b.tasteTags.map((t) => TASTE_LABELS[t]).join(', ') || '—' },
+  ];
+  const better = a.rating === b.rating ? null : a.rating > b.rating ? 'a' : 'b';
+  const diffStyle = { color: 'var(--accent-strong)', fontWeight: 700 } as const;
+
+  return (
+    <div className="card accent">
+      <h2><ScaleIcon size={18} /> השוואת שוטים</h2>
+      <div style={{ overflowX: 'auto' }}>
+        <table className="data">
+          <thead>
+            <tr>
+              <th></th>
+              <th>שוט א׳{better === 'a' && ' 🏆'}</th>
+              <th>שוט ב׳{better === 'b' && ' 🏆'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const diff = r.va !== r.vb;
+              return (
+                <tr key={r.label}>
+                  <th>{r.label}</th>
+                  <td style={diff ? diffStyle : undefined}>{r.va}</td>
+                  <td style={diff ? diffStyle : undefined}>{r.vb}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="muted small" style={{ marginTop: 8 }}>
+        ערכים מודגשים = שונים בין השוטים. שם מסתתרת התשובה למה שוט אחד עבד יותר טוב.
+      </p>
+      <button className="btn small secondary" onClick={onClose}>סגור השוואה</button>
     </div>
   );
 }
@@ -217,6 +307,26 @@ function ShotAdviceBlock({ shot, shots, grinders }: { shot: Shot; shots: Shot[];
   const stored = shot.aiAdvice ?? null;
   const advice = stored ?? reconstructAdvice(shot, shots, grinders);
   if (!advice) return null;
+
+  // מה קרה להמלצה בשוט הבא — המוח בודק את עצמו
+  const outcome = adviceOutcomeForShot(shot, advice, shots);
+  let outcomeLine: { text: string; color: string } | null = null;
+  if (outcome) {
+    const delta = `${outcome.ratingFrom}→${outcome.ratingTo}`;
+    if (!outcome.followed) {
+      outcomeLine = { text: `ההמלצה לא יושמה בשוט הבא (דירוג ${delta}).`, color: 'var(--text-muted)' };
+    } else if (outcome.improved) {
+      outcomeLine = {
+        text: outcome.ratingTo > outcome.ratingFrom
+          ? `✓ יישמת את ההמלצה — הדירוג עלה ${delta}.`
+          : `✓ יישמת את ההמלצה — הרמה נשמרה (${delta}).`,
+        color: 'var(--good)',
+      };
+    } else {
+      outcomeLine = { text: `יישמת את ההמלצה אך הדירוג לא עלה (${delta}).`, color: 'var(--warn)' };
+    }
+  }
+
   return (
     <div style={{ background: 'var(--bg-elevated)', borderRadius: 10, padding: '9px 12px', margin: '6px 0' }}>
       <div className="coach-label" style={{ marginBottom: 4 }}>
@@ -227,6 +337,11 @@ function ShotAdviceBlock({ shot, shots, grinders }: { shot: Shot; shots: Shot[];
         {advice.changeKind === 'none' ? '✓ ' : '← '}{advice.instruction}
       </p>
       <p className="muted small" style={{ margin: '3px 0' }}>רמת ביטחון: {advice.confidencePct}%</p>
+      {outcomeLine && (
+        <p className="small" style={{ margin: '3px 0', color: outcomeLine.color, fontWeight: 600 }}>
+          {outcomeLine.text}
+        </p>
+      )}
     </div>
   );
 }

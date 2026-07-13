@@ -4,8 +4,8 @@ import { db } from '../db/database';
 import { bagRepo, beanRepo } from '../db/repositories';
 import { computeBagUsage } from '../services/stats';
 import { computeFreshness, formatDeadline } from '../services/freshness';
-import type { RoastLevel } from '../domain/types';
-import { EmptyState, Field } from './components';
+import type { Bag, RoastLevel, Shot } from '../domain/types';
+import { EmptyState, Field, StatTile } from './components';
 import { ROAST_LEVELS, formatDate, ratingClass } from './labels';
 import { BeanIcon, PlusIcon, SaveIcon, TrashIcon, UndoIcon } from './icons';
 
@@ -56,6 +56,8 @@ export function BeansScreen() {
 
   const [showForm, setShowForm] = useState(false);
   const [addingBagFor, setAddingBagFor] = useState<string | null>(null);
+  // "תעודת סיום" לשקית שסומנה כרגע כנגמרה
+  const [farewellBagId, setFarewellBagId] = useState<string | null>(null);
 
   if (!data) return null;
   const { beans, bags, shots } = data;
@@ -135,17 +137,29 @@ export function BeansScreen() {
                   {!bag.finished ? (
                     <button
                       className="btn small secondary" style={{ marginTop: 6 }}
-                      onClick={() => bagRepo.put({ ...bag, finished: true })}
+                      onClick={async () => {
+                        await bagRepo.put({ ...bag, finished: true });
+                        setFarewellBagId(bag.id); // תעודת סיום
+                      }}
                     >
                       סמן כנגמרה
                     </button>
                   ) : (
                     <button
                       className="btn small secondary" style={{ marginTop: 6 }}
-                      onClick={() => bagRepo.put({ ...bag, finished: false })}
+                      onClick={() => { setFarewellBagId(null); bagRepo.put({ ...bag, finished: false }); }}
                     >
                       <UndoIcon size={15} /> החזר שקית
                     </button>
+                  )}
+                  {farewellBagId === bag.id && (
+                    <BagFarewell
+                      bag={bag}
+                      beanName={bean.name}
+                      shots={shots}
+                      onNewBag={() => { setFarewellBagId(null); setAddingBagFor(bean.id); }}
+                      onClose={() => setFarewellBagId(null)}
+                    />
                   )}
                 </div>
               );
@@ -173,6 +187,61 @@ export function BeansScreen() {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ===== "תעודת סיום" לשקית: סיכום קטן ברגע שהיא מסומנת כנגמרה =====
+// עוזר להחליט אם לקנות שוב את הפולים, ומקצר את הדרך לפתיחת שקית חדשה.
+function BagFarewell({
+  bag, beanName, shots, onNewBag, onClose,
+}: {
+  bag: Bag;
+  beanName: string;
+  shots: Shot[];
+  onNewBag: () => void;
+  onClose: () => void;
+}) {
+  const bagShots = shots.filter((s) => s.bagId === bag.id);
+  const usage = computeBagUsage(bag, shots);
+  const rated = bagShots.filter((s) => s.rating > 0);
+  const avg = rated.length ? rated.reduce((a, s) => a + s.rating, 0) / rated.length : null;
+  const best = rated.length ? [...rated].sort((a, b) => b.rating - a.rating)[0] : null;
+  const daysOpen = bag.openDate
+    ? Math.max(1, Math.floor((Date.now() - new Date(bag.openDate).getTime()) / 86400000))
+    : null;
+
+  return (
+    <div
+      className="card accent"
+      style={{ marginTop: 8, marginBottom: 0 }}
+      role="status"
+    >
+      <h3 style={{ marginTop: 0 }}>סיכום השקית — {beanName}</h3>
+      <div className="stat-grid">
+        <StatTile value={usage.shotsCount} label="שוטים" />
+        <StatTile value={avg !== null ? avg.toFixed(1) : '—'} label="דירוג ממוצע" />
+        {usage.costPerShot !== null && (
+          <StatTile value={`₪${usage.costPerShot.toFixed(1)}`} label="עלות לשוט" />
+        )}
+        {daysOpen !== null && <StatTile value={daysOpen} label="ימים מהפתיחה" />}
+      </div>
+      {best && (
+        <p className="small" style={{ margin: '10px 0 4px', color: 'var(--crema)' }}>
+          השוט הכי טוב: {best.doseGrams}←{best.yieldGrams} גרם · טחינה {best.grindSetting} · {best.brewTimeSec} שניות · דירוג {best.rating}/10
+        </p>
+      )}
+      {avg !== null && (
+        <p className="muted small" style={{ margin: '2px 0 8px' }}>
+          {avg >= 7.5 ? 'שקית מוצלחת — שווה לקנות את הפולים האלה שוב!' :
+            avg >= 6 ? 'שקית סבירה — אולי ננסה משהו חדש בפעם הבאה?' :
+            'השקית הזו לא התרוממה — כדאי לנסות פולים אחרים.'}
+        </p>
+      )}
+      <div className="btn-row" style={{ marginTop: 4 }}>
+        <button className="btn small" onClick={onNewBag}><PlusIcon size={15} /> פתח שקית חדשה</button>
+        <button className="btn small secondary" onClick={onClose}>סגור</button>
+      </div>
     </div>
   );
 }

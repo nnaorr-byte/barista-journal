@@ -16,6 +16,10 @@ import type { Screen } from '../App';
 
 type Step = 'setup' | 'brew' | 'results' | 'coach';
 
+// טיוטה אוטומטית של הטופס — מגנה מאיבוד נתונים אם iOS הורג את האפליקציה
+const DRAFT_KEY = 'shot-draft-v1';
+const DRAFT_MAX_AGE_MS = 12 * 60 * 60 * 1000; // 12 שעות
+
 // ---- צליל התראה לטיימר (Web Audio) ----
 // באייפון אין רטט בדפדפן — צפצוף קצר הוא המשוב כשנכנסים/חורגים מחלון היעד.
 let audioCtx: AudioContext | null = null;
@@ -127,6 +131,51 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const [saving, setSaving] = useState(false);
   const [savedShotId, setSavedShotId] = useState<string | null>(null);
   const [markedFavorite, setMarkedFavorite] = useState(false);
+
+  // ===== טיוטה אוטומטית =====
+  // iOS עלול להרוג את האפליקציה באמצע תיעוד — הטופס נשמר מקומית
+  // בכל שינוי ומשוחזר בכניסה הבאה (עד 12 שעות אחורה).
+  const [draftRestored, setDraftRestored] = useState(false);
+  const draftReadyRef = useRef(false);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (d.savedAt && Date.now() - d.savedAt < DRAFT_MAX_AGE_MS && d.beanId) {
+          setBeanId(d.beanId); setBagId(d.bagId ?? ''); setGrinderId(d.grinderId ?? '');
+          setDose(d.dose ?? '16'); setRecommendation(d.recommendation ?? null);
+          setYieldStop(d.yieldStop ?? ''); setYieldGrams(d.yieldGrams ?? ''); setBrewTime(d.brewTime ?? '');
+          setQuick(!!d.quick); setGrindSetting(d.grindSetting ?? ''); setTemp(d.temp ?? 'medium');
+          setBasketType(d.basketType ?? 'סטנדרטית'); setPortafilterType(d.portafilterType ?? 'Bottomless');
+          setTasteTags(d.tasteTags ?? []); setTasteOther(d.tasteOther ?? '');
+          setFlavorNotes(d.flavorNotes ?? []); setBody(d.body ?? null); setCrema(d.crema ?? null);
+          setAftertaste(d.aftertaste ?? null); setNotes(d.notes ?? ''); setRating(d.rating ?? 0);
+          // חזרה לשלב שבו עצרנו — עם רשומת היסטוריה כדי ש-Back יעבוד
+          if ((d.step === 'results' || (d.step === 'brew' && d.recommendation))) {
+            setStep(d.step);
+            history.pushState({ screen: 'new-shot', step: d.step }, '');
+          }
+          setDraftRestored(true);
+        }
+      }
+    } catch { /* טיוטה פגומה — מתעלמים */ }
+    draftReadyRef.current = true;
+  }, []);
+
+  // שמירה שקטה בכל שינוי (אחרי שהשחזור הסתיים)
+  useEffect(() => {
+    if (!draftReadyRef.current) return;
+    if (step === 'coach' || !beanId) {
+      localStorage.removeItem(DRAFT_KEY);
+      return;
+    }
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      savedAt: Date.now(), step, beanId, bagId, grinderId, dose, recommendation,
+      yieldStop, yieldGrams, brewTime, quick, grindSetting, temp, basketType,
+      portafilterType, tasteTags, tasteOther, flavorNotes, body, crema, aftertaste, notes, rating,
+    }));
+  });
 
   if (!data) return null;
   const { user, beans, bags, shots, machines, grinders } = data;
@@ -265,11 +314,21 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
         .filter((s) => s.grinderId === gId)
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
       beanHistory.push(shot);
+      // נתוני הזדקנות: פער מהשוט הקודם על הפולים + גיל הקלייה בזמן השוט
+      const prevShot = beanHistory.length >= 2 ? beanHistory[beanHistory.length - 2] : null;
+      const agingGapDays = prevShot
+        ? Math.floor((new Date(shot.createdAt).getTime() - new Date(prevShot.createdAt).getTime()) / 86400000)
+        : null;
+      const roastAgeDays = selectedBag.roastDate
+        ? Math.floor((new Date(shot.createdAt).getTime() - new Date(selectedBag.roastDate).getTime()) / 86400000)
+        : null;
       const newAdvice = aiRecommend({
         lastShot: shot,
         beanShots: beanHistory,
         grinder: grinders.find((g) => g.id === gId),
         grinderChanged,
+        agingGapDays,
+        roastAgeDays,
       });
       // ההמלצה נשמרת עם השוט — תופיע גם ביומן לצד פרטי השוט
       await shotRepo.put({ ...shot, aiAdvice: newAdvice });
@@ -288,6 +347,12 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       <div>
         <div className="card">
           <h2><CupIcon size={18} /> שוט חדש — שלב 1: לפני החליטה</h2>
+
+          {draftRestored && (
+            <p className="muted small" style={{ marginTop: 0 }}>
+              שוחזרה טיוטה שלא הושלמה מהפעם הקודמת — אפשר להמשיך מאיפה שעצרת.
+            </p>
+          )}
 
           <WarmupChecklist machineName={machine?.name ?? 'המכונה'} />
 
@@ -461,6 +526,12 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       <div>
         <div className="card">
           <h2><ClipboardIcon size={18} /> שלב 3: תוצאות השוט</h2>
+
+          {draftRestored && (
+            <p className="muted small" style={{ marginTop: 0 }}>
+              שוחזרה טיוטה שלא הושלמה — הנתונים שהזנת נשמרו.
+            </p>
+          )}
 
           {weightFields}
           {ratioLine}

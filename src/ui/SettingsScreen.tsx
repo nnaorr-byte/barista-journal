@@ -165,6 +165,12 @@ export function SettingsScreen() {
 
       <p className="muted small" style={{ textAlign: 'center' }}>
         יומן בריסטה חכם · הנתונים נשמרים מקומית במכשיר שלך בלבד
+        <br />
+        <span style={{ fontSize: '0.72rem' }}>
+          גרסה מ-{new Date(__BUILD_TIME__).toLocaleString('he-IL', {
+            day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+          })}
+        </span>
       </p>
     </div>
   );

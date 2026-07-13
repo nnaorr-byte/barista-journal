@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  // חותמת זמן הבנייה — מוצגת בהגדרות כדי לוודא שהעדכון הגיע למכשיר
+  define: { __BUILD_TIME__: JSON.stringify(new Date().toISOString()) },
   // בבניית GitHub Pages (משתנה סביבה בזרימת ה-Actions) האתר יושב תחת
   // https://<user>.github.io/barista-journal/ — מקומית נשארים בשורש.
   base: process.env.GITHUB_PAGES ? '/barista-journal/' : '/',

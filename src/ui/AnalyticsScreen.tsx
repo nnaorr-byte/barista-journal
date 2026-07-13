@@ -7,6 +7,7 @@ import {
 } from '../domain/types';
 import { BarChart, LineChart, ScatterChart, Histogram, type Point, type ScatterPoint } from './charts';
 import { StatTile, EmptyState } from './components';
+import { computeWinningWindow, shotAgeRatings } from '../services/freshness';
 import { FLAVOR_LABELS, formatDateTime, shotWeights } from './labels';
 import { BeanIcon, BulbIcon, ChartIcon, CoinIcon, CupIcon, FlameIcon, GearIcon, GiftIcon, LeafIcon, MedalIcon, ScaleIcon, SettingsIcon, StarIcon, TargetIcon, TasteIcon, TimerIcon, TrendIcon, TrophyIcon } from './icons';
 
@@ -446,40 +447,17 @@ function buildInsights(shots: Shot[]): Insight[] {
 
 // ===== עקומת הטריות: דירוג מול גיל קלייה =====
 // כל שוט ממופה לגיל הפולים ביום ההכנה (לפי תאריך הקלייה של השקית).
-// כך רואים מתי הפולים בשיא — ומתי הם כבר "עייפים".
-const AGE_BUCKETS = [
-  { label: '0–6', from: 0, to: 6 },
-  { label: '7–13', from: 7, to: 13 },
-  { label: '14–20', from: 14, to: 20 },
-  { label: '21–29', from: 21, to: 29 },
-  { label: '30–44', from: 30, to: 44 },
-  { label: '45+', from: 45, to: 999 },
-];
-
+// חישוב הנקודות והחלון המנצח חי ב-services/freshness.ts — משותף עם מסך הבית.
 function FreshnessCurve({ shots, bags }: { shots: Shot[]; bags: Bag[] }) {
-  const bagMap = new Map(bags.map((b) => [b.id, b]));
-  const points: ScatterPoint[] = shots.flatMap((s) => {
-    const roast = bagMap.get(s.bagId)?.roastDate;
-    if (!roast || !s.rating) return [];
-    const age = Math.floor((new Date(s.createdAt).getTime() - new Date(roast).getTime()) / 86400000);
-    if (age < 0 || age > 90) return [];
-    return [{
-      x: age,
-      y: s.rating,
-      highlight: s.rating >= GOOD_RATING,
-      label: `יום ${age} מהקלייה: דירוג ${s.rating}`,
-    }];
-  });
+  const points: ScatterPoint[] = shotAgeRatings(shots, bags).map((p) => ({
+    x: p.age,
+    y: p.rating,
+    highlight: p.rating >= GOOD_RATING,
+    label: `יום ${p.age} מהקלייה: דירוג ${p.rating}`,
+  }));
   if (points.length < 3) return null;
 
-  // חלון הטריות המנצח: טווח הגיל עם הדירוג הממוצע הגבוה ביותר
-  const buckets = AGE_BUCKETS
-    .map((b) => {
-      const inB = points.filter((p) => p.x >= b.from && p.x <= b.to);
-      return { ...b, count: inB.length, avg: inB.length ? inB.reduce((a, p) => a + p.y, 0) / inB.length : 0 };
-    })
-    .filter((b) => b.count >= 2)
-    .sort((a, b) => b.avg - a.avg);
+  const winning = computeWinningWindow(shots, bags);
 
   return (
     <div className="card">
@@ -488,9 +466,9 @@ function FreshnessCurve({ shots, bags }: { shots: Shot[]; bags: Bag[] }) {
       <p className="muted small">
         ● מלא = שוט מצוין ({GOOD_RATING}+) · ○ מתאר = שאר השוטים. איפה שהמלאים מתקבצים — שם הפולים שלך בשיא.
       </p>
-      {buckets.length >= 2 && (
+      {winning && (
         <p className="small" style={{ color: 'var(--crema)' }}>
-          חלון הטריות המנצח שלך: ימים {buckets[0].label} מהקלייה — ממוצע {buckets[0].avg.toFixed(1)} ({buckets[0].count} שוטים).
+          חלון הטריות המנצח שלך: ימים {winning.label} מהקלייה — ממוצע {winning.avg.toFixed(1)} ({winning.count} שוטים).
         </p>
       )}
     </div>

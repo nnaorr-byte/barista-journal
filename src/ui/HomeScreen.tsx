@@ -2,14 +2,15 @@ import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import { computeInsights } from '../services/learning';
-import { recommendShot, confidenceLabel } from '../services/recommendation';
+import { recommendShot, confidenceLabel, daysSince } from '../services/recommendation';
 import { computeMaintenanceStatus } from '../services/maintenance';
 import { computeBackupStatus, shareBackup } from '../services/importExport';
-import { ratingTrend } from '../services/stats';
+import { computeWinningWindow } from '../services/freshness';
+import { computeBagUsage, ratingTrend } from '../services/stats';
 import { shotRatio, type RoastLevel } from '../domain/types';
 import { StatTile, EmptyState } from './components';
 import { formatDateTime, ratingClass, shotWeights } from './labels';
-import { BeanIcon, BellIcon, CupIcon, SaveIcon, SoapIcon, TargetIcon, TrendIcon, TrophyIcon } from './icons';
+import { BeanIcon, BellIcon, CupIcon, LeafIcon, SaveIcon, SoapIcon, TargetIcon, TrendIcon, TrophyIcon, WarnIcon } from './icons';
 import type { Screen } from '../App';
 
 export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
@@ -66,6 +67,42 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
   const overdueMaintenance = maintenance.filter((m) => m.overdue || m.lastPerformed === null);
   const backupStatus = computeBackupStatus(shots);
+
+  // התראת חלון הטריות: איפה השקית הנוכחית ביחס לחלון המנצח האישי
+  const winning = computeWinningWindow(shots, bags);
+  const bagAge = lastBag ? daysSince(lastBag.roastDate) : null;
+  let freshnessNudge: { text: string; tone: 'good' | 'warn' } | null = null;
+  if (recommendation && winning && bagAge !== null) {
+    if (bagAge >= winning.from && bagAge <= winning.to) {
+      freshnessNudge = {
+        tone: 'good',
+        text: `השקית ביום ${bagAge} מהקלייה — בתוך חלון הטריות המנצח שלך (ימים ${winning.label}). זה הזמן ליהנות ממנה!`,
+      };
+    } else if (bagAge < winning.from) {
+      freshnessNudge = {
+        tone: 'good',
+        text: `השקית ביום ${bagAge} מהקלייה — חלון הטריות המנצח שלך (ימים ${winning.label}) מתחיל בעוד ${winning.from - bagAge} ימים.`,
+      };
+    } else {
+      freshnessNudge = {
+        tone: 'warn',
+        text: `השקית ביום ${bagAge} מהקלייה — אחרי חלון השיא שלך (ימים ${winning.label}). שווה לסיים אותה בקרוב.`,
+      };
+    }
+  }
+
+  // התראת מלאי נמוך: פחות מ-10 שוטים משוערים בשקית הפעילה
+  let lowStock: string | null = null;
+  if (recommendation && lastBag && !lastBag.finished) {
+    const usage = computeBagUsage(lastBag, shots);
+    const avgDose = usage.shotsCount > 0 ? usage.gramsUsed / usage.shotsCount : (user?.defaultDoseGrams ?? 16);
+    const shotsLeft = avgDose > 0 ? Math.floor(usage.gramsLeft / avgDose) : 0;
+    if (usage.shotsCount > 0 && shotsLeft < 10) {
+      lowStock = shotsLeft <= 0
+        ? 'השקית כמעט ריקה לפי התיעוד — הזמן פולים חדשים!'
+        : `נשארו ~${shotsLeft} שוטים בשקית (~${usage.gramsLeft.toFixed(0)} גרם) — כדאי להזמין פולים חדשים.`;
+    }
+  }
 
   return (
     <div>
@@ -125,6 +162,25 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
             <p className="muted small" style={{ marginTop: 6 }}>
               {confidenceLabel(recommendation.confidence, recommendation.basedOnShots)}
             </p>
+            {freshnessNudge && (
+              <p
+                className="small"
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 6,
+                  color: freshnessNudge.tone === 'good' ? 'var(--good)' : 'var(--warn)',
+                }}
+              >
+                <LeafIcon size={15} strokeWidth={2} /> <span>{freshnessNudge.text}</span>
+              </p>
+            )}
+            {lowStock && (
+              <p
+                className="small"
+                style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 6, color: 'var(--warn)' }}
+              >
+                <WarnIcon size={15} strokeWidth={2} /> <span>{lowStock}</span>
+              </p>
+            )}
             <button className="btn block" onClick={() => navigate('new-shot')}>
               <CupIcon size={18} /> התחל שוט חדש
             </button>

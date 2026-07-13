@@ -1,3 +1,4 @@
+import type { Bag, Shot } from '../domain/types';
 import { daysSince } from './recommendation';
 
 // חלון הטריות של פולי אספרסו לפי תאריך קלייה:
@@ -71,4 +72,54 @@ export function computeFreshness(roastDate: string | null): Freshness {
 export function formatDeadline(iso: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// ===== חלון הטריות המנצח האישי =====
+// מחושב מהשוטים בפועל: טווח גיל-הקלייה שבו הדירוגים הכי גבוהים.
+// משמש גם את עקומת הטריות (Analytics) וגם את ההתראה במסך הבית.
+
+export const AGE_BUCKETS = [
+  { label: '0–6', from: 0, to: 6 },
+  { label: '7–13', from: 7, to: 13 },
+  { label: '14–20', from: 14, to: 20 },
+  { label: '21–29', from: 21, to: 29 },
+  { label: '30–44', from: 30, to: 44 },
+  { label: '45+', from: 45, to: 999 },
+];
+
+export interface WinningWindow {
+  label: string;
+  from: number;
+  to: number;
+  avg: number;
+  count: number;
+}
+
+// זוגות (גיל קלייה ביום ההכנה, דירוג) לכל השוטים עם תאריך קלייה ידוע
+export function shotAgeRatings(shots: Shot[], bags: Bag[]): { age: number; rating: number }[] {
+  const bagMap = new Map(bags.map((b) => [b.id, b]));
+  return shots.flatMap((s) => {
+    const roast = bagMap.get(s.bagId)?.roastDate;
+    if (!roast || !s.rating) return [];
+    const age = Math.floor((new Date(s.createdAt).getTime() - new Date(roast).getTime()) / 86400000);
+    return age >= 0 && age <= 90 ? [{ age, rating: s.rating }] : [];
+  });
+}
+
+// החלון המנצח: דורש לפחות 2 טווחים עם 2+ שוטים כדי שתהיה השוואה אמיתית
+export function computeWinningWindow(shots: Shot[], bags: Bag[]): WinningWindow | null {
+  const pts = shotAgeRatings(shots, bags);
+  if (pts.length < 3) return null;
+  const buckets = AGE_BUCKETS
+    .map((b) => {
+      const inB = pts.filter((p) => p.age >= b.from && p.age <= b.to);
+      return {
+        ...b,
+        count: inB.length,
+        avg: inB.length ? inB.reduce((a, p) => a + p.rating, 0) / inB.length : 0,
+      };
+    })
+    .filter((b) => b.count >= 2)
+    .sort((a, b) => b.avg - a.avg);
+  return buckets.length >= 2 ? buckets[0] : null;
 }

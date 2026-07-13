@@ -68,33 +68,45 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const overdueMaintenance = maintenance.filter((m) => m.overdue || m.lastPerformed === null);
   const backupStatus = computeBackupStatus(shots);
 
-  // התראת חלון הטריות: איפה השקית הנוכחית ביחס לחלון המנצח האישי
+  // השקית הפעילה להתראות: השקית של השוט האחרון — אלא אם סומנה כנגמרה,
+  // ואז עוברים לשקית הפתוחה החדשה ביותר (אם קיימת). שקית שנגמרה לא מוזכרת.
+  const openBags = bags.filter((b) => !b.finished);
+  const newestOpenBag = [...openBags]
+    .sort((a, b) => (b.openDate ?? b.createdAt).localeCompare(a.openDate ?? a.createdAt))[0] ?? null;
+  const activeBag = lastBag && !lastBag.finished ? lastBag : newestOpenBag;
+  const activeBagBean = activeBag ? beanMap.get(activeBag.beanId) : null;
+  // כשההתראה עברה לשקית אחרת מזו של השוט האחרון — מציינים את שם הפולים
+  const bagLabel = activeBag && activeBag.id !== lastBag?.id && activeBagBean
+    ? `השקית החדשה (${activeBagBean.name})`
+    : 'השקית';
+
+  // התראת חלון הטריות: איפה השקית הפעילה ביחס לחלון המנצח האישי
   const winning = computeWinningWindow(shots, bags);
-  const bagAge = lastBag ? daysSince(lastBag.roastDate) : null;
+  const bagAge = activeBag ? daysSince(activeBag.roastDate) : null;
   let freshnessNudge: { text: string; tone: 'good' | 'warn' } | null = null;
   if (recommendation && winning && bagAge !== null) {
     if (bagAge >= winning.from && bagAge <= winning.to) {
       freshnessNudge = {
         tone: 'good',
-        text: `השקית ביום ${bagAge} מהקלייה — בתוך חלון הטריות המנצח שלך (ימים ${winning.label}). זה הזמן ליהנות ממנה!`,
+        text: `${bagLabel} ביום ${bagAge} מהקלייה — בתוך חלון הטריות המנצח שלך (ימים ${winning.label}). זה הזמן ליהנות ממנה!`,
       };
     } else if (bagAge < winning.from) {
       freshnessNudge = {
         tone: 'good',
-        text: `השקית ביום ${bagAge} מהקלייה — חלון הטריות המנצח שלך (ימים ${winning.label}) מתחיל בעוד ${winning.from - bagAge} ימים.`,
+        text: `${bagLabel} ביום ${bagAge} מהקלייה — חלון הטריות המנצח שלך (ימים ${winning.label}) מתחיל בעוד ${winning.from - bagAge} ימים.`,
       };
     } else {
       freshnessNudge = {
         tone: 'warn',
-        text: `השקית ביום ${bagAge} מהקלייה — אחרי חלון השיא שלך (ימים ${winning.label}). שווה לסיים אותה בקרוב.`,
+        text: `${bagLabel} ביום ${bagAge} מהקלייה — אחרי חלון השיא שלך (ימים ${winning.label}). שווה לסיים אותה בקרוב.`,
       };
     }
   }
 
   // התראת מלאי נמוך: פחות מ-10 שוטים משוערים בשקית הפעילה
   let lowStock: string | null = null;
-  if (recommendation && lastBag && !lastBag.finished) {
-    const usage = computeBagUsage(lastBag, shots);
+  if (recommendation && activeBag && !activeBag.finished) {
+    const usage = computeBagUsage(activeBag, shots);
     const avgDose = usage.shotsCount > 0 ? usage.gramsUsed / usage.shotsCount : (user?.defaultDoseGrams ?? 16);
     const shotsLeft = avgDose > 0 ? Math.floor(usage.gramsLeft / avgDose) : 0;
     if (usage.shotsCount > 0 && shotsLeft < 10) {

@@ -53,11 +53,20 @@ export default function App() {
     setScreenState(s);
   };
 
+  // "זכוכית מתעוררת": הכותרת שקופה בראש העמוד ומקבלת רקע זכוכית בגלילה
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
     <>
     <BeansBackground />
     <div className="app">
-      <header className="topbar">
+      <header className={`topbar ${scrolled ? 'scrolled' : ''}`}>
         <h1><CupIcon size={22} /> יומן בריסטה חכם</h1>
         <div className="topbar-actions">
           <button

@@ -143,13 +143,25 @@ button { touch-action: manipulation; }
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* פריצה לרוחב מלא — כדי שרקע הזכוכית בגלילה יכסה מקצה לקצה */
+  margin: 0 -16px;
   /* safe-area עליון — שלא ניכנס מתחת לשעון במכשירים עם notch */
-  padding: calc(16px + env(safe-area-inset-top)) 2px 12px;
-  /* צמודה תמיד — אך שקופה לגמרי, בלי רקע ובלי קו */
+  padding: calc(16px + env(safe-area-inset-top)) 18px 12px;
   position: sticky;
   top: 0;
   z-index: 10;
+  /* במנוחה: שקופה לגמרי — רואים את פולי הקפה נופלים */
   background: transparent;
+  border-bottom: 1px solid transparent;
+  transition: background 0.25s ease, border-color 0.25s ease;
+}
+/* "זכוכית מתעוררת": בגלילה הכותרת מקבלת זכוכית קפה — כמו הניווט התחתון.
+   הטקסטים שעוברים מתחתיה מיטשטשים מאחורי הזכוכית במקום להתנגש בכותרת. */
+.topbar.scrolled {
+  background: color-mix(in srgb, var(--bg-elevated) 85%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom-color: var(--hairline);
 }
 .topbar h1 {
   font-size: 1.3rem;

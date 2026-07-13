@@ -472,6 +472,12 @@ function FreshnessCurve({ shots, bags }: { shots: Shot[]; bags: Bag[] }) {
           חלון הטריות המנצח שלך: ימים {winning.label} מהקלייה — ממוצע {winning.avg.toFixed(1)} ({winning.count} שוטים).
         </p>
       )}
+      {winning && winning.from > 30 && (
+        <p className="muted small">
+          שים לב: חלון שמתחיל אחרי יום 30 חשוד כהטיה — סביר שהטכניקה שלך השתפרה עם הזמן,
+          לא שהפולים טובים יותר ישנים. ככל שתתעד שוטים על שקיות טריות, התמונה תתאזן.
+        </p>
+      )}
     </div>
   );
 }

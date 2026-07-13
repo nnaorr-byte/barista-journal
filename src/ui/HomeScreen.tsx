@@ -5,7 +5,7 @@ import { computeInsights } from '../services/learning';
 import { recommendShot, confidenceLabel, daysSince } from '../services/recommendation';
 import { computeMaintenanceStatus } from '../services/maintenance';
 import { computeBackupStatus, shareBackup } from '../services/importExport';
-import { computeWinningWindow } from '../services/freshness';
+import { computeFreshness, computeWinningWindow } from '../services/freshness';
 import { computeBagUsage, ratingTrend } from '../services/stats';
 import { shotRatio, type RoastLevel } from '../domain/types';
 import { StatTile, EmptyState } from './components';
@@ -80,26 +80,44 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
     ? `השקית החדשה (${activeBagBean.name})`
     : 'השקית';
 
-  // התראת חלון הטריות: איפה השקית הפעילה ביחס לחלון המנצח האישי
+  // התראת טריות: איפה השקית הפעילה ביחס לחלון הטריות.
+  // עדיפות לחלון האישי (מההיסטוריה) — אך רק אם הוא סביר (מתחיל עד יום 30).
+  // חלון "מנצח" שמתחיל ביום 30+ הוא כמעט תמיד הטיה — הטכניקה השתפרה
+  // עם הזמן, לא הפולים — ואז נופלים חזרה לחלון המדעי (5–30 יום).
   const winning = computeWinningWindow(shots, bags);
+  const personalWindow = winning && winning.from <= 30 ? winning : null;
   const bagAge = activeBag ? daysSince(activeBag.roastDate) : null;
   let freshnessNudge: { text: string; tone: 'good' | 'warn' } | null = null;
-  if (recommendation && winning && bagAge !== null) {
-    if (bagAge >= winning.from && bagAge <= winning.to) {
-      freshnessNudge = {
-        tone: 'good',
-        text: `${bagLabel} ביום ${bagAge} מהקלייה — בתוך חלון הטריות המנצח שלך (ימים ${winning.label}). זה הזמן ליהנות ממנה!`,
-      };
-    } else if (bagAge < winning.from) {
-      freshnessNudge = {
-        tone: 'good',
-        text: `${bagLabel} ביום ${bagAge} מהקלייה — חלון הטריות המנצח שלך (ימים ${winning.label}) מתחיל בעוד ${winning.from - bagAge} ימים.`,
-      };
+  if (recommendation && bagAge !== null && activeBag) {
+    if (personalWindow) {
+      const w = personalWindow;
+      if (bagAge >= w.from && bagAge <= w.to) {
+        freshnessNudge = {
+          tone: 'good',
+          text: `${bagLabel} ביום ${bagAge} מהקלייה — בדיוק בטווח שבו יצאו לך השוטים הכי טובים (ימים ${w.from}–${w.to}). זה הזמן ליהנות ממנה!`,
+        };
+      } else if (bagAge < w.from) {
+        freshnessNudge = {
+          tone: 'good',
+          text: `${bagLabel} ביום ${bagAge} מהקלייה. לפי ההיסטוריה שלך, השוטים הכי טובים יוצאים בימים ${w.from}–${w.to} — היא תיכנס לטווח בעוד ${w.from - bagAge} ימים.`,
+        };
+      } else {
+        freshnessNudge = {
+          tone: 'warn',
+          text: `${bagLabel} ביום ${bagAge} מהקלייה — אחרי הטווח שבו יצאו לך השוטים הכי טובים (ימים ${w.from}–${w.to}). שווה לסיים אותה בקרוב.`,
+        };
+      }
     } else {
-      freshnessNudge = {
-        tone: 'warn',
-        text: `${bagLabel} ביום ${bagAge} מהקלייה — אחרי חלון השיא שלך (ימים ${winning.label}). שווה לסיים אותה בקרוב.`,
+      // אין חלון אישי אמין — הערכת הטריות המקצועית (5–30 יום אידיאלי, דד-ליין 60)
+      const fresh = computeFreshness(activeBag.roastDate);
+      const stageText: Partial<Record<typeof fresh.stage, { text: string; tone: 'good' | 'warn' }>> = {
+        resting: { tone: 'warn', text: `${bagLabel} ביום ${bagAge} מהקלייה — הפולים עדיין משחררים גזים; חלון הטריות האידיאלי מתחיל סביב יום 5.` },
+        peak: { tone: 'good', text: `${bagLabel} ביום ${bagAge} מהקלייה — בשיא הטריות. זה הזמן ליהנות ממנה!` },
+        good: { tone: 'good', text: `${bagLabel} ביום ${bagAge} מהקלייה — עדיין בחלון טריות טוב.` },
+        fading: { tone: 'warn', text: `${bagLabel} ביום ${bagAge} מהקלייה — הטריות יורדת; שווה לסיים אותה בקרוב.` },
+        expired: { tone: 'warn', text: `${bagLabel} ביום ${bagAge} מהקלייה — מעבר לחלון הטריות (60 יום). עדיף לסיים אותה מהר.` },
       };
+      freshnessNudge = stageText[fresh.stage] ?? null;
     }
   }
 

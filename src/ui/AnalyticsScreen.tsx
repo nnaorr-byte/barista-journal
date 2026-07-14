@@ -252,7 +252,7 @@ function CoffeeWrapped({ shots, beans, onBack }: { shots: Shot[]; beans: Bean[];
     return (
       <div className="card">
         <h2><GiftIcon size={18} /> Coffee Wrapped {year}</h2>
-        <EmptyState icon="🎁" text={`עדיין אין שוטים ב-${year}`} hint="ברגע שתתעד — הסיכום יתמלא." />
+        <EmptyState icon={<GiftIcon size={40} />} text={`עדיין אין שוטים ב-${year}`} hint="ברגע שתתעד — הסיכום יתמלא." />
         <button className="btn block" onClick={onBack}>→ חזרה לניתוח</button>
       </div>
     );
@@ -533,9 +533,9 @@ export function AnalyticsScreen() {
   if (shots.length < 2) {
     return (
       <div className="card">
-        <h2><TrendIcon size={18} /> Coffee Shot Analytics</h2>
+        <h2><TrendIcon size={18} /> ניתוח מתקדם</h2>
         <EmptyState
-          icon="📈"
+          icon={<TrendIcon size={40} />}
           text="הניתוח מתעורר אחרי 2 שוטים לפחות"
           hint="ככל שתתעד יותר, התמונה תהיה חדה יותר — מגמות, עקביות ותובנות אישיות."
         />
@@ -605,7 +605,7 @@ export function AnalyticsScreen() {
   return (
     <div>
       <div className="card accent">
-        <h2><TrendIcon size={18} /> Coffee Shot Analytics</h2>
+        <h2><TrendIcon size={18} /> ניתוח מתקדם</h2>
         <p className="muted small" style={{ marginTop: 0 }}>
           ניתוח {shots.length} השוטים שלך — איכות, עקביות ומגמות.
         </p>

@@ -33,6 +33,9 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem('theme', theme);
+    // צבע שורת הסטטוס (PWA/דפדפן) עוקב אחרי המצב הנוכחי
+    document.querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', theme === 'dark' ? '#2b1d16' : '#f2e8d9');
   }, [theme]);
 
   // אינטגרציית כפתור Back: כל מסך נרשם ב-history של הדפדפן,
@@ -73,6 +76,7 @@ export default function App() {
             className={`theme-toggle ${screen === 'settings' ? 'active' : ''}`}
             onClick={() => setScreen('settings')}
             aria-label="הגדרות"
+            aria-current={screen === 'settings' ? 'page' : undefined}
           >
             <SettingsIcon size={19} />
           </button>
@@ -110,6 +114,7 @@ export default function App() {
               className={`nav-fab ${screen === item.screen ? 'active' : ''}`}
               onClick={() => setScreen(item.screen)}
               aria-label={item.label}
+              aria-current={screen === item.screen ? 'page' : undefined}
             >
               {item.icon}
             </button>
@@ -118,6 +123,7 @@ export default function App() {
               key={item.screen}
               className={screen === item.screen ? 'active' : ''}
               onClick={() => setScreen(item.screen)}
+              aria-current={screen === item.screen ? 'page' : undefined}
             >
               <span className="icon">{item.icon}</span>
               {item.label}

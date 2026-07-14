@@ -175,7 +175,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
             <div className="stat-grid">
               <StatTile value={recommendation.doseGrams} label="גרם נכנס" />
               {recommendation.stopAtGrams !== null && (
-                <StatTile value={recommendation.stopAtGrams} label="✋ עצירה בפועל" />
+                <StatTile value={recommendation.stopAtGrams} label="עצירה בפועל" />
               )}
               <StatTile value={recommendation.yieldGrams} label="גרם יוצא" />
               <StatTile value={`${recommendation.brewTimeSecMin}–${recommendation.brewTimeSecMax}`} label="שניות" />
@@ -218,7 +218,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
         ) : (
           <>
             <EmptyState
-              icon="☕"
+              icon={<CupIcon size={40} />}
               text="עדיין אין היסטוריה"
               hint="הוסף פולים והכן את השוט הראשון — ההמלצות יתחילו לזרום מיד."
             />

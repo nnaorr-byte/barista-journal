@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 
 export function StatTile({ value, label }: { value: ReactNode; label: string }) {
@@ -24,6 +25,7 @@ export function Chips<T extends string>({
           key={o.value}
           type="button"
           className={`chip ${selected.includes(o.value) ? 'selected' : ''}`}
+          aria-pressed={selected.includes(o.value)}
           onClick={() => onToggle(o.value)}
         >
           {o.label}
@@ -41,6 +43,7 @@ export function RatingPicker({ value, onChange }: { value: number; onChange: (n:
           key={n}
           type="button"
           className={value === n ? 'selected' : ''}
+          aria-pressed={value === n}
           onClick={() => onChange(n)}
         >
           {n}
@@ -59,12 +62,43 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   );
 }
 
-export function EmptyState({ icon, text, hint }: { icon: string; text: string; hint?: string }) {
+export function EmptyState({ icon, text, hint }: { icon: ReactNode; text: string; hint?: string }) {
   return (
     <div className="empty-state">
-      <div className="big">{icon}</div>
+      <div className="big" aria-hidden="true">{icon}</div>
       <div>{text}</div>
       {hint && <div className="small" style={{ marginTop: 6 }}>{hint}</div>}
     </div>
+  );
+}
+
+// כפתור אישור דו-שלבי — תחליף עקבי ל-confirm() הנטיבי של הדפדפן.
+// לחיצה ראשונה "דורכת" את הכפתור ומציגה את שאלת האישור;
+// בלי לחיצה שנייה תוך 5 שניות הוא חוזר למצב הרגיל.
+export function ConfirmButton({
+  label, confirmLabel, onConfirm, className = 'btn danger',
+}: {
+  label: ReactNode;
+  confirmLabel: string;
+  onConfirm: () => void;
+  className?: string;
+}) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), 5000);
+    return () => clearTimeout(t);
+  }, [armed]);
+  return (
+    <button
+      type="button"
+      className={className}
+      aria-live="polite"
+      onClick={() => {
+        if (armed) { setArmed(false); onConfirm(); } else { setArmed(true); }
+      }}
+    >
+      {armed ? confirmLabel : label}
+    </button>
   );
 }

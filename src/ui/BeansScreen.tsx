@@ -5,7 +5,7 @@ import { bagRepo, beanRepo } from '../db/repositories';
 import { computeBagUsage } from '../services/stats';
 import { computeFreshness, formatDeadline } from '../services/freshness';
 import type { Bag, RoastLevel, Shot } from '../domain/types';
-import { EmptyState, Field, StatTile } from './components';
+import { ConfirmButton, EmptyState, Field, StatTile } from './components';
 import { ROAST_LEVELS, formatDate, ratingClass } from './labels';
 import { BeanIcon, PlusIcon, SaveIcon, TrashIcon, UndoIcon } from './icons';
 
@@ -37,7 +37,7 @@ function FreshnessBar({ ageDays }: { ageDays: number }) {
           transform: 'translate(-50%, -50%)', boxShadow: '0 0 6px rgba(0,0,0,0.4)',
         }} />
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 2 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
         <span>קלייה</span><span>שיא ~14י'</span><span>דד-ליין 60י'</span>
       </div>
     </div>
@@ -75,7 +75,7 @@ export function BeansScreen() {
 
       {activeBeans.length === 0 && !showForm && (
         <div className="card">
-          <EmptyState icon="🫘" text="אין פולים במערכת" hint="הוסף את הפולים הראשונים כדי להתחיל לתעד שוטים." />
+          <EmptyState icon={<BeanIcon size={40} />} text="אין פולים במערכת" hint="הוסף את הפולים הראשונים כדי להתחיל לתעד שוטים." />
         </div>
       )}
 
@@ -172,16 +172,12 @@ export function BeansScreen() {
                 <button className="btn small secondary" onClick={() => setAddingBagFor(bean.id)}>
                   <PlusIcon size={15} /> שקית חדשה
                 </button>
-                <button
+                <ConfirmButton
                   className="btn small danger"
-                  onClick={async () => {
-                    if (confirm(`למחוק את "${bean.name}" כולל כל השוטים והשקיות שלו? הפעולה בלתי הפיכה.`)) {
-                      await beanRepo.remove(bean.id);
-                    }
-                  }}
-                >
-                  <TrashIcon size={15} /> מחיקת פולים
-                </button>
+                  label={<><TrashIcon size={15} /> מחיקת פולים</>}
+                  confirmLabel="למחוק הכל? בלתי הפיך — לחץ לאישור"
+                  onConfirm={() => { void beanRepo.remove(bean.id); }}
+                />
               </div>
             )}
           </div>

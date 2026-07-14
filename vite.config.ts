@@ -22,7 +22,7 @@ export default defineConfig({
       },
       manifest: {
         name: 'יומן בריסטה חכם',
-        short_name: 'Barista Journal',
+        short_name: 'בריסטה',
         description: 'יומן בריסטה אישי עם AI Coach להשגת האספרסו המושלם',
         theme_color: '#2b1d16',
         background_color: '#1d130e',

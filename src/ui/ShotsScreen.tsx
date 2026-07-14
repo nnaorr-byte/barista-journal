@@ -11,7 +11,7 @@ import {
 } from '../domain/types';
 import { Chips, EmptyState, Field, RatingPicker } from './components';
 import { FLAVOR_LABELS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
-import { BrainIcon, EditIcon, JournalIcon, SaveIcon, ScaleIcon, SearchIcon, StarIcon, TrashIcon, UndoIcon } from './icons';
+import { BrainIcon, EditIcon, JournalIcon, SaveIcon, ScaleIcon, SearchIcon, StarIcon, TrashIcon, TrophyIcon, UndoIcon } from './icons';
 
 const TASTE_OPTIONS = (Object.entries(TASTE_LABELS) as [TasteTag, string][]).map(([value, label]) => ({ value, label }));
 const FLAVOR_OPTIONS = (Object.entries(FLAVOR_LABELS) as [FlavorNote, string][]).map(([value, label]) => ({ value, label }));
@@ -133,7 +133,7 @@ export function ShotsScreen() {
           </p>
         )}
         {filtered.length === 0 && (
-          <EmptyState icon="📭" text="אין שוטים תואמים" hint="נסה לשנות את הסינון או להכין שוט חדש." />
+          <EmptyState icon={<SearchIcon size={40} />} text="אין שוטים תואמים" hint="נסה לשנות את הסינון או להכין שוט חדש." />
         )}
         {filtered.map((s) => (
           <div key={s.id}>
@@ -255,8 +255,8 @@ function ShotCompare({
           <thead>
             <tr>
               <th></th>
-              <th>שוט א׳{better === 'a' && ' 🏆'}</th>
-              <th>שוט ב׳{better === 'b' && ' 🏆'}</th>
+              <th>שוט א׳{better === 'a' && <> <TrophyIcon size={13} /></>}</th>
+              <th>שוט ב׳{better === 'b' && <> <TrophyIcon size={13} /></>}</th>
             </tr>
           </thead>
           <tbody>

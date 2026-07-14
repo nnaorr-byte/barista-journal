@@ -38,7 +38,7 @@ export function DashboardScreen() {
   if (shots.length === 0) {
     return (
       <div className="card">
-        <EmptyState icon="📊" text="ה-Dashboard יתעורר לחיים אחרי השוטים הראשונים" hint="כל שוט שתתעד יוסיף נתונים לגרפים ולתובנות." />
+        <EmptyState icon={<ChartIcon size={40} />} text="ה-Dashboard יתעורר לחיים אחרי השוטים הראשונים" hint="כל שוט שתתעד יוסיף נתונים לגרפים ולתובנות." />
       </div>
     );
   }

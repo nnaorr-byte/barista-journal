@@ -689,7 +689,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           <div className="coach-section">
             <div className="coach-label">5 · רמת ביטחון: {advice.confidencePct}%</div>
             <div className="conf-bar" dir="ltr">
-              <div className="conf-bar-fill" style={{ width: `${advice.confidencePct}%` }} />
+              <div className="conf-bar-fill" style={{ transform: `scaleX(${advice.confidencePct / 100})` }} />
             </div>
             {advice.confidenceReasons.map((r, i) => (
               <p key={i} className="muted small" style={{ margin: '3px 0' }}>• {r}</p>
@@ -948,7 +948,7 @@ function BrewStep({
         <div className="stat-grid">
           <StatTile value={recommendation.doseGrams} label="גרם נכנס" />
           {recommendation.stopAtGrams !== null && (
-            <StatTile value={recommendation.stopAtGrams} label="✋ עצירה בפועל" />
+            <StatTile value={recommendation.stopAtGrams} label="עצירה בפועל" />
           )}
           <StatTile value={recommendation.yieldGrams} label="יעד סופי בכוס" />
           <StatTile value={`${recommendation.brewTimeSecMin}–${recommendation.brewTimeSecMax}`} label="יעד שניות" />

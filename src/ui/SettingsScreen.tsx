@@ -6,7 +6,7 @@ import type { Grinder, GrinderType, Machine } from '../domain/types';
 import { seedIfEmpty } from '../db/database';
 import { MAINTENANCE_RULES, computeMaintenanceStatus } from '../services/maintenance';
 import { exportBackup, exportCsv, exportExcel, getLastBackupAt, restoreBackup, shareBackup } from '../services/importExport';
-import { Field } from './components';
+import { ConfirmButton, Field } from './components';
 import { formatDate } from './labels';
 import { ChartIcon, CheckIcon, ClipboardIcon, EditIcon, PackageIcon, PlusIcon, SaveIcon, SoapIcon, ToolsIcon, TrashIcon, UserIcon, WarnIcon } from './icons';
 
@@ -25,6 +25,8 @@ export function SettingsScreen() {
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState('');
+  // קובץ גיבוי שנבחר וממתין לאישור שחזור (מחליף את confirm() הנטיבי)
+  const [pendingRestore, setPendingRestore] = useState<File | null>(null);
 
   if (!data?.user) return null;
   const { user, machines, grinders, events, shots, beans } = data;
@@ -130,37 +132,49 @@ export function SettingsScreen() {
         <p className="muted small">שחזור מחליף את כל הנתונים הקיימים בנתוני הגיבוי.</p>
         <input
           ref={fileRef} type="file" accept=".json,application/json"
-          onChange={async (e) => {
+          onChange={(e) => {
             const file = e.target.files?.[0];
-            if (!file) return;
-            if (!confirm('שחזור ימחק את הנתונים הנוכחיים ויחליף אותם בגיבוי. להמשיך?')) {
-              e.target.value = '';
-              return;
-            }
-            const result = await restoreBackup(file);
-            setMessage(result.ok ? '✅ הגיבוי שוחזר בהצלחה!' : `❌ ${result.error}`);
+            if (file) setPendingRestore(file);
             e.target.value = '';
           }}
         />
-        {message && <p className="small" style={{ marginTop: 8 }}>{message}</p>}
+        {pendingRestore && (
+          <div className="one-var-banner" role="alertdialog" aria-label="אישור שחזור מגיבוי">
+            שחזור מ־"{pendingRestore.name}" ימחק את הנתונים הנוכחיים ויחליף אותם בגיבוי.
+            <div className="btn-row">
+              <button
+                className="btn small danger"
+                onClick={async () => {
+                  const result = await restoreBackup(pendingRestore);
+                  setMessage(result.ok ? '✅ הגיבוי שוחזר בהצלחה!' : `❌ ${result.error}`);
+                  setPendingRestore(null);
+                }}
+              >
+                <SaveIcon size={15} /> שחזר והחלף הכל
+              </button>
+              <button className="btn small secondary" onClick={() => setPendingRestore(null)}>
+                ביטול
+              </button>
+            </div>
+          </div>
+        )}
+        {message && <p className="small" style={{ marginTop: 8 }} role="status">{message}</p>}
       </div>
 
       {/* אזור מסוכן */}
       <div className="card warn">
         <h2><WarnIcon size={18} /> אזור מסוכן</h2>
         <p className="muted small">מחיקת כל ההיסטוריה — כל השוטים, הפולים והתיעודים. מומלץ לגבות קודם.</p>
-        <button
+        <ConfirmButton
           className="btn danger"
-          onClick={async () => {
-            if (!confirm('למחוק את כל ההיסטוריה? הפעולה בלתי הפיכה!')) return;
-            if (!confirm('בטוח בטוח? זו ההזדמנות האחרונה לבטל.')) return;
+          label={<><TrashIcon size={15} /> מחיקת כל ההיסטוריה</>}
+          confirmLabel="בטוח? לחיצה נוספת תמחק הכל לצמיתות"
+          onConfirm={async () => {
             await wipeAllData();
             await seedIfEmpty();
             setMessage('כל הנתונים נמחקו. פרופיל הציוד נוצר מחדש.');
           }}
-        >
-          <TrashIcon size={15} /> מחיקת כל ההיסטוריה
-        </button>
+        />
       </div>
 
       <p className="muted small" style={{ textAlign: 'center' }}>

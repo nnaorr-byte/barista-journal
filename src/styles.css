@@ -764,6 +764,85 @@ table.data th { color: var(--text-muted); font-weight: 700; font-size: 0.76rem; 
 }
 .warmup-done { text-decoration: line-through; opacity: 0.6; }
 
+/* ---- ברכת פתיחה במסך הבית (לפי שעה) ---- */
+.home-greeting { margin: 2px 2px 15px; }
+.home-greeting .greeting-main {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--crema);
+  letter-spacing: -0.2px;
+}
+.home-greeting .greeting-sub {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ---- מוח ה-AI: הבזק "חשיבה" קצר לפני חשיפת ההמלצה ---- */
+.ai-thinking { display: flex; align-items: center; gap: 12px; padding: 6px 0 2px; }
+.ai-thinking p { margin: 0; color: var(--crema); font-weight: 600; }
+.ai-thinking-dots { display: inline-flex; gap: 5px; flex: none; }
+.ai-thinking-dots i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent-strong);
+  display: block;
+  animation: ai-dot 1s ease-in-out infinite;
+}
+.ai-thinking-dots i:nth-child(2) { animation-delay: 0.15s; }
+.ai-thinking-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes ai-dot {
+  0%, 100% { opacity: 0.3; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-4px); }
+}
+
+/* ---- באנר שיא אישי לפולים ---- */
+.record-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg-elevated));
+  border: 1px solid color-mix(in srgb, var(--accent-strong) 55%, transparent);
+  color: var(--crema);
+  border-radius: var(--radius-sm);
+  padding: 11px 13px;
+  margin-bottom: 12px;
+  font-weight: 700;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--glow) 60%, transparent);
+  animation: record-in 0.5s var(--spring) backwards;
+}
+.record-banner svg { color: var(--accent-strong); flex: none; }
+@keyframes record-in {
+  from { opacity: 0; transform: scale(0.92) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ---- חגיגת שוט מושלם (קנבס מרחף מעל התוכן) ---- */
+.celebration-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 25; /* מעל הניווט (20), מתחת לטוסט (30) */
+  pointer-events: none;
+}
+
+/* ---- טבעת הטיימר: זוהר בחלון היעד + פעימת "בול" בעצירה ---- */
+.timer-ring-wrap.zone-active .timer-ring {
+  animation: zone-glow 1.3s ease-in-out infinite;
+}
+@keyframes zone-glow {
+  0%, 100% { filter: drop-shadow(0 0 3px color-mix(in srgb, var(--good) 70%, transparent)); }
+  50% { filter: drop-shadow(0 0 11px var(--good)); }
+}
+.timer-ring-wrap.zone-hit .timer-ring {
+  animation: zone-hit 0.55s var(--spring);
+}
+@keyframes zone-hit {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
 /* ---- הפחתת תנועה: כיבוי כל האנימציות ---- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

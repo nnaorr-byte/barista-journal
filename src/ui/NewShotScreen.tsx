@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import { bagRepo, dialInRepo, shotRepo } from '../db/repositories';
@@ -11,7 +11,8 @@ import { Chips, Field, RatingPicker, StatTile } from './components';
 import { TastingCoach } from './TastingCoach';
 import { WarmupChecklist } from './WarmupChecklist';
 import { FLAVOR_LABELS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS } from './labels';
-import { BoltIcon, BrainIcon, CheckIcon, ClipboardIcon, CupIcon, PlusIcon, SaveIcon, StarIcon, TargetIcon, TasteIcon, TimerIcon } from './icons';
+import { BoltIcon, BrainIcon, CheckIcon, ClipboardIcon, CupIcon, PlusIcon, SaveIcon, StarIcon, TargetIcon, TasteIcon, TimerIcon, TrophyIcon } from './icons';
+import { Celebration } from './Celebration';
 import type { Screen } from '../App';
 
 type Step = 'setup' | 'brew' | 'results' | 'coach';
@@ -131,6 +132,12 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const [saving, setSaving] = useState(false);
   const [savedShotId, setSavedShotId] = useState<string | null>(null);
   const [markedFavorite, setMarkedFavorite] = useState(false);
+  // רגעי delight ב-Coach: הבזק "חשיבה", חגיגת שוט מושלם, שיא אישי לפולים
+  const [thinking, setThinking] = useState(false);
+  const [analyzed, setAnalyzed] = useState(0);
+  const [celebrate, setCelebrate] = useState(false);
+  const [beanRecord, setBeanRecord] = useState<{ prevBest: number } | null>(null);
+  const stopCelebrate = useCallback(() => setCelebrate(false), []);
 
   // ===== טיוטה אוטומטית =====
   // iOS עלול להרוג את האפליקציה באמצע תיעוד — הטופס נשמר מקומית
@@ -176,6 +183,13 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       portafilterType, tasteTags, tasteOther, flavorNotes, body, crema, aftertaste, notes, rating,
     }));
   });
+
+  // הבזק ה"חשיבה" של ה-AI נמשך רגע קצר ואז נחשפת ההמלצה
+  useEffect(() => {
+    if (!thinking) return;
+    const t = setTimeout(() => setThinking(false), 850);
+    return () => clearTimeout(t);
+  }, [thinking]);
 
   if (!data) return null;
   const { user, beans, bags, shots, machines, grinders } = data;
@@ -333,6 +347,17 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       // ההמלצה נשמרת עם השוט — תופיע גם ביומן לצד פרטי השוט
       await shotRepo.put({ ...shot, aiAdvice: newAdvice });
       setAdvice(newAdvice);
+
+      // שיא אישי לפולים האלה? (יש לפחות שוט קודם אחד, והדירוג עוקף את כולם)
+      const prevBest = beanAll.reduce((m, s) => Math.max(m, s.rating), 0);
+      setBeanRecord(beanAll.length >= 1 && rating > prevBest ? { prevBest } : null);
+
+      // רגעי delight — מדולגים כשהמשתמש ביקש הפחתת תנועה
+      const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      setAnalyzed(beanHistory.length);
+      setThinking(!reduceMotion); // הבזק "חשיבה" קצר לפני חשיפת ההמלצה
+      if (rating >= 9 && !reduceMotion) setCelebrate(true); // חגיגת שוט מושלם
+
       setStep('coach');
       // רשומת ה"תוצאות" מוחלפת ב"coach" — Back מכאן לא יחזיר לטופס שכבר נשמר
       history.replaceState({ screen: 'new-shot', step: 'coach' }, '');
@@ -648,10 +673,37 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   // --- שלב 4: AI Coach ---
   if (step === 'coach' && advice) {
     const toneClass = { good: 'balanced', warn: 'under', bad: 'over', info: 'unclear' }[advice.tone];
+
+    // הבזק "חשיבה" קצר לפני חשיפת ההמלצה (רגע delight — לא עיכוב אמיתי)
+    if (thinking) {
+      return (
+        <div>
+          {celebrate && <Celebration onDone={stopCelebrate} />}
+          <div className="card accent">
+            <h2><BrainIcon size={18} /> מוח ה-AI</h2>
+            <div className="ai-thinking">
+              <span className="ai-thinking-dots"><i /><i /><i /></span>
+              <p>
+                {analyzed > 1
+                  ? `טוחן את ${analyzed} השוטים שלך על הפולים האלה…`
+                  : 'מנתח את השוט הראשון שלך על הפולים האלה…'}
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div>
+        {celebrate && <Celebration onDone={stopCelebrate} />}
         <div className="card accent">
           <h2><BrainIcon size={18} /> מוח ה-AI — ההמלצה לשוט הבא</h2>
+          {beanRecord && (
+            <div className="record-banner">
+              <TrophyIcon size={18} /> שיא אישי לפולים האלה! עברת את השיא הקודם ({beanRecord.prevBest}/10).
+            </div>
+          )}
           <div className={`coach-verdict ${toneClass}`}>
             {advice.changeKind === 'none' ? '✓ שמור על המתכון — אין מה לשנות' : `השינוי הבא: ${advice.changeLabel}`}
           </div>
@@ -726,6 +778,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 setFlavorNotes([]); setBody(null); setCrema(null); setAftertaste(null);
                 setNotes(''); setRating(0); setQuick(false); setTasting(false); setTastingSummary('');
                 setAdvice(null); setMultiVarWarning(null); setSavedShotId(null); setMarkedFavorite(false);
+                setBeanRecord(null); setThinking(false); setCelebrate(false);
                 computeRecommendation();
               }}
             >
@@ -858,6 +911,10 @@ function BrewStep({
   const inZone = elapsed >= targetMin && elapsed <= targetMax;
   const overZone = elapsed > targetMax;
   const progressColor = overZone ? 'var(--bad)' : inZone ? 'var(--good)' : 'var(--accent)';
+  // delight: הטבעת "מתרגשת" (זוהר פועם) בזמן שאתה בחלון היעד,
+  // ופועמת פעם אחת ("בול!") אם עצרת בדיוק בתוכו.
+  const zoneActive = running && inZone;
+  const stoppedInZone = !running && elapsed >= targetMin && elapsed <= targetMax;
 
   // לחיצה על מרכז הטבעת: התחלה ← עצירה ← איפוס והתחלה מחדש
   function toggleTimer() {
@@ -877,7 +934,10 @@ function BrewStep({
       {/* הטיימר למעלה */}
       <div className="card">
         <h2><TimerIcon size={18} /> טיימר חליטה — יעד {targetMin}–{targetMax} שניות</h2>
-        <div className="timer-ring-wrap" dir="ltr">
+        <div
+          className={`timer-ring-wrap ${zoneActive ? 'zone-active' : ''} ${stoppedInZone ? 'zone-hit' : ''}`}
+          dir="ltr"
+        >
           <svg viewBox="0 0 220 220" className="timer-ring">
             {/* מסילה */}
             <circle cx="110" cy="110" r={R} fill="none" stroke="var(--border-soft)" strokeWidth="10" />

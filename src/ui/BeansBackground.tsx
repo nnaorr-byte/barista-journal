@@ -16,6 +16,7 @@ interface Bean {
   sway: number; // תנודה אופקית
   swayPhase: number;
   depth: number; // 0.5..1 — "עומק" שמשפיע על גודל, מהירות ושקיפות
+  temp?: boolean; // פול "פרץ" זמני (ביצת פסחא) — מוסר כשיוצא מהמסך
 }
 
 export function BeansBackground() {
@@ -44,7 +45,7 @@ export function BeansBackground() {
     window.addEventListener('resize', resize);
 
     const rand = (a: number, b: number) => a + Math.random() * (b - a);
-    const beans: Bean[] = Array.from({ length: BEAN_COUNT }, () => ({
+    let beans: Bean[] = Array.from({ length: BEAN_COUNT }, () => ({
       x: Math.random(),
       y: rand(-1, 1), // מפוזרים לאורך המסך כבר בהתחלה
       size: rand(9, 17),
@@ -55,6 +56,25 @@ export function BeansBackground() {
       swayPhase: rand(0, Math.PI * 2),
       depth: rand(0.5, 1),
     }));
+
+    // ביצת פסחא: פרץ של פולים מהירים מלמעלה (מופעל מלחיצה על הלוגו)
+    const onBurst = () => {
+      for (let i = 0; i < 24; i++) {
+        beans.push({
+          x: Math.random(),
+          y: rand(-0.35, -0.02),
+          size: rand(11, 18),
+          speed: rand(45, 72),
+          angle: rand(0, Math.PI * 2),
+          spin: rand(-0.6, 0.6),
+          sway: rand(6, 22),
+          swayPhase: rand(0, Math.PI * 2),
+          depth: rand(0.85, 1),
+          temp: true,
+        });
+      }
+    };
+    window.addEventListener('beans-burst', onBurst);
 
     let last = performance.now();
     let raf = 0;
@@ -69,7 +89,8 @@ export function BeansBackground() {
         b.y += (b.speed * b.depth * dt) / h;
         b.angle += b.spin * dt;
         b.swayPhase += dt * 0.7;
-        if (b.y > 1.06) {
+        // פולי הרקע הקבועים ממחזרים למעלה; פולי הפרץ הזמניים פשוט יוצאים
+        if (b.y > 1.06 && !b.temp) {
           b.y = -0.08;
           b.x = Math.random();
         }
@@ -96,6 +117,10 @@ export function BeansBackground() {
         ctx.stroke();
         ctx.restore();
       }
+      // ניקוי פולי-פרץ שסיימו לרדת (שלא יצטברו בזיכרון)
+      if (beans.some((b) => b.temp && b.y > 1.1)) {
+        beans = beans.filter((b) => !(b.temp && b.y > 1.1));
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -103,6 +128,7 @@ export function BeansBackground() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', resize);
+      window.removeEventListener('beans-burst', onBurst);
     };
   }, []);
 

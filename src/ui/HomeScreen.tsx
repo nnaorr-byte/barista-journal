@@ -31,6 +31,8 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
   if (!data) return null;
   const { user, shots, beans, bags, events, grinders } = data;
 
+  const greeting = timeGreeting(user?.name);
+
   const beanMap = new Map(beans.map((b) => [b.id, b]));
   const roastMap = new Map<string, RoastLevel>(beans.map((b) => [b.id, b.roastLevel]));
   const insights = computeInsights(shots, roastMap);
@@ -136,6 +138,12 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
   return (
     <div>
+      {/* ברכת פתיחה לפי שעת היום */}
+      <div className="home-greeting">
+        <div className="greeting-main">{greeting.main}</div>
+        <div className="greeting-sub">{greeting.sub}</div>
+      </div>
+
       {/* תזכורת גיבוי */}
       {backupStatus.needsBackup && !backupDismissed && (
         <div className="card warn">
@@ -327,6 +335,17 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       )}
     </div>
   );
+}
+
+// ברכה משתנה לפי שעת היום — נותנת לאפליקציה קול אנושי בכל כניסה
+function timeGreeting(name?: string): { main: string; sub: string } {
+  const who = name?.trim() ? `, ${name.trim()}` : '';
+  const hour = new Date().getHours();
+  if (hour < 5) return { main: `לילה טוב${who}`, sub: 'שוט אחרי חצות? מסירים בפניך את הכובע.' };
+  if (hour < 11) return { main: `בוקר טוב${who}`, sub: 'הזמן המושלם לשוט הראשון של היום.' };
+  if (hour < 15) return { main: `צהריים טובים${who}`, sub: 'הפסקת קפה? הגעת למקום הנכון.' };
+  if (hour < 18) return { main: `אחר צהריים טובים${who}`, sub: 'שוט של אחר הצהריים מגיע לך.' };
+  return { main: `ערב טוב${who}`, sub: 'שוט ערב — נהנים בכיף, רק שהקפאין לא יעיר אותך.' };
 }
 
 function shortMaintLabel(kind: string): string {

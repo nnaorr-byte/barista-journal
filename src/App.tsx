@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { HomeScreen } from './ui/HomeScreen';
 import { NewShotScreen } from './ui/NewShotScreen';
 import { ShotsScreen } from './ui/ShotsScreen';
@@ -65,12 +65,26 @@ export default function App() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // ביצת פסחא: 5 לחיצות רצופות על הלוגו מגבירות את גשם הפולים לרגע
+  const logoClicks = useRef({ n: 0, t: 0 });
+  const onLogoClick = () => {
+    const now = Date.now();
+    const c = logoClicks.current;
+    if (now - c.t > 800) c.n = 0; // איפוס אם עברה יותר משנייה בין לחיצות
+    c.t = now;
+    c.n += 1;
+    if (c.n >= 5) {
+      c.n = 0;
+      window.dispatchEvent(new Event('beans-burst'));
+    }
+  };
+
   return (
     <>
     <BeansBackground />
     <div className="app">
       <header className={`topbar ${scrolled ? 'scrolled' : ''}`}>
-        <h1><CupIcon size={22} /> יומן בריסטה חכם</h1>
+        <h1 onClick={onLogoClick}><CupIcon size={22} /> יומן בריסטה חכם</h1>
         <div className="topbar-actions">
           <button
             className={`theme-toggle ${screen === 'settings' ? 'active' : ''}`}

@@ -251,7 +251,7 @@ export function aiRecommend(params: {
     changeKind = 'prep';
     changeLabel = 'הכנת הפאק (לא הגדרות!)';
     diagnosis = 'חמוץ ומר בו-זמנית — סתירה שמעידה כמעט תמיד על תיעול (Channeling): חלק מהפאק חולץ יתר וחלק בחסר. שינוי הגדרות עכשיו רק יוסיף רעש.';
-    instruction = 'חזור על אותם פרמטרים בדיוק, עם הכנת פאק מוקפדת: WDT יסודי, פילוס, טמפינג ישר ו-Puck Screen מונח היטב.';
+    instruction = 'חזור על אותם פרמטרים בדיוק, עם הכנת פאק מוקפדת: פיזור יסודי במחט (WDT), פילוס, טמפינג ישר ו-Puck Screen מונח היטב.';
     expectedResult = 'זרימה אחידה מה-Bottomless וטעם עקבי — ואז אפשר לכייל באמת.';
     tone = 'warn';
   }

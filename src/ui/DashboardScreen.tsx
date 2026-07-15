@@ -15,7 +15,7 @@ type Metric = 'rating' | 'yield' | 'time' | 'grind';
 
 const METRICS: { key: Metric; label: string; unit: string; pick: (s: Shot) => number }[] = [
   { key: 'rating', label: 'דירוג', unit: '', pick: (s) => s.rating },
-  { key: 'yield', label: 'Yield (גרם)', unit: 'g', pick: (s) => s.yieldGrams },
+  { key: 'yield', label: 'יוצא בכוס (גרם)', unit: 'g', pick: (s) => s.yieldGrams },
   { key: 'time', label: 'זמן חליטה (שניות)', unit: 's', pick: (s) => s.brewTimeSec },
   { key: 'grind', label: 'דרגת טחינה', unit: '', pick: (s) => s.grindSetting },
 ];

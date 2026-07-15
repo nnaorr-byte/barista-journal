@@ -383,7 +383,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     return (
       <div key="setup" className={stepAnim}>
         <div className="card">
-          <h2><CupIcon size={18} /> שוט חדש — שלב 1: לפני החליטה</h2>
+          <h2><CupIcon size={18} /> שוט חדש — שלב 1: הכנה</h2>
 
           {draftRestored && (
             <p className="muted small" style={{ marginTop: 0 }}>
@@ -605,6 +605,9 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
               </select>
             </Field>
           </div>
+          <p className="muted small" style={{ marginTop: -4 }}>
+            Bottomless = פורטפילטר פתוח מלמטה שמראה את הזרימה · Pressurized = סלסלת הלחץ המקורית, סלחנית לטחינה
+          </p>
 
           <h3>טעם (אפשר לבחור כמה)</h3>
           <Chips

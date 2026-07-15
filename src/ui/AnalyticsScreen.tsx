@@ -630,7 +630,7 @@ export function AnalyticsScreen() {
           <StatTile value={`${Math.round(avgTime)}s`} label="זמן ממוצע" />
           <StatTile value={`1:${avgRatio.toFixed(1)}`} label="יחס ממוצע" />
           <StatTile value={`${avgDose.toFixed(1)}g`} label="מנה ממוצעת" />
-          <StatTile value={`${avgYield.toFixed(1)}g`} label="Yield ממוצע" />
+          <StatTile value={`${avgYield.toFixed(1)}g`} label="יוצא בכוס (Yield)" />
           <StatTile value={avgFlow.toFixed(1)} label="זרימה (גרם/שנ')" />
         </div>
         {/* סינון קטגוריות — כדי שלא הכל ייפול בבת אחת */}
@@ -664,7 +664,7 @@ export function AnalyticsScreen() {
             המדד בודק כמה השוטים שלך צמודים זה לזה בזמן החליטה וביחס (0–100).
             בריסטה עקבי מייצר את אותו שוט כל בוקר — לא רק שוט טוב אחד במקרה.
             {consistency >= 75 && ' ציון מעולה — יש לך יד יציבה!'}
-            {consistency < 50 && ' יש מקום לשיפור — נסה להקפיד על WDT וטמפינג אחידים.'}
+            {consistency < 50 && ' יש מקום לשיפור — נסה להקפיד על פיזור אחיד של הקפה במחט (WDT) וטמפינג ישר.'}
           </p>
         </div>
       )}

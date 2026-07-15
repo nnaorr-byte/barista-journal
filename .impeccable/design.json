@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-15T00:00:00Z",
+  "title": "Design System: יומן בריסטה חכם",
+  "extensions": {
+    "colorMeta": {
+      "crema-amber": { "role": "primary", "displayName": "ענבר קרמה", "canonical": "#e8a960", "tonalRamp": ["#2b1d0e", "#4d3419", "#6f4b24", "#916230", "#b4793c", "#d69048", "#e8a960", "#f5c98f"] },
+      "espresso-night": { "role": "neutral", "displayName": "לילה של אספרסו", "canonical": "#190e06", "tonalRamp": ["#0d0703", "#190e06", "#251710", "#2a1b10", "#4d3823", "#6b5540", "#96806a", "#c2a582"] },
+      "terracotta-fab": { "role": "secondary", "displayName": "טרקוטה", "canonical": "#b45830", "tonalRamp": ["#3a1c0f", "#5c2c18", "#7d3d20", "#98431f", "#b45830", "#cf7240", "#e08d5c", "#f0ab7f"] },
+      "leaf-good": { "role": "semantic-success", "displayName": "עלה", "canonical": "#93c47f", "tonalRamp": ["#1e2a18", "#33472a", "#48653c", "#5e844e", "#74a361", "#93c47f", "#aed49d", "#cae4bc"] },
+      "honey-warn": { "role": "semantic-warning", "displayName": "דבש", "canonical": "#e0b45e", "tonalRamp": ["#2e2410", "#4d3c1c", "#6d5528", "#8d6f35", "#ae8a42", "#cf9f50", "#e0b45e", "#ecca85"] },
+      "clay-bad": { "role": "semantic-danger", "displayName": "חרס", "canonical": "#dd8171", "tonalRamp": ["#2e1512", "#4d241f", "#6d342c", "#8d443a", "#ad5548", "#c66b5b", "#dd8171", "#e9a698"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "ספרות הטיימר בלבד — tabular-nums, direction ltr." },
+      "headline": { "displayName": "Headline", "purpose": "כותרת האפליקציה בטופ-בר." },
+      "title": { "displayName": "Title", "purpose": "כותרות כרטיסים (h2) — אייקון SVG + טקסט + קו hairline." },
+      "body": { "displayName": "Body", "purpose": "טקסט רץ בעברית." },
+      "label": { "displayName": "Label", "purpose": "תוויות שדות וטקסט משני; רצפת גודל 0.72rem." }
+    },
+    "shadows": [
+      { "name": "card", "value": "0 1px 2px rgba(0,0,0,0.4), 0 6px 18px rgba(0,0,0,0.28)", "purpose": "כרטיסים וטוסטים — הצל היחיד במנוחה." },
+      { "name": "warm-glow", "value": "0 0 26px rgba(255,178,96,0.35)", "purpose": "hover על זכוכית, בחירה, הישג — זוהר כתגובה בלבד." },
+      { "name": "fab-ring", "value": "0 0 0 6px #2a1b10, 0 6px 16px rgba(0,0,0,0.35), 0 2px 30px rgba(232,169,96,0.35)", "purpose": "ה-FAB בלבד — טבעת חיתוך + עומק + זוהר." }
+    ],
+    "motion": [
+      { "name": "speed", "value": "0.22s", "purpose": "משך ברירת מחדל למעברי מצב." },
+      { "name": "spring", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "ease-out-quint — ההאטה החלקה של כל האנימציות; אין overshoot." },
+      { "name": "step-transition", "value": "0.26s", "purpose": "מעברי שלבים כיווניים באשף (RTL: קדימה משמאל, אחורה מימין)." },
+      { "name": "collapse", "value": "0.32s grid-template-rows", "purpose": "מגירות מתקפלות — לעולם לא אנימציית height." }
+    ],
+    "breakpoints": [
+      { "name": "app-max", "value": "720px" },
+      { "name": "thirds", "value": "480px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button (זכוכית ענברית)",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "כפתור הפעולה הראשי — זכוכית קרמה עם זוהר חם במגע.",
+      "html": "<button class=\"ds-btn-primary\">שמור וקבל ניתוח</button>",
+      "css": ".ds-btn-primary { direction: rtl; background: linear-gradient(160deg, rgba(255,190,110,0.30), rgba(255,160,80,0.10)); color: #ffe6c2; border: 1px solid rgba(255,208,148,0.45); border-radius: 15px; padding: 13px 24px; font-family: Heebo, sans-serif; font-size: 0.98rem; font-weight: 700; cursor: pointer; box-shadow: inset 0 1px 0 rgba(255,226,180,0.3); transition: transform 0.15s cubic-bezier(0.22,1,0.36,1), box-shadow 0.3s, background 0.3s; } .ds-btn-primary:hover { background: linear-gradient(160deg, rgba(255,190,110,0.42), rgba(255,160,80,0.16)); box-shadow: inset 0 1px 0 rgba(255,226,180,0.3), 0 0 26px rgba(255,178,96,0.35); } .ds-btn-primary:active { transform: scale(0.97); } .ds-btn-primary:focus-visible { outline: 3px solid rgba(232,169,96,0.6); outline-offset: 2px; }"
+    },
+    {
+      "name": "Chip (צ'יפ בחירה)",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "גלולת בחירה; מצב נבחר = מילוי זכוכית + זוהר.",
+      "html": "<span style=\"display:inline-flex;gap:8px\"><button class=\"ds-chip\">מאוזן</button><button class=\"ds-chip ds-chip-selected\">מתוק</button></span>",
+      "css": ".ds-chip { direction: rtl; background: #2a1b10; border: 1px solid rgba(255,200,140,0.14); color: #f6ead8; border-radius: 999px; min-height: 44px; padding: 10px 16px; font-family: Heebo, sans-serif; font-size: 0.88rem; font-weight: 500; cursor: pointer; transition: background 0.22s, border-color 0.22s, transform 0.14s cubic-bezier(0.22,1,0.36,1); } .ds-chip:hover { border-color: rgba(255,208,148,0.45); } .ds-chip:active { transform: scale(0.94); } .ds-chip-selected { background: linear-gradient(160deg, rgba(255,190,110,0.38), rgba(255,150,70,0.2)); color: #fff1dd; border-color: rgba(255,208,148,0.45); font-weight: 700; box-shadow: 0 0 16px rgba(255,178,96,0.26); }"
+    },
+    {
+      "name": "Card (כרטיס עם קו קרמה)",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "כרטיס תוכן — גרדיאנט קלייה, קו אור עליון, צל רך.",
+      "html": "<div class=\"ds-card\"><h2 class=\"ds-card-title\">המלצת השוט הבא</h2><p class=\"ds-card-body\">16 גרם נכנס · יעד 25–29 שניות · יחס 1:2.2</p></div>",
+      "css": ".ds-card { direction: rtl; background: linear-gradient(178deg, rgba(255,190,120,0.05) 0%, transparent 30%), linear-gradient(180deg, #291a10 0%, #23150c 100%); border: 1px solid rgba(255,200,140,0.14); border-top-color: rgba(255,214,160,0.15); border-radius: 16px; padding: 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 6px 18px rgba(0,0,0,0.28); font-family: Heebo, sans-serif; } .ds-card-title { margin: 0 0 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,214,160,0.15); font-size: 1.05rem; font-weight: 700; color: #ffe3bd; } .ds-card-body { margin: 0; color: #f6ead8; font-size: 1rem; line-height: 1.55; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Input (שדה שקוע)",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "שדה קלט כהה עם פוקוס ענברי זוהר.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">גרם קפה נכנס</span><input class=\"ds-input\" type=\"number\" value=\"16\" /></label>",
+      "css": ".ds-field { display: block; direction: rtl; font-family: Heebo, sans-serif; } .ds-field-label { display: block; font-size: 0.82rem; font-weight: 600; color: #c2a582; margin-bottom: 5px; } .ds-input { width: 160px; background: #1e1209; border: 1px solid rgba(255,200,140,0.14); border-radius: 12px; color: #f6ead8; padding: 11px 13px; font-size: 1rem; font-family: inherit; transition: border-color 0.22s, box-shadow 0.22s; } .ds-input:focus { outline: none; border-color: #e8a960; box-shadow: 0 0 0 3px rgba(232,169,96,0.22); }"
+    },
+    {
+      "name": "Nav FAB (שוט חדש)",
+      "kind": "nav",
+      "refersTo": "nav-fab",
+      "description": "כפתור הפעולה המרכזי בניווט — טרקוטה, היחיד בצבע הזה.",
+      "html": "<button class=\"ds-fab\" aria-label=\"שוט חדש\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\"><path d=\"M5 9 H16 V15 A4 4 0 0 1 12 19 H9 A4 4 0 0 1 5 15 Z\"/><path d=\"M16 10.5 H18 A2.5 2.5 0 0 1 18 15.5 H16\"/></svg></button>",
+      "css": ".ds-fab { width: 58px; height: 58px; border: none; border-radius: 19px; background: linear-gradient(165deg, #cf7240 0%, #b45830 55%, #98431f 100%); color: #fff6ec; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 6px #2a1b10, 0 6px 16px rgba(0,0,0,0.35), 0 2px 30px rgba(232,169,96,0.35); transition: transform 0.16s cubic-bezier(0.22,1,0.36,1), filter 0.22s; } .ds-fab:hover { filter: brightness(1.08); } .ds-fab:active { transform: scale(0.9); }"
+    },
+    {
+      "name": "Stat Tile (אריח נתון)",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "אריח מספר — הערך גיבור, טבולרי, בקרמה חזקה.",
+      "html": "<div class=\"ds-stat\"><div class=\"ds-stat-value\">8.5</div><div class=\"ds-stat-label\">דירוג ממוצע</div></div>",
+      "css": ".ds-stat { direction: rtl; background: #2a1b10; border: 1px solid rgba(255,200,140,0.14); border-radius: 12px; padding: 12px 8px 10px; text-align: center; width: 110px; font-family: Heebo, sans-serif; } .ds-stat-value { font-size: 1.5rem; font-weight: 800; color: #ffcf95; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; line-height: 1.2; } .ds-stat-label { font-size: 0.73rem; font-weight: 600; color: #c2a582; margin-top: 3px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "הקרמה הזכוכית",
+    "overview": "זכוכית ענבר חמה על רקע אספרסו כהה — כמו שכבת הקרמה שמתיישבת על שוט מושלם. האלמנטים החיים של הממשק עשויים זכוכית קפה; הרקע הוא לילה של אספרסו שבו פולים צונחים באיטיות. המערכת מדויקת כמו כלי מדידה אבל לעולם לא קרה — החום מגיע מהפלטה, מהקול העברי, ומרגעי חגיגה שמורים להישגים.",
+    "keyCharacteristics": [
+      "זכוכית ענבר כשפת המותג — לאלמנטים אינטראקטיביים ראשיים בלבד",
+      "כהה כברירת מחדל, עם מצב בהיר לאטה מלא",
+      "רכיבים מוחשיים ובטוחים — נוכחות פיזית ופידבק מיידי",
+      "מספרים גיבורים: טבולריים, גדולים, מדויקים",
+      "תנועה שמסבירה מצב, לעולם לא קישוט"
+    ],
+    "rules": [
+      { "name": "חוק הזכוכית", "body": "אפקט הזכוכית מותר אך ורק על כפתורים ראשיים, צ'יפים נבחרים, מרכז הטיימר, הניווט והכותרת בגלילה. זכוכית על תוכן סטטי — אסורה.", "section": "colors" },
+      { "name": "חוק הטרקוטה האחת", "body": "הטרקוטה מופיעה רק על ה-FAB.", "section": "colors" },
+      { "name": "חוק המספר הטבולרי", "body": "כל ערך מספרי מקבל tabular-nums.", "section": "typography" },
+      { "name": "חוק הזוהר שהרווחת", "body": "זוהר ענברי מופיע רק כתגובה — מגע, בחירה או הישג. במנוחה רק על כרטיס-הגיבור.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do השתמש בטוקנים בלבד — גם ב-inline styles",
+      "Do שמור קונטרסט ≥4.5:1 בשני המצבים",
+      "Do לווה שינויי מצב ב-ease-out-quint 150–320ms וכבד prefers-reduced-motion",
+      "Do תן לכל רכיב אינטראקטיבי ≥44×44px ו-scale בלחיצה",
+      "Do אייקוני קו SVG בכל ה-chrome; אימוג'י רק בקול ה-AI"
+    ],
+    "donts": [
+      "Don't SaaS תאגידי גנרי — דשבורד קר וחסר אופי",
+      "Don't גיליון אקסל יבש — נתונים בלי פרשנות",
+      "Don't אפליקציית משחק צעקנית — קונפטי על כל פעולה",
+      "Don't רשת חברתית — פידים, השוואות, התראות",
+      "Don't easing קפיצי, אנימציית width/height, זכוכית על תוכן סטטי",
+      "Don't אימוג'י ב-chrome, פס צבע צדדי, gradient-text"
+    ]
+  }
+}

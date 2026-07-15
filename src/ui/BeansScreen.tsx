@@ -7,7 +7,7 @@ import { computeFreshness, formatDeadline } from '../services/freshness';
 import type { Bag, RoastLevel, Shot } from '../domain/types';
 import { ConfirmButton, EmptyState, Field, StatTile } from './components';
 import { ROAST_LEVELS, formatDate, ratingClass } from './labels';
-import { BeanIcon, PlusIcon, SaveIcon, TrashIcon, UndoIcon } from './icons';
+import { BeanIcon, CalendarIcon, PlusIcon, SaveIcon, TrashIcon, UndoIcon, WarnIcon } from './icons';
 
 // אפשרויות כמות מוכנות לשקית קפה
 const BAG_SIZES = [
@@ -121,9 +121,10 @@ export function BeansScreen() {
                     {bag.price !== null && ` · ₪${bag.price}`}
                   </div>
                   {!bag.finished && fresh.deadlineDate && (
-                    <div className="small" style={{ margin: '4px 0', color: fresh.stage === 'expired' ? 'var(--bad)' : 'var(--crema)' }}>
-                      {fresh.stage === 'expired' ? '⚠️' : '📅'} דד-ליין טריות: {formatDeadline(fresh.deadlineDate)}
-                      {fresh.daysToDeadline !== null && fresh.daysToDeadline > 0 && ` · עוד ${fresh.daysToDeadline} ימים`}
+                    <div className="small" style={{ margin: '4px 0', color: fresh.stage === 'expired' ? 'var(--bad)' : 'var(--crema)', display: 'flex', gap: 6, alignItems: 'center' }}>
+                      {fresh.stage === 'expired' ? <WarnIcon size={14} /> : <CalendarIcon size={14} />}
+                      <span>דד-ליין טריות: {formatDeadline(fresh.deadlineDate)}
+                      {fresh.daysToDeadline !== null && fresh.daysToDeadline > 0 && ` · עוד ${fresh.daysToDeadline} ימים`}</span>
                     </div>
                   )}
                   {/* פס טריות ויזואלי — 0 עד 60 יום */}

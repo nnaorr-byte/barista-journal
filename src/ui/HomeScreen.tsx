@@ -10,7 +10,7 @@ import { computeBagUsage, ratingTrend } from '../services/stats';
 import { shotRatio, type RoastLevel } from '../domain/types';
 import { StatTile, EmptyState } from './components';
 import { formatDateTime, ratingClass, shotWeights } from './labels';
-import { BeanIcon, BellIcon, CupIcon, LeafIcon, SaveIcon, SoapIcon, TargetIcon, TrendIcon, TrophyIcon, WarnIcon } from './icons';
+import { BeanIcon, BellIcon, CupIcon, LeafIcon, SaveIcon, SoapIcon, TargetIcon, TrendDownIcon, TrendIcon, TrophyIcon, WarnIcon } from './icons';
 import type { Screen } from '../App';
 
 export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
@@ -160,8 +160,8 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
               style={{ flex: 1 }}
               onClick={async () => {
                 const result = await shareBackup();
-                if (result === 'shared') setBackupMsg('✅ הגיבוי שותף בהצלחה!');
-                else if (result === 'fallback') setBackupMsg('✅ קובץ הגיבוי ירד למכשיר!');
+                if (result === 'shared') setBackupMsg('הגיבוי שותף בהצלחה!');
+                else if (result === 'fallback') setBackupMsg('קובץ הגיבוי ירד למכשיר!');
               }}
             >
               <SaveIcon size={16} /> גבה עכשיו
@@ -172,9 +172,9 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
           </div>
         </div>
       )}
-      {/* המלצת השוט הבא */}
-      <div className="card accent">
-        <h2><TargetIcon size={18} /> המלצת השוט הבא</h2>
+      {/* המלצת השוט הבא — הכרטיס הראשי, מודגש מעל השאר */}
+      <div className="card accent hero">
+        <h2><TargetIcon size={20} /> המלצת השוט הבא</h2>
         {recommendation && lastBean ? (
           <>
             <div className="muted small" style={{ marginBottom: 8 }}>
@@ -267,10 +267,10 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
           />
         </div>
         {trend.direction !== 'insufficient' && (
-          <p className="muted small" style={{ marginTop: 10 }}>
-            {trend.direction === 'up' && `📈 מגמת שיפור! הדירוג הממוצע עלה מ-${trend.previousAvg.toFixed(1)} ל-${trend.recentAvg.toFixed(1)} בשוטים האחרונים.`}
-            {trend.direction === 'down' && `📉 שים לב: הדירוג הממוצע ירד מ-${trend.previousAvg.toFixed(1)} ל-${trend.recentAvg.toFixed(1)}. אולי הפולים מתיישנים או שהמכונה צריכה ניקוי?`}
-            {trend.direction === 'stable' && `➡️ יציבות: הדירוג הממוצע שלך נשאר סביב ${trend.recentAvg.toFixed(1)} — עקביות היא שם המשחק.`}
+          <p className="muted small" style={{ marginTop: 10, display: 'flex', gap: 7, alignItems: 'flex-start' }}>
+            {trend.direction === 'up' && <><TrendIcon size={15} strokeWidth={2} /> <span>מגמת שיפור! הדירוג הממוצע עלה מ-{trend.previousAvg.toFixed(1)} ל-{trend.recentAvg.toFixed(1)} בשוטים האחרונים.</span></>}
+            {trend.direction === 'down' && <><TrendDownIcon size={15} strokeWidth={2} /> <span>שים לב: הדירוג הממוצע ירד מ-{trend.previousAvg.toFixed(1)} ל-{trend.recentAvg.toFixed(1)}. אולי הפולים מתיישנים או שהמכונה צריכה ניקוי?</span></>}
+            {trend.direction === 'stable' && <span>יציבות: הדירוג הממוצע שלך נשאר סביב {trend.recentAvg.toFixed(1)} — עקביות היא שם המשחק.</span>}
           </p>
         )}
       </div>

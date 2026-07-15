@@ -105,8 +105,8 @@ export function SettingsScreen() {
           className="btn block"
           onClick={async () => {
             const result = await shareBackup();
-            if (result === 'shared') setMessage('✅ הגיבוי שותף בהצלחה!');
-            else if (result === 'fallback') setMessage('✅ קובץ הגיבוי ירד למכשיר!');
+            if (result === 'shared') setMessage('הגיבוי שותף בהצלחה!');
+            else if (result === 'fallback') setMessage('קובץ הגיבוי ירד למכשיר!');
           }}
         >
           <SaveIcon size={16} /> גבה ושתף (וואטסאפ / מייל)
@@ -123,7 +123,7 @@ export function SettingsScreen() {
           <button className="btn secondary" onClick={() => exportExcel(shots, beans)}>
             <ChartIcon size={15} /> ייצוא Excel
           </button>
-          <button className="btn secondary" onClick={async () => { await exportBackup(); setMessage('✅ קובץ הגיבוי ירד למכשיר!'); }}>
+          <button className="btn secondary" onClick={async () => { await exportBackup(); setMessage('קובץ הגיבוי ירד למכשיר!'); }}>
             <SaveIcon size={15} /> גיבוי מלא (JSON)
           </button>
         </div>
@@ -146,7 +146,7 @@ export function SettingsScreen() {
                 className="btn small danger"
                 onClick={async () => {
                   const result = await restoreBackup(pendingRestore);
-                  setMessage(result.ok ? '✅ הגיבוי שוחזר בהצלחה!' : `❌ ${result.error}`);
+                  setMessage(result.ok ? 'הגיבוי שוחזר בהצלחה!' : (result.error ?? 'השחזור נכשל'));
                   setPendingRestore(null);
                 }}
               >

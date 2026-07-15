@@ -11,7 +11,7 @@ import { Chips, Field, RatingPicker, StatTile } from './components';
 import { TastingCoach } from './TastingCoach';
 import { WarmupChecklist } from './WarmupChecklist';
 import { FLAVOR_LABELS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS } from './labels';
-import { BoltIcon, BrainIcon, CheckIcon, ClipboardIcon, CupIcon, PlusIcon, SaveIcon, StarIcon, TargetIcon, TasteIcon, TimerIcon, TrophyIcon } from './icons';
+import { BoltIcon, BrainIcon, BulbIcon, CheckIcon, ClipboardIcon, CupIcon, PlusIcon, SaveIcon, StarIcon, TargetIcon, TasteIcon, TimerIcon, TrophyIcon, WarnIcon } from './icons';
 import { Celebration } from './Celebration';
 import type { Screen } from '../App';
 
@@ -102,6 +102,9 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const [aftertaste, setAftertaste] = useState<QualityLevel | null>(null);
   const [notes, setNotes] = useState('');
   const [rating, setRating] = useState(0);
+  // מגירת פירוט טעם — משאירה את שלב התוצאות רזה כברירת מחדל.
+  // נפתחת אוטומטית אם כבר יש נתוני עומק (טיוטה משוחזרת / חזרה מ-coach).
+  const [showTasteDetail, setShowTasteDetail] = useState(false);
 
   // אינטגרציית כפתור Back בתוך הזרימה: כל שלב נרשם ב-history,
   // Back חוזר שלב אחורה; מ-Coach (אחרי שמירה) — הביתה, לא בחזרה לטופס.
@@ -612,7 +615,9 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
             />
           )}
           {tastingSummary && (
-            <div className="one-var-banner" style={{ marginTop: 10 }}>👅 {tastingSummary}</div>
+            <div className="one-var-banner" style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <TasteIcon size={16} /> <span>{tastingSummary}</span>
+            </div>
           )}
 
           <h3>טעם (אפשר לבחור כמה)</h3>
@@ -629,21 +634,37 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
             </div>
           )}
 
-          <h3>תווי טעם — גלגל הטעמים (לא חובה)</h3>
-          <Chips
-            options={FLAVOR_OPTIONS}
-            selected={flavorNotes}
-            onToggle={(f) =>
-              setFlavorNotes((prev) => (prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]))
-            }
-          />
+          {/* פירוט טעם עמוק — מקופל כברירת מחדל כדי לשמור על שלב רזה.
+              נפתח לבד אם כבר נבחרו ערכים (טיוטה משוחזרת). */}
+          {!showTasteDetail && !flavorNotes.length && !body && !crema && !aftertaste ? (
+            <button
+              type="button"
+              className="btn secondary block"
+              style={{ marginTop: 10 }}
+              aria-expanded={false}
+              onClick={() => setShowTasteDetail(true)}
+            >
+              <PlusIcon size={15} /> הוסף פירוט טעם — גלגל טעמים, גוף, קרמה, אחרית
+            </button>
+          ) : (
+            <>
+              <h3>תווי טעם — גלגל הטעמים (לא חובה)</h3>
+              <Chips
+                options={FLAVOR_OPTIONS}
+                selected={flavorNotes}
+                onToggle={(f) =>
+                  setFlavorNotes((prev) => (prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]))
+                }
+              />
 
-          <h3>Body</h3>
-          <Chips options={QUALITY_OPTIONS} selected={body ? [body] : []} onToggle={(v) => setBody(body === v ? null : v)} />
-          <h3>Crema</h3>
-          <Chips options={QUALITY_OPTIONS} selected={crema ? [crema] : []} onToggle={(v) => setCrema(crema === v ? null : v)} />
-          <h3>Aftertaste</h3>
-          <Chips options={QUALITY_OPTIONS} selected={aftertaste ? [aftertaste] : []} onToggle={(v) => setAftertaste(aftertaste === v ? null : v)} />
+              <h3>גוף (Body)</h3>
+              <Chips options={QUALITY_OPTIONS} selected={body ? [body] : []} onToggle={(v) => setBody(body === v ? null : v)} />
+              <h3>קרמה (Crema)</h3>
+              <Chips options={QUALITY_OPTIONS} selected={crema ? [crema] : []} onToggle={(v) => setCrema(crema === v ? null : v)} />
+              <h3>אחרית חיך (Aftertaste)</h3>
+              <Chips options={QUALITY_OPTIONS} selected={aftertaste ? [aftertaste] : []} onToggle={(v) => setAftertaste(aftertaste === v ? null : v)} />
+            </>
+          )}
 
           <h3>הערות חופשיות</h3>
           <textarea
@@ -704,18 +725,20 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
               <TrophyIcon size={18} /> שיא אישי לפולים האלה! עברת את השיא הקודם ({beanRecord.prevBest}/10).
             </div>
           )}
-          <div className={`coach-verdict ${toneClass}`}>
-            {advice.changeKind === 'none' ? '✓ שמור על המתכון — אין מה לשנות' : `השינוי הבא: ${advice.changeLabel}`}
+          <div className={`coach-verdict ${toneClass}`} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            {advice.changeKind === 'none'
+              ? <><CheckIcon size={18} /> שמור על המתכון — אין מה לשנות</>
+              : `השינוי הבא: ${advice.changeLabel}`}
           </div>
 
           {multiVarWarning && (
-            <div className="one-var-banner" style={{ borderColor: 'var(--bad)', marginBottom: 10 }}>
-              ⚠️ {multiVarWarning}
+            <div className="one-var-banner" style={{ borderColor: 'var(--bad)', marginBottom: 10, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <WarnIcon size={16} /> <span>{multiVarWarning}</span>
             </div>
           )}
           {advice.warnings.map((w, i) => (
-            <div key={i} className="one-var-banner" style={{ borderColor: 'var(--warn)', marginBottom: 10 }}>
-              ⚠️ {w}
+            <div key={i} className="one-var-banner" style={{ borderColor: 'var(--warn)', marginBottom: 10, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <WarnIcon size={16} /> <span>{w}</span>
             </div>
           ))}
           {advice.recipeNote && (
@@ -740,14 +763,16 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           </div>
           <div className="coach-section">
             <div className="coach-label">5 · רמת ביטחון: {advice.confidencePct}%</div>
-            <div className="conf-bar" dir="ltr">
+            <div className="conf-bar" dir="ltr" aria-hidden="true">
               <div className="conf-bar-fill" style={{ transform: `scaleX(${advice.confidencePct / 100})` }} />
             </div>
             {advice.confidenceReasons.map((r, i) => (
               <p key={i} className="muted small" style={{ margin: '3px 0' }}>• {r}</p>
             ))}
           </div>
-          <div className="one-var-banner">💡 {advice.reminder}</div>
+          <div className="one-var-banner" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            <BulbIcon size={16} /> <span>{advice.reminder}</span>
+          </div>
 
           {savedShotId && (
             <button
@@ -776,7 +801,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 // שוט נוסף עם אותם פולים — איפוס תוצאות בלבד
                 setYieldStop(''); setYieldGrams(''); setBrewTime(''); setTasteTags([]); setTasteOther('');
                 setFlavorNotes([]); setBody(null); setCrema(null); setAftertaste(null);
-                setNotes(''); setRating(0); setQuick(false); setTasting(false); setTastingSummary('');
+                setNotes(''); setRating(0); setQuick(false); setTasting(false); setTastingSummary(''); setShowTasteDetail(false);
                 setAdvice(null); setMultiVarWarning(null); setSavedShotId(null); setMarkedFavorite(false);
                 setBeanRecord(null); setThinking(false); setCelebrate(false);
                 computeRecommendation();
@@ -1023,7 +1048,7 @@ function BrewStep({
         ))}
         {recommendation.beanNotes.length > 0 && (
           <>
-            <h3>📝 הערות על הפולים</h3>
+            <h3><ClipboardIcon size={15} /> הערות על הפולים</h3>
             {recommendation.beanNotes.map((n, i) => (
               <p key={i} className="small" style={{ margin: '4px 0', color: 'var(--crema)' }}>• {n}</p>
             ))}

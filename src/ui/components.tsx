@@ -37,13 +37,15 @@ export function Chips<T extends string>({
 
 export function RatingPicker({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   return (
-    <div className="rating-row">
+    <div className="rating-row" role="radiogroup" aria-label="דירוג אישי מ-1 עד 10">
       {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
         <button
           key={n}
           type="button"
+          role="radio"
+          aria-checked={value === n}
+          aria-label={`${n} מתוך 10`}
           className={value === n ? 'selected' : ''}
-          aria-pressed={value === n}
           onClick={() => onChange(n)}
         >
           {n}

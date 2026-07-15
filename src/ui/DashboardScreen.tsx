@@ -113,10 +113,10 @@ export function DashboardScreen() {
           />
         </div>
         {trend.direction !== 'insufficient' && (
-          <p className="muted small" style={{ marginTop: 8 }}>
-            {trend.direction === 'up' && `📈 מגמה חיובית: ${trend.previousAvg.toFixed(1)} ← ${trend.recentAvg.toFixed(1)}`}
-            {trend.direction === 'down' && `📉 מגמה שלילית: ${trend.previousAvg.toFixed(1)} ← ${trend.recentAvg.toFixed(1)}`}
-            {trend.direction === 'stable' && `➡️ יציב סביב ${trend.recentAvg.toFixed(1)}`}
+          <p className="muted small" style={{ marginTop: 8, display: 'flex', gap: 7, alignItems: 'center' }}>
+            {trend.direction === 'up' && <><TrendIcon size={15} strokeWidth={2} /> <span>מגמה חיובית: {trend.previousAvg.toFixed(1)} ← {trend.recentAvg.toFixed(1)}</span></>}
+            {trend.direction === 'down' && <><TrendDownIcon size={15} strokeWidth={2} /> <span>מגמה שלילית: {trend.previousAvg.toFixed(1)} ← {trend.recentAvg.toFixed(1)}</span></>}
+            {trend.direction === 'stable' && <span>יציב סביב {trend.recentAvg.toFixed(1)}</span>}
           </p>
         )}
       </div>

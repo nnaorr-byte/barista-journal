@@ -306,6 +306,16 @@ button:focus-visible {
   color: var(--accent-strong);
 }
 .card.accent { border-color: color-mix(in srgb, var(--accent) 55%, var(--border-soft)); }
+/* כרטיס-גיבור: המוקד הראשי של מסך הבית — בולט מעל שאר הכרטיסים */
+.card.hero {
+  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+  box-shadow: var(--shadow), 0 0 30px color-mix(in srgb, var(--glow) 45%, transparent);
+}
+.card.hero > h2 {
+  font-size: 1.22rem;
+  color: var(--accent-strong);
+}
+.card.hero .stat-tile .value { font-size: 1.7rem; }
 .card.warn { border-color: color-mix(in srgb, var(--warn) 55%, var(--border-soft)); }
 
 .muted { color: var(--text-muted); font-size: 0.88rem; }

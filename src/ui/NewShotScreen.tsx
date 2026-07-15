@@ -8,10 +8,9 @@ import type {
   Bag, FlavorNote, MachineTempSetting, QualityLevel, Shot, ShotRecommendation, TasteTag,
 } from '../domain/types';
 import { Chips, Field, RatingPicker, StatTile } from './components';
-import { TastingCoach } from './TastingCoach';
 import { WarmupChecklist } from './WarmupChecklist';
 import { FLAVOR_LABELS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS } from './labels';
-import { BoltIcon, BrainIcon, BulbIcon, CheckIcon, ClipboardIcon, CupIcon, PlusIcon, SaveIcon, StarIcon, TargetIcon, TasteIcon, TimerIcon, TrophyIcon, WarnIcon } from './icons';
+import { BoltIcon, BrainIcon, BulbIcon, CheckIcon, ClipboardIcon, CupIcon, PlusIcon, SaveIcon, StarIcon, TargetIcon, TimerIcon, TrophyIcon, WarnIcon } from './icons';
 import { Celebration } from './Celebration';
 import type { Screen } from '../App';
 
@@ -88,8 +87,6 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const [yieldGrams, setYieldGrams] = useState(''); // גרם סופי אחרי טפטוף
   const [brewTime, setBrewTime] = useState('');
   const [quick, setQuick] = useState(false); // מצב "שוט מהיר"
-  const [tasting, setTasting] = useState(false); // אימון טעימה פעיל
-  const [tastingSummary, setTastingSummary] = useState('');
   const [grindSetting, setGrindSetting] = useState('');
   const [temp, setTemp] = useState<MachineTempSetting>('medium');
   const [basketType, setBasketType] = useState('סטנדרטית');
@@ -601,29 +598,6 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
             </Field>
           </div>
 
-          {!tasting && (
-            <button className="btn secondary block" style={{ marginTop: 6 }} onClick={() => setTasting(true)}>
-              <TasteIcon size={16} /> אימון טעימה מודרך — תן לי להוביל אותך לגימה-לגימה
-            </button>
-          )}
-          {tasting && (
-            <TastingCoach
-              onCancel={() => setTasting(false)}
-              onComplete={(result) => {
-                setTasteTags((prev) => [...new Set([...prev, ...result.tags])]);
-                if (result.body) setBody(result.body);
-                if (result.aftertaste) setAftertaste(result.aftertaste);
-                setTastingSummary(result.summary);
-                setTasting(false);
-              }}
-            />
-          )}
-          {tastingSummary && (
-            <div className="one-var-banner" style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-              <TasteIcon size={16} /> <span>{tastingSummary}</span>
-            </div>
-          )}
-
           <h3>טעם (אפשר לבחור כמה)</h3>
           <Chips
             options={TASTE_OPTIONS}
@@ -818,7 +792,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 // שוט נוסף עם אותם פולים — איפוס תוצאות בלבד
                 setYieldStop(''); setYieldGrams(''); setBrewTime(''); setTasteTags([]); setTasteOther('');
                 setFlavorNotes([]); setBody(null); setCrema(null); setAftertaste(null);
-                setNotes(''); setRating(0); setQuick(false); setTasting(false); setTastingSummary(''); setShowTasteDetail(false);
+                setNotes(''); setRating(0); setQuick(false); setShowTasteDetail(false);
                 setAdvice(null); setMultiVarWarning(null); setSavedShotId(null); setMarkedFavorite(false);
                 setBeanRecord(null); setThinking(false); setCelebrate(false);
                 computeRecommendation();

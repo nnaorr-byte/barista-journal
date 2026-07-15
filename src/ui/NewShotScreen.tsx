@@ -103,8 +103,10 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const [notes, setNotes] = useState('');
   const [rating, setRating] = useState(0);
   // מגירת פירוט טעם — משאירה את שלב התוצאות רזה כברירת מחדל.
-  // נפתחת אוטומטית אם כבר יש נתוני עומק (טיוטה משוחזרת / חזרה מ-coach).
+  // נפתחת אוטומטית אם כבר יש נתוני עומק (טיוטה משוחזרת), וניתנת לסגירה חופשית.
   const [showTasteDetail, setShowTasteDetail] = useState(false);
+  const tasteDetailCount =
+    flavorNotes.length + (body ? 1 : 0) + (crema ? 1 : 0) + (aftertaste ? 1 : 0);
 
   // אינטגרציית כפתור Back בתוך הזרימה: כל שלב נרשם ב-history,
   // Back חוזר שלב אחורה; מ-Coach (אחרי שמירה) — הביתה, לא בחזרה לטופס.
@@ -161,6 +163,8 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           setTasteTags(d.tasteTags ?? []); setTasteOther(d.tasteOther ?? '');
           setFlavorNotes(d.flavorNotes ?? []); setBody(d.body ?? null); setCrema(d.crema ?? null);
           setAftertaste(d.aftertaste ?? null); setNotes(d.notes ?? ''); setRating(d.rating ?? 0);
+          // טיוטה עם נתוני עומק — פותחים את מגירת הפירוט כדי שלא "ייעלמו"
+          if (d.flavorNotes?.length || d.body || d.crema || d.aftertaste) setShowTasteDetail(true);
           // חזרה לשלב שבו עצרנו — עם רשומת היסטוריה כדי ש-Back יעבוד
           if ((d.step === 'results' || (d.step === 'brew' && d.recommendation))) {
             setStep(d.step);
@@ -635,8 +639,8 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           )}
 
           {/* פירוט טעם עמוק — מקופל כברירת מחדל כדי לשמור על שלב רזה.
-              נפתח לבד אם כבר נבחרו ערכים (טיוטה משוחזרת). */}
-          {!showTasteDetail && !flavorNotes.length && !body && !crema && !aftertaste ? (
+              אפשר לפתוח ולסגור חופשי; ערכים שנבחרו נשמרים גם כשהמגירה סגורה. */}
+          {!showTasteDetail ? (
             <button
               type="button"
               className="btn secondary block"
@@ -644,7 +648,10 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
               aria-expanded={false}
               onClick={() => setShowTasteDetail(true)}
             >
-              <PlusIcon size={15} /> הוסף פירוט טעם — גלגל טעמים, גוף, קרמה, אחרית
+              <PlusIcon size={15} />{' '}
+              {tasteDetailCount > 0
+                ? `הצג פירוט טעם (${tasteDetailCount} נבחרו)`
+                : 'הוסף פירוט טעם — גלגל טעמים, גוף, קרמה, אחרית'}
             </button>
           ) : (
             <>
@@ -663,6 +670,16 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
               <Chips options={QUALITY_OPTIONS} selected={crema ? [crema] : []} onToggle={(v) => setCrema(crema === v ? null : v)} />
               <h3>אחרית חיך (Aftertaste)</h3>
               <Chips options={QUALITY_OPTIONS} selected={aftertaste ? [aftertaste] : []} onToggle={(v) => setAftertaste(aftertaste === v ? null : v)} />
+
+              <button
+                type="button"
+                className="btn secondary small block"
+                style={{ marginTop: 12 }}
+                aria-expanded={true}
+                onClick={() => setShowTasteDetail(false)}
+              >
+                הסתר פירוט טעם ▲{tasteDetailCount > 0 ? ` (${tasteDetailCount} נבחרו — נשמרים)` : ''}
+              </button>
             </>
           )}
 

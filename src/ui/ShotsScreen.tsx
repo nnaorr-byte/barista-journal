@@ -11,7 +11,7 @@ import {
 } from '../domain/types';
 import { Chips, EmptyState, Field, RatingPicker } from './components';
 import { FLAVOR_LABELS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
-import { BrainIcon, EditIcon, JournalIcon, SaveIcon, ScaleIcon, SearchIcon, StarIcon, TrashIcon, TrophyIcon, UndoIcon } from './icons';
+import { BrainIcon, ChevronDownIcon, EditIcon, JournalIcon, SaveIcon, ScaleIcon, SearchIcon, StarIcon, TrashIcon, TrophyIcon, UndoIcon } from './icons';
 
 const TASTE_OPTIONS = (Object.entries(TASTE_LABELS) as [TasteTag, string][]).map(([value, label]) => ({ value, label }));
 const FLAVOR_OPTIONS = (Object.entries(FLAVOR_LABELS) as [FlavorNote, string][]).map(([value, label]) => ({ value, label }));
@@ -155,13 +155,21 @@ export function ShotsScreen() {
             >
               <span className={`shot-rating ${ratingClass(s.rating)}`}>{s.rating}</span>
               <span style={{ flex: 1 }}>
-                <span style={{ display: 'block' }}>{s.favorite && '⭐ '}{beanMap.get(s.beanId)?.name ?? 'פולים שנמחקו'}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  {s.favorite && <span style={{ color: 'var(--accent-strong)', display: 'inline-flex' }} title="מתכון שמור"><StarIcon size={13} filled /></span>}
+                  {beanMap.get(s.beanId)?.name ?? 'פולים שנמחקו'}
+                </span>
                 <span className="muted small" style={{ display: 'block' }}>
                   {shotWeights(s)} · {s.brewTimeSec} שניות · טחינה {s.grindSetting}
                 </span>
                 <span className="muted small" style={{ display: 'block' }}>{formatDateTime(s.createdAt)}</span>
               </span>
-              <span className="muted" aria-hidden="true">{expanded === s.id ? '▲' : '▼'}</span>
+              <span
+                className="muted" aria-hidden="true"
+                style={{ display: 'flex', transform: expanded === s.id ? 'rotate(180deg)' : 'none', transition: 'transform 0.22s var(--spring)' }}
+              >
+                <ChevronDownIcon size={16} />
+              </span>
             </button>
             {expanded === s.id && (
               <div className="shot-detail-in" style={{ padding: '4px 8px 12px' }}>

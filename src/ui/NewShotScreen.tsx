@@ -9,7 +9,7 @@ import type {
 } from '../domain/types';
 import { Chips, Field, RatingPicker, StatTile } from './components';
 import { FLAVOR_LABELS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS } from './labels';
-import { BoltIcon, BrainIcon, BulbIcon, CheckIcon, ClipboardIcon, CupIcon, PlusIcon, SaveIcon, StarIcon, TargetIcon, TimerIcon, TrophyIcon, WarnIcon } from './icons';
+import { BoltIcon, BrainIcon, BulbIcon, CheckIcon, ChevronDownIcon, ClipboardIcon, CupIcon, PlusIcon, SaveIcon, StarIcon, TargetIcon, TimerIcon, TrophyIcon, WarnIcon } from './icons';
 import { Celebration } from './Celebration';
 import type { Screen } from '../App';
 
@@ -103,6 +103,8 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const [showTasteDetail, setShowTasteDetail] = useState(false);
   const tasteDetailCount =
     flavorNotes.length + (body ? 1 : 0) + (crema ? 1 : 0) + (aftertaste ? 1 : 0);
+  // מתג המגירה — עוגן פוקוס קבוע לפתיחה ולסגירה
+  const tasteToggleRef = useRef<HTMLButtonElement>(null);
 
   // כיוון המעבר האחרון בין שלבים — קובע את כיוון אנימציית הכניסה (RTL)
   const stepDirRef = useRef<'fwd' | 'back'>('fwd');
@@ -136,6 +138,8 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const [advice, setAdvice] = useState<AiAdvice | null>(null);
   const [multiVarWarning, setMultiVarWarning] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // כשל שמירה (מכסת אחסון, מצב פרטי) — לעולם לא שקט: הטיוטה נשמרת ומוצגת שגיאה
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [savedShotId, setSavedShotId] = useState<string | null>(null);
   const [markedFavorite, setMarkedFavorite] = useState(false);
   // רגעי delight ב-Coach: הבזק "חשיבה", חגיגת שוט מושלם, שיא אישי לפולים
@@ -278,6 +282,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   async function saveShot() {
     if (!selectedBean || !selectedBag || !user || saving) return;
     setSaving(true);
+    setSaveError(null);
     try {
       const gId = grinderId || (grinders.find((g) => g.isDefault) ?? grinders[0]).id;
 
@@ -370,9 +375,25 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       setStep('coach');
       // רשומת ה"תוצאות" מוחלפת ב"coach" — Back מכאן לא יחזיר לטופס שכבר נשמר
       history.replaceState({ screen: 'new-shot', step: 'coach' }, '');
+    } catch {
+      // הטופס נשאר מלא והטיוטה שמורה — שום נתון לא אבד
+      setSaveError('השמירה נכשלה — הנתונים שלך עדיין כאן ושמורים גם בטיוטה. בדוק שיש מקום פנוי בדפדפן ונסה שוב.');
     } finally {
       setSaving(false);
     }
+  }
+
+  // מחיקת טיוטה משוחזרת והתחלה מאפס
+  function discardDraft() {
+    localStorage.removeItem(DRAFT_KEY);
+    setBeanId(''); setBagId(''); setGrinderId(''); setDose('16'); setRecommendation(null);
+    setYieldStop(''); setYieldGrams(''); setBrewTime(''); setQuick(false);
+    setGrindSetting(''); setTemp('medium'); setBasketType('סטנדרטית'); setPortafilterType('Bottomless');
+    setTasteTags([]); setTasteOther(''); setFlavorNotes([]); setBody(null); setCrema(null); setAftertaste(null);
+    setNotes(''); setRating(0); setShowTasteDetail(false); setDraftRestored(false); setSaveError(null);
+    stepDirRef.current = 'back';
+    setStep('setup');
+    history.replaceState({ screen: 'new-shot', step: 'setup' }, '');
   }
 
   // כיוון אנימציית הכניסה של השלב הנוכחי (key מפעיל אותה מחדש בכל מעבר)
@@ -386,9 +407,12 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           <h2><CupIcon size={18} /> שוט חדש — שלב 1: הכנה</h2>
 
           {draftRestored && (
-            <p className="muted small" style={{ marginTop: 0 }}>
+            <div className="one-var-banner" style={{ marginTop: 0, marginBottom: 12 }}>
               שוחזרה טיוטה שלא הושלמה מהפעם הקודמת — אפשר להמשיך מאיפה שעצרת.
-            </p>
+              <div className="btn-row">
+                <button className="btn small secondary" onClick={discardDraft}>התחל שוט נקי</button>
+              </div>
+            </div>
           )}
 
           {lastShot && (
@@ -543,6 +567,11 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
             </Field>
             <h3>דירוג אישי (1–10)</h3>
             <RatingPicker value={rating} onChange={setRating} />
+            {saveError && (
+              <div className="one-var-banner" role="alert" style={{ borderColor: 'var(--bad)', marginTop: 10 }}>
+                {saveError}
+              </div>
+            )}
             <div className="btn-row">
               <button className="btn secondary" onClick={() => history.back()}>→ ביטול</button>
               <button
@@ -550,7 +579,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 disabled={!dose || !yieldGrams || !brewTime || rating === 0 || saving}
                 onClick={saveShot}
               >
-                <SaveIcon size={16} /> שמור וקבל ניתוח
+                <SaveIcon size={16} /> {saveError ? 'נסה לשמור שוב' : 'שמור וקבל ניתוח'}
               </button>
             </div>
             <MissingFieldsHint dose={dose} yieldGrams={yieldGrams} brewTime={brewTime} rating={rating} />
@@ -565,9 +594,12 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           <h2><ClipboardIcon size={18} /> שלב 3: תוצאות השוט</h2>
 
           {draftRestored && (
-            <p className="muted small" style={{ marginTop: 0 }}>
+            <div className="one-var-banner" style={{ marginTop: 0, marginBottom: 12 }}>
               שוחזרה טיוטה שלא הושלמה — הנתונים שהזנת נשמרו.
-            </p>
+              <div className="btn-row">
+                <button className="btn small secondary" onClick={discardDraft}>התחל שוט נקי</button>
+              </div>
+            </div>
           )}
 
           {weightFields}
@@ -624,21 +656,32 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           )}
 
           {/* פירוט טעם עמוק — מגירה מתקפלת שנפתחת ונסגרת בהחלקה.
-              ערכים שנבחרו נשמרים גם כשהמגירה סגורה. */}
-          {!showTasteDetail && (
-            <button
-              type="button"
-              className="btn secondary block"
-              style={{ marginTop: 10 }}
-              aria-expanded={false}
-              onClick={() => setShowTasteDetail(true)}
-            >
-              <PlusIcon size={15} />{' '}
-              {tasteDetailCount > 0
-                ? `הצג פירוט טעם (${tasteDetailCount} נבחרו)`
-                : 'הוסף פירוט טעם — גלגל טעמים, גוף, קרמה, אחרית'}
-            </button>
-          )}
+              ערכים שנבחרו נשמרים גם כשהמגירה סגורה.
+              המתג נשאר תמיד ב-DOM כדי שהפוקוס לא יאבד בפתיחה/סגירה. */}
+          <button
+            ref={tasteToggleRef}
+            type="button"
+            className="btn secondary block"
+            style={{ marginTop: 10 }}
+            aria-expanded={showTasteDetail}
+            onClick={() => setShowTasteDetail(!showTasteDetail)}
+          >
+            {showTasteDetail ? (
+              <>
+                <span style={{ display: 'inline-flex', transform: 'rotate(180deg)' }} aria-hidden="true">
+                  <ChevronDownIcon size={15} />
+                </span>{' '}
+                הסתר פירוט טעם{tasteDetailCount > 0 ? ` (${tasteDetailCount} נבחרו — נשמרים)` : ''}
+              </>
+            ) : (
+              <>
+                <PlusIcon size={15} />{' '}
+                {tasteDetailCount > 0
+                  ? `הצג פירוט טעם (${tasteDetailCount} נבחרו)`
+                  : 'הוסף פירוט טעם — גלגל טעמים, גוף, קרמה, אחרית'}
+              </>
+            )}
+          </button>
           <div className={`collapse ${showTasteDetail ? 'open' : ''}`}>
             <div className="collapse-inner">
               <h3>תווי טעם — גלגל הטעמים (לא חובה)</h3>
@@ -661,10 +704,16 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 type="button"
                 className="btn secondary small block"
                 style={{ marginTop: 12 }}
-                aria-expanded={true}
-                onClick={() => setShowTasteDetail(false)}
+                onClick={() => {
+                  setShowTasteDetail(false);
+                  // הכפתור הזה נעלם עם המגירה — מחזירים את הפוקוס למתג הקבוע
+                  tasteToggleRef.current?.focus();
+                }}
               >
-                הסתר פירוט טעם ▲{tasteDetailCount > 0 ? ` (${tasteDetailCount} נבחרו — נשמרים)` : ''}
+                <span style={{ display: 'inline-flex', transform: 'rotate(180deg)' }} aria-hidden="true">
+                  <ChevronDownIcon size={14} />
+                </span>{' '}
+                הסתר פירוט טעם{tasteDetailCount > 0 ? ` (${tasteDetailCount} נבחרו — נשמרים)` : ''}
               </button>
             </div>
           </div>
@@ -678,6 +727,11 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           <h3>דירוג אישי (1–10)</h3>
           <RatingPicker value={rating} onChange={setRating} />
 
+          {saveError && (
+            <div className="one-var-banner" role="alert" style={{ borderColor: 'var(--bad)', marginTop: 10 }}>
+              {saveError}
+            </div>
+          )}
           <div className="btn-row">
             <button className="btn secondary" onClick={() => history.back()}>→ חזרה</button>
             <button
@@ -685,7 +739,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
               disabled={!dose || !yieldGrams || !brewTime || rating === 0 || saving}
               onClick={saveShot}
             >
-              <SaveIcon size={16} /> שמור וקבל ניתוח AI Coach
+              <SaveIcon size={16} /> {saveError ? 'נסה לשמור שוב' : 'שמור וקבל ניתוח'}
             </button>
           </div>
           <MissingFieldsHint dose={dose} yieldGrams={yieldGrams} brewTime={brewTime} rating={rating} />
@@ -705,6 +759,8 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           {celebrate && <Celebration onDone={stopCelebrate} />}
           <div className="card accent">
             <h2><BrainIcon size={18} /> מוח ה-AI</h2>
+            {/* אזור חי לקורא מסך — קיים בשני מצבי ה-coach, הטקסט מוכרז כשמשתנה */}
+            <p className="sr-only" role="status">מנתח את השוט…</p>
             <div className="ai-thinking">
               <span className="ai-thinking-dots"><i /><i /><i /></span>
               <p>
@@ -723,6 +779,9 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
         {celebrate && <Celebration onDone={stopCelebrate} />}
         <div className="card accent">
           <h2><BrainIcon size={18} /> מוח ה-AI — ההמלצה לשוט הבא</h2>
+          <p className="sr-only" role="status">
+            הניתוח מוכן: {advice.changeKind === 'none' ? 'שמור על המתכון' : `השינוי הבא — ${advice.changeLabel}`}
+          </p>
           {beanRecord && (
             <div className="record-banner">
               <TrophyIcon size={18} /> שיא אישי לפולים האלה! עברת את השיא הקודם ({beanRecord.prevBest}/10).
@@ -1015,7 +1074,7 @@ function BrewStep({
         <p className="muted small" style={{ textAlign: 'center', margin: '4px 0 0' }}>
           {!running && elapsed === 0 && 'הטבעת הירוקה מסמנת את חלון היעד'}
           {running && !inZone && !overZone && 'בדרך לחלון היעד…'}
-          {running && inZone && '🎯 בתוך חלון היעד!'}
+          {running && inZone && 'בתוך חלון היעד!'}
           {running && overZone && 'חלון היעד חלף — שקול לעצור'}
           {!running && elapsed > 0 && `נעצר על ${elapsed.toFixed(1)} שניות`}
         </p>

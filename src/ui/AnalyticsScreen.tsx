@@ -10,6 +10,7 @@ import { StatTile, EmptyState } from './components';
 import { computeWinningWindow, shotAgeRatings } from '../services/freshness';
 import { auditAllAdvice } from '../services/adviceAudit';
 import { FLAVOR_LABELS, formatDateTime, shotWeights } from './labels';
+import { DashboardScreen } from './DashboardScreen';
 import { BeanIcon, BrainIcon, BulbIcon, ChartIcon, CoinIcon, CupIcon, FlameIcon, GearIcon, GiftIcon, LeafIcon, MedalIcon, ScaleIcon, SettingsIcon, StarIcon, TargetIcon, TasteIcon, TimerIcon, TrendIcon, TrophyIcon } from './icons';
 
 // ===== Coffee Shot Analytics =====
@@ -17,9 +18,11 @@ import { BeanIcon, BrainIcon, BulbIcon, ChartIcon, CoinIcon, CupIcon, FlameIcon,
 
 const GOOD_RATING = 8; // סף "שוט מצוין"
 
-// קטגוריות לסינון מסך הניתוח — מקבצות את הכרטיסים לפי כוונה
-type AnalyticsCat = 'quality' | 'trends' | 'consistency' | 'cost' | 'all';
+// קטגוריות לסינון מסך הניתוח — מקבצות את הכרטיסים לפי כוונה.
+// "מבט על" (ה-Dashboard לשעבר) היא קטגוריה כאן — מסך נתונים אחד, לא שניים.
+type AnalyticsCat = 'overview' | 'quality' | 'trends' | 'consistency' | 'cost' | 'all';
 const ANALYTICS_CATS: { value: AnalyticsCat; label: string }[] = [
+  { value: 'overview', label: 'מבט על' },
   { value: 'quality', label: 'איכות' },
   { value: 'trends', label: 'מגמות' },
   { value: 'consistency', label: 'עקביות' },
@@ -533,7 +536,7 @@ export function AnalyticsScreen() {
   });
   const [wrapped, setWrapped] = useState(false);
   // מסנן קטגוריות — במקום מפל של 15 כרטיסים, מציגים קבוצה אחת בכל פעם
-  const [cat, setCat] = useState<AnalyticsCat>('quality');
+  const [cat, setCat] = useState<AnalyticsCat>('overview');
 
   if (!data) return null;
   const { shots, grinders, beans, bags, sessions } = data;
@@ -544,13 +547,16 @@ export function AnalyticsScreen() {
 
   if (shots.length < 2) {
     return (
-      <div className="card">
-        <h2><TrendIcon size={18} /> ניתוח מתקדם</h2>
-        <EmptyState
-          icon={<TrendIcon size={40} />}
-          text="הניתוח מתעורר אחרי 2 שוטים לפחות"
-          hint="ככל שתתעד יותר, התמונה תהיה חדה יותר — מגמות, עקביות ותובנות אישיות."
-        />
+      <div>
+        <DashboardScreen />
+        <div className="card">
+          <h2><TrendIcon size={18} /> ניתוח מתקדם</h2>
+          <EmptyState
+            icon={<TrendIcon size={40} />}
+            text="הניתוח מתעורר אחרי 2 שוטים לפחות"
+            hint="ככל שתתעד יותר, התמונה תהיה חדה יותר — מגמות, עקביות ותובנות אישיות."
+          />
+        </div>
       </div>
     );
   }
@@ -618,23 +624,15 @@ export function AnalyticsScreen() {
   return (
     <div>
       <div className="card accent">
-        <h2><TrendIcon size={18} /> ניתוח מתקדם</h2>
+        <h2><TrendIcon size={18} /> הנתונים שלי</h2>
         <p className="muted small" style={{ marginTop: 0 }}>
-          ניתוח {shots.length} השוטים שלך — איכות, עקביות ומגמות.
+          {shots.length} שוטים מתועדים — מבט על, איכות, מגמות, עקביות ועלות.
         </p>
         <button className="btn secondary block" style={{ marginBottom: 12 }} onClick={() => setWrapped(true)}>
           <GiftIcon size={16} /> Coffee Wrapped — סיכום השנה שלי
         </button>
-        <div className="stat-grid">
-          <StatTile value={avgRating.toFixed(1)} label="דירוג ממוצע" />
-          <StatTile value={`${Math.round(avgTime)}s`} label="זמן ממוצע" />
-          <StatTile value={`1:${avgRatio.toFixed(1)}`} label="יחס ממוצע" />
-          <StatTile value={`${avgDose.toFixed(1)}g`} label="מנה ממוצעת" />
-          <StatTile value={`${avgYield.toFixed(1)}g`} label="יוצא בכוס (Yield)" />
-          <StatTile value={avgFlow.toFixed(1)} label="זרימה (גרם/שנ')" />
-        </div>
         {/* סינון קטגוריות — כדי שלא הכל ייפול בבת אחת */}
-        <div className="chips" style={{ marginTop: 12 }} role="group" aria-label="סינון הניתוח לפי קטגוריה">
+        <div className="chips" role="group" aria-label="סינון הנתונים לפי קטגוריה">
           {ANALYTICS_CATS.map((c) => (
             <button
               key={c.value}
@@ -651,6 +649,24 @@ export function AnalyticsScreen() {
 
       {/* הקבוצה המסוננת — key={cat} מפעיל כניסה מדורגת בכל החלפת קטגוריה */}
       <div className="cat-swap" key={cat}>
+
+      {/* מבט על — ה-Dashboard המלא */}
+      {show('overview') && <DashboardScreen />}
+
+      {/* ממוצעי הכנה */}
+      {show('quality') && (
+        <div className="card">
+          <h2><ScaleIcon size={18} /> ממוצעי ההכנה שלי</h2>
+          <div className="stat-grid">
+            <StatTile value={avgRating.toFixed(1)} label="דירוג ממוצע" />
+            <StatTile value={`${Math.round(avgTime)}s`} label="זמן ממוצע" />
+            <StatTile value={`1:${avgRatio.toFixed(1)}`} label="יחס ממוצע" />
+            <StatTile value={`${avgDose.toFixed(1)}g`} label="מנה ממוצעת" />
+            <StatTile value={`${avgYield.toFixed(1)}g`} label="יוצא בכוס (Yield)" />
+            <StatTile value={avgFlow.toFixed(1)} label="זרימה (גרם/שנ')" />
+          </div>
+        </div>
+      )}
 
       {/* עקביות */}
       {show('consistency') && consistency !== null && (

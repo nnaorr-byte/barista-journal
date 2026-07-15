@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
 export function StatTile({ value, label }: { value: ReactNode; label: string }) {
@@ -36,15 +36,36 @@ export function Chips<T extends string>({
 }
 
 export function RatingPicker({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  // ניווט חצים כמו radio אמיתי: המיקוד נודד עם הבחירה (roving tabindex).
+  // בפריסה RTL — חץ שמאלה מתקדם (ערך גבוה יותר), חץ ימינה חוזר.
+  const move = (delta: number) => {
+    const next = Math.min(10, Math.max(1, (value || 1) + delta));
+    onChange(next);
+    setTimeout(() => {
+      rowRef.current?.querySelector<HTMLButtonElement>(`button[data-n="${next}"]`)?.focus();
+    }, 0);
+  };
   return (
-    <div className="rating-row" role="radiogroup" aria-label="דירוג אישי מ-1 עד 10">
+    <div
+      ref={rowRef}
+      className="rating-row"
+      role="radiogroup"
+      aria-label="דירוג אישי מ-1 עד 10"
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); move(1); }
+        else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
+      }}
+    >
       {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
         <button
           key={n}
           type="button"
           role="radio"
+          data-n={n}
           aria-checked={value === n}
           aria-label={`${n} מתוך 10`}
+          tabIndex={value === n || (value === 0 && n === 1) ? 0 : -1}
           className={value === n ? 'selected' : ''}
           onClick={() => onChange(n)}
         >

@@ -1,25 +1,17 @@
-import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import { compareBeans, monthlyBreakdown, topShots, ratingTrend } from '../services/stats';
 import { computeInsights } from '../services/learning';
 import { roastLabel } from '../services/recommendation';
 import { shotRatio, type RoastLevel, type Shot } from '../domain/types';
-import { BarChart, LineChart, type Point } from './charts';
+import { BarChart, type Point } from './charts';
 import { CountUp, StatTile, EmptyState } from './components';
 import { FLAVOR_LABELS, TASTE_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
 import { BeanIcon, CalendarIcon, ChartIcon, FlameIcon, GearIcon, TasteIcon, TrendDownIcon, TrendIcon, TrophyIcon } from './icons';
 import type { FlavorNote } from '../domain/types';
 
-type Metric = 'rating' | 'yield' | 'time' | 'grind';
-
-const METRICS: { key: Metric; label: string; unit: string; pick: (s: Shot) => number }[] = [
-  { key: 'rating', label: 'דירוג', unit: '', pick: (s) => s.rating },
-  { key: 'yield', label: 'יוצא בכוס (גרם)', unit: 'g', pick: (s) => s.yieldGrams },
-  { key: 'time', label: 'זמן חליטה (שניות)', unit: 's', pick: (s) => s.brewTimeSec },
-  { key: 'grind', label: 'דרגת טחינה', unit: '', pick: (s) => s.grindSetting },
-];
-
+// "מבט על" — נטמע כקטגוריה בתוך מסך הניתוח (AnalyticsScreen);
+// גרפי המגמה לאורך זמן חיים בקטגוריית "מגמות" שם, לא כאן.
 export function DashboardScreen() {
   const data = useLiveQuery(async () => {
     const [shots, beans, grinders] = await Promise.all([
@@ -29,8 +21,6 @@ export function DashboardScreen() {
     ]);
     return { shots, beans, grinders };
   });
-
-  const [metric, setMetric] = useState<Metric>('rating');
 
   if (!data) return null;
   const { shots, beans, grinders } = data;
@@ -48,13 +38,6 @@ export function DashboardScreen() {
   const newestFirst = [...shots].reverse();
   const insights = computeInsights(shots, roastMap);
   const trend = ratingTrend(newestFirst);
-
-  const activeMetric = METRICS.find((m) => m.key === metric)!;
-  const last30 = shots.slice(-30);
-  const linePoints: Point[] = last30.map((s) => ({
-    label: new Date(s.createdAt).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }),
-    value: Math.round(activeMetric.pick(s) * 10) / 10,
-  }));
 
   const beanComparison = compareBeans(beans, shots);
   const monthly = monthlyBreakdown(shots);
@@ -119,22 +102,6 @@ export function DashboardScreen() {
             {trend.direction === 'stable' && <span>יציב סביב {trend.recentAvg.toFixed(1)}</span>}
           </p>
         )}
-      </div>
-
-      <div className="card">
-        <h2><TrendIcon size={18} /> מגמה לאורך זמן (30 שוטים אחרונים)</h2>
-        <div className="chips" style={{ marginBottom: 10 }}>
-          {METRICS.map((m) => (
-            <button
-              key={m.key}
-              className={`chip ${metric === m.key ? 'selected' : ''}`}
-              onClick={() => setMetric(m.key)}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-        <LineChart points={linePoints} unit={activeMetric.unit} />
       </div>
 
       {beanComparison.length > 0 && (

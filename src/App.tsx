@@ -3,7 +3,6 @@ import { HomeScreen } from './ui/HomeScreen';
 import { NewShotScreen } from './ui/NewShotScreen';
 import { ShotsScreen } from './ui/ShotsScreen';
 import { BeansScreen } from './ui/BeansScreen';
-import { DashboardScreen } from './ui/DashboardScreen';
 import { AnalyticsScreen } from './ui/AnalyticsScreen';
 import { SettingsScreen } from './ui/SettingsScreen';
 import { BeansBackground } from './ui/BeansBackground';
@@ -110,13 +109,8 @@ export default function App() {
         {screen === 'new-shot' && <NewShotScreen navigate={setScreen} />}
         {screen === 'shots' && <ShotsScreen />}
         {screen === 'beans' && <BeansScreen />}
-        {screen === 'dashboard' && (
-          <>
-            <DashboardScreen />
-            {/* הניתוח ממשיך את עמוד הנתונים — נתונים קודם, ניתוח אחריהם */}
-            <AnalyticsScreen />
-          </>
-        )}
+        {/* עמוד הנתונים המאוחד — "מבט על" (הדשבורד) הוא קטגוריה בתוך הניתוח */}
+        {screen === 'dashboard' && <AnalyticsScreen />}
         {screen === 'settings' && <SettingsScreen />}
       </main>
 

@@ -406,3 +406,11 @@ export function CalendarIcon({ size = 24, strokeWidth = 1.7 }: IconProps) {
     </svg>
   );
 }
+
+export function ChevronDownIcon({ size = 24, strokeWidth = 1.7 }: IconProps) {
+  return (
+    <svg {...svgProps(size)} strokeWidth={strokeWidth}>
+      <path d="M6 9.5 L12 15.5 L18 9.5" />
+    </svg>
+  );
+}

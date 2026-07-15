@@ -116,6 +116,19 @@ body {
 /* ביטול השהיית double-tap-zoom במגע — תגובה מיידית ללחיצות */
 button { touch-action: manipulation; }
 
+/* תוכן לקורא מסך בלבד — בלתי נראה ויזואלית אך מוכרז */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* טבעת פוקוס אחידה לניווט מקלדת — לכל הכפתורים, לא רק .btn */
 button:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--accent) 60%, transparent);

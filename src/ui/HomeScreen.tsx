@@ -8,7 +8,7 @@ import { computeBackupStatus, shareBackup } from '../services/importExport';
 import { computeFreshness, computeWinningWindow } from '../services/freshness';
 import { computeBagUsage, ratingTrend } from '../services/stats';
 import { shotRatio, type RoastLevel } from '../domain/types';
-import { StatTile, EmptyState } from './components';
+import { CountUp, StatTile, EmptyState } from './components';
 import { formatDateTime, ratingClass, shotWeights } from './labels';
 import { BeanIcon, BellIcon, CupIcon, LeafIcon, SaveIcon, SoapIcon, TargetIcon, TrendDownIcon, TrendIcon, TrophyIcon, WarnIcon } from './icons';
 import type { Screen } from '../App';
@@ -181,15 +181,15 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
               {lastBean.name} · {lastBean.roastery}
             </div>
             <div className="stat-grid">
-              <StatTile value={recommendation.doseGrams} label="גרם נכנס" />
+              <StatTile value={<CountUp value={recommendation.doseGrams} />} label="גרם נכנס" />
               {recommendation.stopAtGrams !== null && (
-                <StatTile value={recommendation.stopAtGrams} label="עצירה בפועל" />
+                <StatTile value={<CountUp value={recommendation.stopAtGrams} />} label="עצירה בפועל" />
               )}
-              <StatTile value={recommendation.yieldGrams} label="גרם יוצא" />
+              <StatTile value={<CountUp value={recommendation.yieldGrams} />} label="גרם יוצא" />
               <StatTile value={`${recommendation.brewTimeSecMin}–${recommendation.brewTimeSecMax}`} label="שניות" />
               <StatTile value={`1:${recommendation.ratio}`} label="יחס" />
               {recommendation.grindSetting !== null && (
-                <StatTile value={recommendation.grindSetting} label="טחינה" />
+                <StatTile value={<CountUp value={recommendation.grindSetting} />} label="טחינה" />
               )}
             </div>
             {recommendation.reasons[0]?.startsWith('🧠') && (
@@ -259,8 +259,11 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       <div className="card">
         <h2><TrendIcon size={18} /> הסטטיסטיקה שלי</h2>
         <div className="stat-grid">
-          <StatTile value={insights.shotCount} label="שוטים סה״כ" />
-          <StatTile value={insights.shotCount ? insights.avgRating.toFixed(1) : '—'} label="דירוג ממוצע" />
+          <StatTile value={<CountUp value={insights.shotCount} />} label="שוטים סה״כ" />
+          <StatTile
+            value={insights.shotCount ? <CountUp value={insights.avgRating} decimals={1} /> : '—'}
+            label="דירוג ממוצע"
+          />
           <StatTile
             value={insights.bestShot ? `${insights.bestShot.rating}/10` : '—'}
             label="השוט הטוב ביותר"

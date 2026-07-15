@@ -6,7 +6,7 @@ import { computeInsights } from '../services/learning';
 import { roastLabel } from '../services/recommendation';
 import { shotRatio, type RoastLevel, type Shot } from '../domain/types';
 import { BarChart, LineChart, type Point } from './charts';
-import { StatTile, EmptyState } from './components';
+import { CountUp, StatTile, EmptyState } from './components';
 import { FLAVOR_LABELS, TASTE_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
 import { BeanIcon, CalendarIcon, ChartIcon, FlameIcon, GearIcon, TasteIcon, TrendDownIcon, TrendIcon, TrophyIcon } from './icons';
 import type { FlavorNote } from '../domain/types';
@@ -101,14 +101,14 @@ export function DashboardScreen() {
       <div className="card">
         <h2><ChartIcon size={18} /> מבט על</h2>
         <div className="stat-grid">
-          <StatTile value={shots.length} label="שוטים סה״כ" />
-          <StatTile value={insights.avgRating.toFixed(1)} label="דירוג ממוצע" />
+          <StatTile value={<CountUp value={shots.length} />} label="שוטים סה״כ" />
+          <StatTile value={<CountUp value={insights.avgRating} decimals={1} />} label="דירוג ממוצע" />
           <StatTile
-            value={insights.sweetSpot.ratio ? `1:${insights.sweetSpot.ratio.toFixed(1)}` : '—'}
+            value={insights.sweetSpot.ratio ? <CountUp value={insights.sweetSpot.ratio} decimals={1} prefix="1:" /> : '—'}
             label="היחס המנצח שלי"
           />
           <StatTile
-            value={insights.sweetSpot.brewTime ? `${Math.round(insights.sweetSpot.brewTime)}s` : '—'}
+            value={insights.sweetSpot.brewTime ? <CountUp value={Math.round(insights.sweetSpot.brewTime)} suffix="s" /> : '—'}
             label="הזמן המנצח שלי"
           />
         </div>

@@ -753,26 +753,58 @@ table.data th { color: var(--text-muted); font-weight: 700; font-size: 0.76rem; 
   animation: screen-in var(--speed) ease-out;
 }
 
-/* ---- שגרת חימום: שורת צ'ק-ליסט ---- */
-.warmup-step {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 9px 0;
-  border-bottom: 1px solid var(--hairline);
-  cursor: pointer;
+/* ---- מעברי שלבים באשף השוט: כיווניים (RTL) ----
+   קדימה = נכנס משמאל (ההמשך הטבעי ב-RTL), אחורה (Back) = מימין */
+@keyframes step-in-fwd {
+  from { opacity: 0; transform: translateX(-26px); }
+  to { opacity: 1; transform: none; }
 }
-.warmup-step:last-of-type { border-bottom: none; }
-.warmup-step input[type='checkbox'] {
-  width: 22px;
-  height: 22px;
-  margin: 2px 0 0;
-  padding: 0;
-  accent-color: var(--accent);
-  flex: none;
-  cursor: pointer;
+@keyframes step-in-back {
+  from { opacity: 0; transform: translateX(26px); }
+  to { opacity: 1; transform: none; }
 }
-.warmup-done { text-decoration: line-through; opacity: 0.6; }
+.step-fwd { animation: step-in-fwd 0.26s var(--spring); }
+.step-back { animation: step-in-back 0.26s var(--spring); }
+
+/* ---- מגירה מתקפלת (פירוט טעם): גובה מונפש דרך grid-rows, לא height ---- */
+.collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.32s var(--spring);
+}
+.collapse.open { grid-template-rows: 1fr; }
+.collapse > .collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+  /* מוסתר גם מניווט מקלדת/קורא מסך כשהמגירה סגורה */
+  visibility: hidden;
+  transition: visibility 0.32s;
+}
+.collapse.open > .collapse-inner { visibility: visible; }
+
+/* ---- פתיחת פירוט שוט ביומן ---- */
+@keyframes row-open {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+.shot-detail-in { animation: row-open 0.22s var(--spring); }
+
+/* ---- החלפת קטגוריה ב-Analytics: כניסה מדורגת, מוגבלת ל-4 השהיות ---- */
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: none; }
+}
+.cat-swap > * { animation: card-in 0.28s var(--spring) backwards; }
+.cat-swap > *:nth-child(2) { animation-delay: 45ms; }
+.cat-swap > *:nth-child(3) { animation-delay: 90ms; }
+.cat-swap > *:nth-child(4) { animation-delay: 135ms; }
+.cat-swap > *:nth-child(n+5) { animation-delay: 180ms; }
+
+/* ---- יציאת טוסט הביטול: מהירה מהכניסה (כלל ה-75%) ---- */
+@keyframes toast-out {
+  to { opacity: 0; transform: translateY(10px); }
+}
+.undo-toast.closing { animation: toast-out 0.18s ease-in forwards; }
 
 /* ---- ברכת פתיחה במסך הבית (לפי שעה) ---- */
 .home-greeting { margin: 2px 2px 15px; }

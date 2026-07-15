@@ -74,6 +74,37 @@ export function EmptyState({ icon, text, hint }: { icon: ReactNode; text: string
   );
 }
 
+// מספר שנספר למעלה בכניסה למסך (~0.6 שניות, ease-out).
+// מכבד "הפחתת תנועה" — במצב כזה מציג את הערך הסופי מיד.
+export function CountUp({ value, decimals, prefix = '', suffix = '', duration = 600 }: {
+  value: number;
+  decimals?: number;
+  prefix?: string;
+  suffix?: string;
+  duration?: number;
+}) {
+  const dec = decimals ?? (Number.isInteger(value) ? 0 : 1);
+  const [display, setDisplay] = useState(() =>
+    matchMedia('(prefers-reduced-motion: reduce)').matches ? value : 0);
+  useEffect(() => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setDisplay(value);
+      return;
+    }
+    let raf = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 4); // ease-out-quart
+      setDisplay(value * eased);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+  return <>{prefix}{display.toFixed(dec)}{suffix}</>;
+}
+
 // כפתור אישור דו-שלבי — תחליף עקבי ל-confirm() הנטיבי של הדפדפן.
 // לחיצה ראשונה "דורכת" את הכפתור ומציגה את שאלת האישור;
 // בלי לחיצה שנייה תוך 5 שניות הוא חוזר למצב הרגיל.

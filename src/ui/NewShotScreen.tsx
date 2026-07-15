@@ -8,7 +8,6 @@ import type {
   Bag, FlavorNote, MachineTempSetting, QualityLevel, Shot, ShotRecommendation, TasteTag,
 } from '../domain/types';
 import { Chips, Field, RatingPicker, StatTile } from './components';
-import { WarmupChecklist } from './WarmupChecklist';
 import { FLAVOR_LABELS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS } from './labels';
 import { BoltIcon, BrainIcon, BulbIcon, CheckIcon, ClipboardIcon, CupIcon, PlusIcon, SaveIcon, StarIcon, TargetIcon, TimerIcon, TrophyIcon, WarnIcon } from './icons';
 import { Celebration } from './Celebration';
@@ -105,6 +104,9 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const tasteDetailCount =
     flavorNotes.length + (body ? 1 : 0) + (crema ? 1 : 0) + (aftertaste ? 1 : 0);
 
+  // כיוון המעבר האחרון בין שלבים — קובע את כיוון אנימציית הכניסה (RTL)
+  const stepDirRef = useRef<'fwd' | 'back'>('fwd');
+
   // אינטגרציית כפתור Back בתוך הזרימה: כל שלב נרשם ב-history,
   // Back חוזר שלב אחורה; מ-Coach (אחרי שמירה) — הביתה, לא בחזרה לטופס.
   useEffect(() => {
@@ -117,6 +119,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
         return;
       }
       if (st.step === 'setup') setQuick(false);
+      stepDirRef.current = 'back';
       setStep(st.step);
     };
     window.addEventListener('popstate', onPop);
@@ -125,6 +128,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
   // מעבר שלב קדימה — נרשם בהיסטוריה
   function goStep(s: Step) {
+    stepDirRef.current = 'fwd';
     history.pushState({ screen: 'new-shot', step: s }, '');
     setStep(s);
   }
@@ -362,6 +366,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       setThinking(!reduceMotion); // הבזק "חשיבה" קצר לפני חשיפת ההמלצה
       if (rating >= 9 && !reduceMotion) setCelebrate(true); // חגיגת שוט מושלם
 
+      stepDirRef.current = 'fwd';
       setStep('coach');
       // רשומת ה"תוצאות" מוחלפת ב"coach" — Back מכאן לא יחזיר לטופס שכבר נשמר
       history.replaceState({ screen: 'new-shot', step: 'coach' }, '');
@@ -370,10 +375,13 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     }
   }
 
+  // כיוון אנימציית הכניסה של השלב הנוכחי (key מפעיל אותה מחדש בכל מעבר)
+  const stepAnim = stepDirRef.current === 'back' ? 'step-back' : 'step-fwd';
+
   // --- שלב 1: הגדרה ---
   if (step === 'setup') {
     return (
-      <div>
+      <div key="setup" className={stepAnim}>
         <div className="card">
           <h2><CupIcon size={18} /> שוט חדש — שלב 1: לפני החליטה</h2>
 
@@ -382,8 +390,6 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
               שוחזרה טיוטה שלא הושלמה מהפעם הקודמת — אפשר להמשיך מאיפה שעצרת.
             </p>
           )}
-
-          <WarmupChecklist machineName={machine?.name ?? 'המכונה'} />
 
           {lastShot && (
             <div className="btn-row" style={{ marginTop: 0, marginBottom: 12 }}>
@@ -478,15 +484,17 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   // --- שלב 2: חליטה + טיימר ---
   if (step === 'brew' && recommendation) {
     return (
-      <BrewStep
-        recommendation={recommendation}
-        beanName={selectedBean?.name ?? ''}
-        onDone={(seconds) => {
-          if (seconds > 0) setBrewTime(String(seconds));
-          goStep('results');
-        }}
-        onBack={() => history.back()}
-      />
+      <div key="brew" className={stepAnim}>
+        <BrewStep
+          recommendation={recommendation}
+          beanName={selectedBean?.name ?? ''}
+          onDone={(seconds) => {
+            if (seconds > 0) setBrewTime(String(seconds));
+            goStep('results');
+          }}
+          onBack={() => history.back()}
+        />
+      </div>
     );
   }
 
@@ -522,7 +530,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     // מצב "שוט מהיר": טופס מינימלי — שאר הפרטים משוכפלים מהשוט הקודם
     if (quick) {
       return (
-        <div>
+        <div key="results" className={stepAnim}>
           <div className="card accent">
             <h2><BoltIcon size={18} /> שוט מהיר</h2>
             <p className="muted small" style={{ marginTop: 0 }}>
@@ -552,7 +560,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     }
 
     return (
-      <div>
+      <div key="results" className={stepAnim}>
         <div className="card">
           <h2><ClipboardIcon size={18} /> שלב 3: תוצאות השוט</h2>
 
@@ -612,9 +620,9 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
             </div>
           )}
 
-          {/* פירוט טעם עמוק — מקופל כברירת מחדל כדי לשמור על שלב רזה.
-              אפשר לפתוח ולסגור חופשי; ערכים שנבחרו נשמרים גם כשהמגירה סגורה. */}
-          {!showTasteDetail ? (
+          {/* פירוט טעם עמוק — מגירה מתקפלת שנפתחת ונסגרת בהחלקה.
+              ערכים שנבחרו נשמרים גם כשהמגירה סגורה. */}
+          {!showTasteDetail && (
             <button
               type="button"
               className="btn secondary block"
@@ -627,8 +635,9 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 ? `הצג פירוט טעם (${tasteDetailCount} נבחרו)`
                 : 'הוסף פירוט טעם — גלגל טעמים, גוף, קרמה, אחרית'}
             </button>
-          ) : (
-            <>
+          )}
+          <div className={`collapse ${showTasteDetail ? 'open' : ''}`}>
+            <div className="collapse-inner">
               <h3>תווי טעם — גלגל הטעמים (לא חובה)</h3>
               <Chips
                 options={FLAVOR_OPTIONS}
@@ -654,8 +663,8 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
               >
                 הסתר פירוט טעם ▲{tasteDetailCount > 0 ? ` (${tasteDetailCount} נבחרו — נשמרים)` : ''}
               </button>
-            </>
-          )}
+            </div>
+          </div>
 
           <h3>הערות חופשיות</h3>
           <textarea
@@ -689,7 +698,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     // הבזק "חשיבה" קצר לפני חשיפת ההמלצה (רגע delight — לא עיכוב אמיתי)
     if (thinking) {
       return (
-        <div>
+        <div key="coach" className={stepAnim}>
           {celebrate && <Celebration onDone={stopCelebrate} />}
           <div className="card accent">
             <h2><BrainIcon size={18} /> מוח ה-AI</h2>
@@ -707,7 +716,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     }
 
     return (
-      <div>
+      <div key="coach" className={stepAnim}>
         {celebrate && <Celebration onDone={stopCelebrate} />}
         <div className="card accent">
           <h2><BrainIcon size={18} /> מוח ה-AI — ההמלצה לשוט הבא</h2>

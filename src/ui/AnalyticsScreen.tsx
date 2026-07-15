@@ -649,6 +649,9 @@ export function AnalyticsScreen() {
         </div>
       </div>
 
+      {/* הקבוצה המסוננת — key={cat} מפעיל כניסה מדורגת בכל החלפת קטגוריה */}
+      <div className="cat-swap" key={cat}>
+
       {/* עקביות */}
       {show('consistency') && consistency !== null && (
         <div className="card">
@@ -777,6 +780,8 @@ export function AnalyticsScreen() {
           ))}
         </div>
       )}
+
+      </div>
     </div>
   );
 }

@@ -38,8 +38,10 @@ export function ShotsScreen() {
   const toggleCompare = (id: string) =>
     setCompareIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].slice(-2)));
 
-  // ביטול מחיקה: השוט האחרון שנמחק נשמר בצד 6 שניות עם אפשרות שחזור
+  // ביטול מחיקה: השוט האחרון שנמחק נשמר בצד 6 שניות עם אפשרות שחזור.
+  // הטוסט יוצא באנימציה קצרה לפני שהוא מוסר (closing).
   const [deletedShot, setDeletedShot] = useState<Shot | null>(null);
+  const [toastClosing, setToastClosing] = useState(false);
   const undoTimerRef = useRef<number | null>(null);
   useEffect(() => () => {
     if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
@@ -48,8 +50,15 @@ export function ShotsScreen() {
   async function deleteWithUndo(s: Shot) {
     await shotRepo.remove(s.id);
     setDeletedShot(s);
+    setToastClosing(false);
     if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
-    undoTimerRef.current = window.setTimeout(() => setDeletedShot(null), 6000);
+    undoTimerRef.current = window.setTimeout(() => {
+      setToastClosing(true); // אנימציית יציאה, ואז הסרה בפועל
+      undoTimerRef.current = window.setTimeout(() => {
+        setDeletedShot(null);
+        setToastClosing(false);
+      }, 190);
+    }, 6000);
   }
 
   async function undoDelete() {
@@ -57,6 +66,7 @@ export function ShotsScreen() {
     if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
     await shotRepo.put(deletedShot); // אותו id — השוט חוזר למקומו
     setDeletedShot(null);
+    setToastClosing(false);
   }
 
   const beanMap = useMemo(
@@ -154,7 +164,7 @@ export function ShotsScreen() {
               <span className="muted" aria-hidden="true">{expanded === s.id ? '▲' : '▼'}</span>
             </button>
             {expanded === s.id && (
-              <div style={{ padding: '4px 8px 12px' }}>
+              <div className="shot-detail-in" style={{ padding: '4px 8px 12px' }}>
                 <p className="small" style={{ margin: '4px 0' }}>
                   יחס 1:{shotRatio(s).toFixed(1)} · זרימה {shotFlowRate(s).toFixed(1)} גרם/שנייה
                   {s.yieldStopGrams && s.yieldGrams > s.yieldStopGrams
@@ -210,7 +220,7 @@ export function ShotsScreen() {
 
       {/* טוסט ביטול מחיקה — לא גונב פוקוס, מוכרז לקורא מסך */}
       {deletedShot && (
-        <div className="undo-toast" role="status">
+        <div className={`undo-toast ${toastClosing ? 'closing' : ''}`} role="status">
           <span>השוט נמחק</span>
           <button className="btn small" onClick={undoDelete}><UndoIcon size={15} /> ביטול</button>
         </div>

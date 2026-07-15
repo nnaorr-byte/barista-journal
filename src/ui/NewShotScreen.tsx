@@ -88,7 +88,8 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const [quick, setQuick] = useState(false); // מצב "שוט מהיר"
   const [grindSetting, setGrindSetting] = useState('');
   const [temp, setTemp] = useState<MachineTempSetting>('medium');
-  const [basketType, setBasketType] = useState('סטנדרטית');
+  // ברירת המחדל של נאור: סלסלת IMS מקצועית
+  const [basketType, setBasketType] = useState('IMS/מקצועית');
   const [portafilterType, setPortafilterType] = useState('Bottomless');
   const [tasteTags, setTasteTags] = useState<TasteTag[]>([]);
   const [tasteOther, setTasteOther] = useState('');
@@ -164,7 +165,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           setDose(d.dose ?? '16'); setRecommendation(d.recommendation ?? null);
           setYieldStop(d.yieldStop ?? ''); setYieldGrams(d.yieldGrams ?? ''); setBrewTime(d.brewTime ?? '');
           setQuick(!!d.quick); setGrindSetting(d.grindSetting ?? ''); setTemp(d.temp ?? 'medium');
-          setBasketType(d.basketType ?? 'סטנדרטית'); setPortafilterType(d.portafilterType ?? 'Bottomless');
+          setBasketType(d.basketType ?? 'IMS/מקצועית'); setPortafilterType(d.portafilterType ?? 'Bottomless');
           setTasteTags(d.tasteTags ?? []); setTasteOther(d.tasteOther ?? '');
           setFlavorNotes(d.flavorNotes ?? []); setBody(d.body ?? null); setCrema(d.crema ?? null);
           setAftertaste(d.aftertaste ?? null); setNotes(d.notes ?? ''); setRating(d.rating ?? 0);
@@ -388,7 +389,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     localStorage.removeItem(DRAFT_KEY);
     setBeanId(''); setBagId(''); setGrinderId(''); setDose('16'); setRecommendation(null);
     setYieldStop(''); setYieldGrams(''); setBrewTime(''); setQuick(false);
-    setGrindSetting(''); setTemp('medium'); setBasketType('סטנדרטית'); setPortafilterType('Bottomless');
+    setGrindSetting(''); setTemp('medium'); setBasketType('IMS/מקצועית'); setPortafilterType('Bottomless');
     setTasteTags([]); setTasteOther(''); setFlavorNotes([]); setBody(null); setCrema(null); setAftertaste(null);
     setNotes(''); setRating(0); setShowTasteDetail(false); setDraftRestored(false); setSaveError(null);
     stepDirRef.current = 'back';

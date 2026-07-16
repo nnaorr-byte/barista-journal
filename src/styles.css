@@ -296,7 +296,7 @@ button:focus-visible {
   border: 1px solid var(--border-soft);
   border-top-color: var(--hairline); /* "קרמה" — פס אור עדין בקצה העליון */
   border-radius: var(--radius);
-  padding: 18px;
+  padding: 16px;
   margin-bottom: 16px;
   box-shadow: var(--shadow);
 }
@@ -365,10 +365,10 @@ button:focus-visible {
   letter-spacing: -0.5px;
   line-height: 1.2;
 }
-.stat-tile .label { font-size: 0.73rem; font-weight: 600; color: var(--text-muted); margin-top: 3px; }
+.stat-tile .label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-top: 3px; }
 
 /* ---- טפסים ---- */
-label.field { display: block; margin-bottom: 13px; }
+label.field { display: block; margin-bottom: 12px; }
 label.field .field-label {
   display: block;
   font-size: 0.82rem;
@@ -382,7 +382,7 @@ input, select, textarea {
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   color: var(--text);
-  padding: 11px 13px;
+  padding: 12px;
   font-size: 1rem;
   font-family: inherit;
   transition: border-color var(--speed), box-shadow var(--speed);
@@ -413,7 +413,7 @@ button.btn {
   color: var(--glass-ink);
   border: 1px solid var(--glass-border);
   border-radius: 15px;
-  padding: 13px 24px;
+  padding: 12px 24px;
   font-size: 0.98rem;
   font-weight: 700;
   letter-spacing: 0.1px;
@@ -582,7 +582,7 @@ button.btn.small { min-height: 44px; padding: 9px 16px; font-size: 0.84rem; font
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 13px 6px;
+  padding: 12px 8px;
   border-bottom: 1px solid var(--hairline);
   cursor: pointer;
   border-radius: 8px;
@@ -624,7 +624,7 @@ button.shot-item {
   border: 1px solid var(--border-soft);
   border-radius: 999px;
   padding: 2px 11px;
-  font-size: 0.74rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-muted);
   margin-inline-end: 6px;
@@ -651,7 +651,7 @@ button.shot-item {
 .coach-verdict.unclear { color: var(--text-muted); }
 .coach-section { margin-bottom: 12px; }
 .coach-section .coach-label {
-  font-size: 0.76rem;
+  font-size: 0.75rem;
   font-weight: 800;
   color: var(--accent-strong);
 }
@@ -659,7 +659,7 @@ button.shot-item {
   background: color-mix(in srgb, var(--accent) 9%, var(--bg-elevated));
   border: 1px dashed color-mix(in srgb, var(--accent) 65%, transparent);
   border-radius: var(--radius-sm);
-  padding: 11px 13px;
+  padding: 12px;
   font-size: 0.87rem;
   color: var(--crema);
   margin-top: 12px;
@@ -687,7 +687,7 @@ table.data th, table.data td {
   border-bottom: 1px solid var(--hairline);
 }
 table.data td { font-variant-numeric: tabular-nums; }
-table.data th { color: var(--text-muted); font-weight: 700; font-size: 0.76rem; }
+table.data th { color: var(--text-muted); font-weight: 700; font-size: 0.75rem; }
 
 /* ---- Analytics: התפלגות הצלחה ---- */
 .dist-bar {
@@ -711,7 +711,7 @@ table.data th { color: var(--text-muted); font-weight: 700; font-size: 0.76rem; 
 /* במצב בהיר צבעי הסגמנטים כהים — טקסט בהיר במקום כהה */
 [data-theme='light'] .dist-seg { color: #fff4e4; }
 .dist-legend { display: flex; gap: 14px; flex-wrap: wrap; }
-.dist-legend span { font-size: 0.78rem; color: var(--text-muted); display: flex; align-items: center; gap: 5px; }
+.dist-legend span { font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 5px; }
 .dist-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 
 /* ---- מוח ה-AI: פס רמת ביטחון ---- */
@@ -861,7 +861,7 @@ table.data th { color: var(--text-muted); font-weight: 700; font-size: 0.76rem; 
   border: 1px solid color-mix(in srgb, var(--accent-strong) 55%, transparent);
   color: var(--crema);
   border-radius: var(--radius-sm);
-  padding: 11px 13px;
+  padding: 12px;
   margin-bottom: 12px;
   font-weight: 700;
   box-shadow: 0 0 18px color-mix(in srgb, var(--glow) 60%, transparent);

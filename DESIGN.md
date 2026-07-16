@@ -15,6 +15,18 @@ colors:
   leaf-good: "#93c47f"
   honey-warn: "#e0b45e"
   clay-bad: "#dd8171"
+  latte-bg: "#f2e8d9"
+  latte-elevated: "#f7eede"
+  latte-card: "#fdf8ee"
+  latte-input: "#f5ecdb"
+  latte-ink: "#33241a"
+  latte-muted: "#6b5540"
+  latte-amber: "#a5642a"
+  latte-amber-strong: "#8a5222"
+  latte-crema: "#7d5027"
+  latte-good: "#41682f"
+  latte-warn: "#7a5a1d"
+  latte-bad: "#ad4a39"
 typography:
   display:
     fontFamily: "Heebo, Segoe UI, Arial, sans-serif"
@@ -49,18 +61,18 @@ spacing:
   sm: "8px"
   md: "12px"
   lg: "16px"
-  card: "18px"
+  card: "16px"
 components:
   button-primary:
     backgroundColor: "linear-gradient(160deg, rgba(255,190,110,0.30), rgba(255,160,80,0.10))"
     textColor: "#ffe6c2"
     rounded: "15px"
-    padding: "13px 24px"
+    padding: "12px 24px"
   button-secondary:
     backgroundColor: "rgba(255,227,189,0.05)"
     textColor: "{colors.crema-ink}"
     rounded: "15px"
-    padding: "13px 24px"
+    padding: "12px 24px"
   chip:
     backgroundColor: "{colors.mocha-elevated}"
     textColor: "{colors.crema-ink}"
@@ -79,7 +91,7 @@ components:
     backgroundColor: "{colors.input-bean}"
     textColor: "{colors.crema-ink}"
     rounded: "{rounded.sm}"
-    padding: "11px 13px"
+    padding: "12px"
   nav-fab:
     backgroundColor: "linear-gradient(165deg, #cf7240 0%, #b45830 55%, #98431f 100%)"
     textColor: "#fff6ec"
@@ -122,6 +134,9 @@ components:
 
 ### Semantic
 - **עלה** (#93c47f) הצלחה/בטווח · **דבש** (#e0b45e) אזהרה · **חרס** (#dd8171) בעיה. בשלושתם: טקסט/גבול, לא מילוי מסך.
+
+### מצב בהיר — "לאטה" (הטוקנים latte-* בחזית)
+המצב הבהיר אינו שקיפות של הכהה — כל תפקיד מקבל ערך משלו, כהה יותר ורווי יותר כדי לשמור קונטרסט ≥4.5:1 על קרם: רקע **לאטה** (#f2e8d9) עם גרדיאנט כתמתם עדין, משטחים #f7eede/#fdf8ee, דיו #33241a, עמום #6b5540, ענבר #a5642a (חזק #8a5222), קרמה #7d5027, וסמנטיים כהים (#41682f / #7a5a1d / #ad4a39). גרדיאנטי הזכוכית עוברים לענבר-אדמה אטום יותר (עד 0.97 אטימות בצ'יפ נבחר) — הזכוכית "מתמלאת" באור במקום לזהור בחושך.
 
 ### Named Rules
 **חוק הזכוכית.** אפקט הזכוכית (גרדיאנט ענברי + blur + גבול מוזהב) מותר אך ורק על: כפתורים ראשיים, צ'יפים נבחרים, מרכז הטיימר, הניווט התחתון, והכותרת בגלילה. זכוכית על תוכן סטטי — אסורה.
@@ -172,7 +187,7 @@ components:
 - **State:** נבחר = מילוי זכוכית ענברית + זוהר + משקל 700 + `aria-pressed`. בחירת דירוג = `role="radiogroup"`.
 
 ### Cards / Containers
-- **Corner Style:** 16px · **Background:** גרדיאנט קלייה עדין · **Border:** border-soft עם border-top בהיר יותר (קו הקרמה) · **Padding:** 18px · כרטיס `hero` (אחד למסך, לכל היותר): גבול ענברי + זוהר במנוחה + כותרת מוגדלת.
+- **Corner Style:** 16px · **Background:** גרדיאנט קלייה עדין · **Border:** border-soft עם border-top בהיר יותר (קו הקרמה) · **Padding:** 16px · כרטיס `hero` (אחד למסך, לכל היותר): גבול ענברי + זוהר במנוחה + כותרת מוגדלת.
 
 ### Inputs / Fields
 - **Style:** רקע כהה שקוע (#1e1209), גבול רך, 12px radius. תווית מעל השדה (0.82rem, לאטה עמום).

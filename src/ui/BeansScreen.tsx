@@ -66,9 +66,9 @@ export function BeansScreen() {
   return (
     <div>
       <div className="card">
-        <h2><BeanIcon size={18} /> ניהול פולים</h2>
+        <h2><BeanIcon size={20} /> ניהול פולים</h2>
         {!showForm && (
-          <button className="btn block" onClick={() => setShowForm(true)}><PlusIcon size={16} /> פולים חדשים</button>
+          <button className="btn block" onClick={() => setShowForm(true)}><PlusIcon size={18} /> פולים חדשים</button>
         )}
         {showForm && <NewBeanForm onClose={() => setShowForm(false)} />}
       </div>
@@ -122,7 +122,7 @@ export function BeansScreen() {
                   </div>
                   {!bag.finished && fresh.deadlineDate && (
                     <div className="small" style={{ margin: '4px 0', color: fresh.stage === 'expired' ? 'var(--bad)' : 'var(--crema)', display: 'flex', gap: 6, alignItems: 'center' }}>
-                      {fresh.stage === 'expired' ? <WarnIcon size={14} /> : <CalendarIcon size={14} />}
+                      {fresh.stage === 'expired' ? <WarnIcon size={16} /> : <CalendarIcon size={16} />}
                       <span>דד-ליין טריות: {formatDeadline(fresh.deadlineDate)}
                       {fresh.daysToDeadline !== null && fresh.daysToDeadline > 0 && ` · עוד ${fresh.daysToDeadline} ימים`}</span>
                     </div>
@@ -150,7 +150,7 @@ export function BeansScreen() {
                       className="btn small secondary" style={{ marginTop: 6 }}
                       onClick={() => { setFarewellBagId(null); bagRepo.put({ ...bag, finished: false }); }}
                     >
-                      <UndoIcon size={15} /> החזר שקית
+                      <UndoIcon size={17} /> החזר שקית
                     </button>
                   )}
                   {farewellBagId === bag.id && (
@@ -171,11 +171,11 @@ export function BeansScreen() {
             ) : (
               <div className="btn-row">
                 <button className="btn small secondary" onClick={() => setAddingBagFor(bean.id)}>
-                  <PlusIcon size={15} /> שקית חדשה
+                  <PlusIcon size={17} /> שקית חדשה
                 </button>
                 <ConfirmButton
                   className="btn small danger"
-                  label={<><TrashIcon size={15} /> מחיקת פולים</>}
+                  label={<><TrashIcon size={17} /> מחיקת פולים</>}
                   confirmLabel="למחוק הכל? בלתי הפיך — לחץ לאישור"
                   onConfirm={() => { void beanRepo.remove(bean.id); }}
                 />
@@ -236,7 +236,7 @@ function BagFarewell({
         </p>
       )}
       <div className="btn-row" style={{ marginTop: 4 }}>
-        <button className="btn small" onClick={onNewBag}><PlusIcon size={15} /> פתח שקית חדשה</button>
+        <button className="btn small" onClick={onNewBag}><PlusIcon size={17} /> פתח שקית חדשה</button>
         <button className="btn small secondary" onClick={onClose}>סגור</button>
       </div>
     </div>
@@ -294,7 +294,7 @@ function NewBeanForm({ onClose }: { onClose: () => void }) {
             onClose();
           }}
         >
-          <SaveIcon size={16} /> שמירת פולים
+          <SaveIcon size={18} /> שמירת פולים
         </button>
       </div>
     </div>
@@ -372,7 +372,7 @@ function NewBagForm({ beanId, onClose }: { beanId: string; onClose: () => void }
             onClose();
           }}
         >
-          <PlusIcon size={15} /> הוספת שקית
+          <PlusIcon size={17} /> הוספת שקית
         </button>
       </div>
     </div>

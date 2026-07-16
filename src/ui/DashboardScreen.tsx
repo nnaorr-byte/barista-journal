@@ -82,7 +82,7 @@ export function DashboardScreen() {
   return (
     <div>
       <div className="card">
-        <h2><ChartIcon size={18} /> מבט על</h2>
+        <h2><ChartIcon size={20} /> מבט על</h2>
         <div className="stat-grid">
           <StatTile value={<CountUp value={shots.length} />} label="שוטים סה״כ" />
           <StatTile value={<CountUp value={insights.avgRating} decimals={1} />} label="דירוג ממוצע" />
@@ -97,8 +97,8 @@ export function DashboardScreen() {
         </div>
         {trend.direction !== 'insufficient' && (
           <p className="muted small" style={{ marginTop: 8, display: 'flex', gap: 7, alignItems: 'center' }}>
-            {trend.direction === 'up' && <><TrendIcon size={15} strokeWidth={2} /> <span>מגמה חיובית: {trend.previousAvg.toFixed(1)} ← {trend.recentAvg.toFixed(1)}</span></>}
-            {trend.direction === 'down' && <><TrendDownIcon size={15} strokeWidth={2} /> <span>מגמה שלילית: {trend.previousAvg.toFixed(1)} ← {trend.recentAvg.toFixed(1)}</span></>}
+            {trend.direction === 'up' && <><TrendIcon size={17} strokeWidth={2} /> <span>מגמה חיובית: {trend.previousAvg.toFixed(1)} ← {trend.recentAvg.toFixed(1)}</span></>}
+            {trend.direction === 'down' && <><TrendDownIcon size={17} strokeWidth={2} /> <span>מגמה שלילית: {trend.previousAvg.toFixed(1)} ← {trend.recentAvg.toFixed(1)}</span></>}
             {trend.direction === 'stable' && <span>יציב סביב {trend.recentAvg.toFixed(1)}</span>}
           </p>
         )}
@@ -106,7 +106,7 @@ export function DashboardScreen() {
 
       {beanComparison.length > 0 && (
         <div className="card">
-          <h2><BeanIcon size={18} /> השוואת פולים (דירוג ממוצע)</h2>
+          <h2><BeanIcon size={20} /> השוואת פולים (דירוג ממוצע)</h2>
           <BarChart
             points={beanComparison.map((b) => ({
               label: `${b.bean.name} (${b.shots})`,
@@ -119,21 +119,21 @@ export function DashboardScreen() {
 
       {roastPoints.length > 1 && (
         <div className="card">
-          <h2><FlameIcon size={18} /> השוואת קליות (דירוג ממוצע)</h2>
+          <h2><FlameIcon size={20} /> השוואת קליות (דירוג ממוצע)</h2>
           <BarChart points={roastPoints} maxValue={10} />
         </div>
       )}
 
       {grinderPoints.length > 1 && (
         <div className="card">
-          <h2><GearIcon size={18} /> פילוח לפי מטחנה (דירוג ממוצע)</h2>
+          <h2><GearIcon size={20} /> פילוח לפי מטחנה (דירוג ממוצע)</h2>
           <BarChart points={grinderPoints} maxValue={10} />
         </div>
       )}
 
       {monthly.length > 1 && (
         <div className="card">
-          <h2><CalendarIcon size={18} /> פילוח חודשי (שוטים)</h2>
+          <h2><CalendarIcon size={20} /> פילוח חודשי (שוטים)</h2>
           <BarChart
             points={monthly.slice(-12).map((m) => ({
               label: `${m.month} (ממוצע ${m.avgRating.toFixed(1)})`,
@@ -145,7 +145,7 @@ export function DashboardScreen() {
 
       {(insights.tasteProfile.length > 0 || flavorProfile.length > 0) && (
         <div className="card">
-          <h2><TasteIcon size={18} /> פרופיל הטעם שלי</h2>
+          <h2><TasteIcon size={20} /> פרופיל הטעם שלי</h2>
           <p className="muted small">אילו טעמים מופיעים בשוטים שלך, ומה הדירוג הממוצע כשהם מופיעים:</p>
           {insights.tasteProfile.length > 0 && (
             <table className="data">
@@ -186,13 +186,13 @@ export function DashboardScreen() {
       )}
 
       <div className="card">
-        <h2><TrophyIcon size={18} /> Top 10 שוטים</h2>
+        <h2><TrophyIcon size={20} /> Top 10 שוטים</h2>
         {best10.map((s) => <ShotRow key={s.id} shot={s} beanName={beanMap.get(s.beanId)?.name} />)}
       </div>
 
       {worst5.length > 0 && (
         <div className="card">
-          <h2><TrendDownIcon size={18} /> השוטים הפחות מוצלחים</h2>
+          <h2><TrendDownIcon size={20} /> השוטים הפחות מוצלחים</h2>
           <p className="muted small">כדאי להציץ מה השתבש — לרוב יש דפוס חוזר.</p>
           {worst5.map((s) => <ShotRow key={s.id} shot={s} beanName={beanMap.get(s.beanId)?.name} />)}
         </div>

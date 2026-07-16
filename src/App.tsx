@@ -84,7 +84,7 @@ export default function App() {
     <BeansBackground />
     <div className="app">
       <header className={`topbar ${scrolled ? 'scrolled' : ''}`}>
-        <h1 onClick={onLogoClick}><CupIcon size={22} /> יומן בריסטה חכם</h1>
+        <h1 onClick={onLogoClick}><CupIcon size={24} /> יומן בריסטה חכם</h1>
         <div className="topbar-actions">
           <button
             className={`theme-toggle ${screen === 'settings' ? 'active' : ''}`}
@@ -92,14 +92,14 @@ export default function App() {
             aria-label="הגדרות"
             aria-current={screen === 'settings' ? 'page' : undefined}
           >
-            <SettingsIcon size={19} />
+            <SettingsIcon size={21} />
           </button>
           <button
             className="theme-toggle"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             aria-label="החלפת מצב תצוגה"
           >
-            {theme === 'dark' ? <SunIcon size={19} /> : <MoonIcon size={19} />}
+            {theme === 'dark' ? <SunIcon size={21} /> : <MoonIcon size={21} />}
           </button>
         </div>
       </header>

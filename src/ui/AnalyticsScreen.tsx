@@ -93,7 +93,7 @@ function GrindTimeHeatmap({ shots }: { shots: Shot[] }) {
 
   return (
     <div className="card">
-      <h2><FlameIcon size={18} /> מפת חום: טחינה × זמן</h2>
+      <h2><FlameIcon size={20} /> מפת חום: טחינה × זמן</h2>
       <p className="muted small" style={{ marginTop: 0 }}>
         כל תא = דירוג ממוצע. כהה יותר = טעים יותר. חפש את "האזור החם" שלך.
       </p>
@@ -176,7 +176,7 @@ function DialInHistory({ sessions, shots, bags, beans }: {
 
   return (
     <div className="card">
-      <h2><SettingsIcon size={18} /> סשני הכיול שלי</h2>
+      <h2><SettingsIcon size={20} /> סשני הכיול שלי</h2>
       {speedInsight && <p className="small" style={{ color: 'var(--good)' }}>📈 {speedInsight}</p>}
       {sorted.slice(0, 8).map((s) => {
         const sessionShots = shots.filter((x) => x.dialInSessionId === s.id);
@@ -235,7 +235,7 @@ function CostDashboard({ shots, bags }: { shots: Shot[]; bags: Bag[] }) {
 
   return (
     <div className="card">
-      <h2><CoinIcon size={18} /> עלויות הקפה שלי</h2>
+      <h2><CoinIcon size={20} /> עלויות הקפה שלי</h2>
       <div className="stat-grid">
         <StatTile value={`₪${avgCost.toFixed(1)}`} label="עלות לשוט" />
         <StatTile value={`₪${Math.round(totalConsumed)}`} label="קפה שנצרך" />
@@ -264,7 +264,7 @@ function CoffeeWrapped({ shots, beans, onBack }: { shots: Shot[]; beans: Bean[];
   if (yearShots.length === 0) {
     return (
       <div className="card">
-        <h2><GiftIcon size={18} /> Coffee Wrapped {year}</h2>
+        <h2><GiftIcon size={20} /> Coffee Wrapped {year}</h2>
         <EmptyState icon={<GiftIcon size={40} />} text={`עדיין אין שוטים ב-${year}`} hint="ברגע שתתעד — הסיכום יתמלא." />
         <button className="btn block" onClick={onBack}>→ חזרה לניתוח</button>
       </div>
@@ -304,7 +304,7 @@ function CoffeeWrapped({ shots, beans, onBack }: { shots: Shot[]; beans: Bean[];
   return (
     <div>
       <div className="card accent">
-        <h2><GiftIcon size={18} /> Coffee Wrapped {year}</h2>
+        <h2><GiftIcon size={20} /> Coffee Wrapped {year}</h2>
         <p className="muted small" style={{ marginTop: 0 }}>השנה שלך באספרסו, במספרים.</p>
         <div className="stat-grid">
           <StatTile value={yearShots.length} label="שוטים השנה" />
@@ -316,7 +316,7 @@ function CoffeeWrapped({ shots, beans, onBack }: { shots: Shot[]; beans: Bean[];
       </div>
 
       <div className="card">
-        <h2><TrophyIcon size={18} /> השוט של השנה</h2>
+        <h2><TrophyIcon size={20} /> השוט של השנה</h2>
         <p style={{ margin: '4px 0' }}>
           <strong>{best.rating}/10</strong> · {beanMap.get(best.beanId)?.name ?? 'פולים'} ·{' '}
           {shotWeights(best)} ב-{best.brewTimeSec} שניות
@@ -325,7 +325,7 @@ function CoffeeWrapped({ shots, beans, onBack }: { shots: Shot[]; beans: Bean[];
       </div>
 
       <div className="card">
-        <h2><BeanIcon size={18} /> הפול של השנה</h2>
+        <h2><BeanIcon size={20} /> הפול של השנה</h2>
         <p style={{ margin: '4px 0' }}>
           <strong>{beanMap.get(topBeanId)?.name ?? 'פולים'}</strong>
           {beanMap.get(topBeanId)?.roastery && ` · ${beanMap.get(topBeanId)!.roastery}`}
@@ -336,7 +336,7 @@ function CoffeeWrapped({ shots, beans, onBack }: { shots: Shot[]; beans: Bean[];
 
       {topFlavors.length > 0 && (
         <div className="card">
-          <h2><TasteIcon size={18} /> הטעמים של השנה</h2>
+          <h2><TasteIcon size={20} /> הטעמים של השנה</h2>
           <div className="chips">
             {topFlavors.map(([f, n]) => (
               <span key={f} className="chip selected">{FLAVOR_LABELS[f]} × {n}</span>
@@ -347,7 +347,7 @@ function CoffeeWrapped({ shots, beans, onBack }: { shots: Shot[]; beans: Bean[];
 
       {firstAvg !== null && secondAvg !== null && (
         <div className="card">
-          <h2><TrendIcon size={18} /> המסע שלך</h2>
+          <h2><TrendIcon size={20} /> המסע שלך</h2>
           <div className="stat-grid">
             <StatTile value={firstAvg.toFixed(1)} label="ממוצע — תחילת השנה" />
             <StatTile value={secondAvg.toFixed(1)} label="ממוצע — ההמשך" />
@@ -475,7 +475,7 @@ function FreshnessCurve({ shots, bags }: { shots: Shot[]; bags: Bag[] }) {
 
   return (
     <div className="card">
-      <h2><LeafIcon size={18} /> עקומת הטריות — דירוג מול גיל קלייה</h2>
+      <h2><LeafIcon size={20} /> עקומת הטריות — דירוג מול גיל קלייה</h2>
       <ScatterChart points={points} xLabel="ימים מהקלייה" yLabel="דירוג" />
       <p className="muted small">
         ● מלא = שוט מצוין ({GOOD_RATING}+) · ○ מתאר = שאר השוטים. איפה שהמלאים מתקבצים — שם הפולים שלך בשיא.
@@ -507,7 +507,7 @@ function AdviceReliabilityCard({ shots }: { shots: Shot[] }) {
 
   return (
     <div className="card">
-      <h2><BrainIcon size={18} /> מדד אמינות המוח</h2>
+      <h2><BrainIcon size={20} /> מדד אמינות המוח</h2>
       <div className="stat-grid">
         <StatTile value={followed.length} label="המלצות שיישמת" />
         <StatTile value={succeeded} label="שיפרו / שמרו רמה" />
@@ -550,7 +550,7 @@ export function AnalyticsScreen() {
       <div>
         <DashboardScreen />
         <div className="card">
-          <h2><TrendIcon size={18} /> ניתוח מתקדם</h2>
+          <h2><TrendIcon size={20} /> ניתוח מתקדם</h2>
           <EmptyState
             icon={<TrendIcon size={40} />}
             text="הניתוח מתעורר אחרי 2 שוטים לפחות"
@@ -624,12 +624,12 @@ export function AnalyticsScreen() {
   return (
     <div>
       <div className="card accent">
-        <h2><TrendIcon size={18} /> הנתונים שלי</h2>
+        <h2><TrendIcon size={20} /> הנתונים שלי</h2>
         <p className="muted small" style={{ marginTop: 0 }}>
           {shots.length} שוטים מתועדים — מבט על, איכות, מגמות, עקביות ועלות.
         </p>
         <button className="btn secondary block" style={{ marginBottom: 12 }} onClick={() => setWrapped(true)}>
-          <GiftIcon size={16} /> Coffee Wrapped — סיכום השנה שלי
+          <GiftIcon size={18} /> Coffee Wrapped — סיכום השנה שלי
         </button>
         {/* סינון קטגוריות — כדי שלא הכל ייפול בבת אחת */}
         <div className="chips" role="group" aria-label="סינון הנתונים לפי קטגוריה">
@@ -656,7 +656,7 @@ export function AnalyticsScreen() {
       {/* ממוצעי הכנה */}
       {show('quality') && (
         <div className="card">
-          <h2><ScaleIcon size={18} /> ממוצעי ההכנה שלי</h2>
+          <h2><ScaleIcon size={20} /> ממוצעי ההכנה שלי</h2>
           <div className="stat-grid">
             <StatTile value={avgRating.toFixed(1)} label="דירוג ממוצע" />
             <StatTile value={`${Math.round(avgTime)}s`} label="זמן ממוצע" />
@@ -671,7 +671,7 @@ export function AnalyticsScreen() {
       {/* עקביות */}
       {show('consistency') && consistency !== null && (
         <div className="card">
-          <h2><TargetIcon size={18} /> מדד העקביות שלי</h2>
+          <h2><TargetIcon size={20} /> מדד העקביות שלי</h2>
           <div className="stat-grid">
             <StatTile value={consistency} label="ציון עקביות (10 אחרונים)" />
             {prevConsistency !== null && <StatTile value={prevConsistency} label="10 הקודמים" />}
@@ -691,7 +691,7 @@ export function AnalyticsScreen() {
       {/* דירוג לאורך זמן */}
       {show('quality') && (
         <div className="card">
-          <h2><StarIcon size={18} /> דירוג לאורך זמן</h2>
+          <h2><StarIcon size={20} /> דירוג לאורך זמן</h2>
           <LineChart points={ratingPoints} overlay={ratingMA} overlayLabel="ממוצע נע (5 שוטים)" />
           <p className="muted small">הקו המקווקו הוא הממוצע הנע — הוא מראה את המגמה האמיתית בלי רעש של שוט בודד.</p>
         </div>
@@ -700,7 +700,7 @@ export function AnalyticsScreen() {
       {/* זמן חליטה */}
       {show('trends') && timePoints.length >= 2 && (
         <div className="card">
-          <h2><TimerIcon size={18} /> זמן חליטה לאורך זמן</h2>
+          <h2><TimerIcon size={20} /> זמן חליטה לאורך זמן</h2>
           <LineChart points={timePoints} unit="s" band={{ from: 25, to: 32, label: 'טווח יעד 25–32' }} />
           <p className="muted small">הרצועה המודגשת היא טווח היעד הקלאסי לאספרסו. שוטים מחוץ לה — סימן לכיול נדרש.</p>
         </div>
@@ -709,7 +709,7 @@ export function AnalyticsScreen() {
       {/* יחס חליטה */}
       {show('trends') && ratioPoints.length >= 2 && (
         <div className="card">
-          <h2><ScaleIcon size={18} /> יחס חליטה (Brew Ratio) לאורך זמן</h2>
+          <h2><ScaleIcon size={20} /> יחס חליטה (Brew Ratio) לאורך זמן</h2>
           <LineChart points={ratioPoints} band={{ from: 1.8, to: 2.4, label: 'טווח קלאסי 1:1.8–1:2.4' }} />
         </div>
       )}
@@ -717,7 +717,7 @@ export function AnalyticsScreen() {
       {/* דרגת טחינה */}
       {show('trends') && grindPoints.length >= 2 && topGrinder && (
         <div className="card">
-          <h2><GearIcon size={18} /> דרגת טחינה לאורך זמן — {topGrinder.name}</h2>
+          <h2><GearIcon size={20} /> דרגת טחינה לאורך זמן — {topGrinder.name}</h2>
           <LineChart points={grindPoints} />
           <p className="muted small">מסע הכיול שלך: שינויי הטחינה מספרים איך התאמת את עצמך לפולים ולטריות שלהם.</p>
         </div>
@@ -726,7 +726,7 @@ export function AnalyticsScreen() {
       {/* Dose מול Yield */}
       {show('quality') && scatterPoints.length >= 2 && (
         <div className="card">
-          <h2><CupIcon size={18} /> מנה (Dose) מול תוצאה (Yield)</h2>
+          <h2><CupIcon size={20} /> מנה (Dose) מול תוצאה (Yield)</h2>
           <ScatterChart points={scatterPoints} xLabel="גרם נכנס (Dose)" yLabel="גרם יוצא (Yield)" />
           <p className="muted small">
             ● עיגול מלא = שוט מצוין (דירוג {GOOD_RATING}+) · ○ מתאר = שאר השוטים.
@@ -750,7 +750,7 @@ export function AnalyticsScreen() {
       {/* התפלגות הצלחה */}
       {show('quality') && (
       <div className="card">
-        <h2><MedalIcon size={18} /> התפלגות הצלחה</h2>
+        <h2><MedalIcon size={20} /> התפלגות הצלחה</h2>
         <div className="dist-bar" role="img" aria-label={`התפלגות הצלחה: ${excellent} מצוינים, ${good} טובים, ${weak} חלשים`}>
           {excellent > 0 && (
             <div className="dist-seg" style={{ flex: excellent, background: 'var(--good)' }}>
@@ -779,7 +779,7 @@ export function AnalyticsScreen() {
       {/* היסטוגרמת דירוגים */}
       {show('quality') && (
         <div className="card">
-          <h2><ChartIcon size={18} /> התפלגות הדירוגים</h2>
+          <h2><ChartIcon size={20} /> התפלגות הדירוגים</h2>
           <Histogram bins={histBins} />
         </div>
       )}
@@ -787,7 +787,7 @@ export function AnalyticsScreen() {
       {/* תובנות */}
       {show('quality') && insights.length > 0 && (
         <div className="card accent">
-          <h2><BulbIcon size={18} /> תובנות אישיות</h2>
+          <h2><BulbIcon size={20} /> תובנות אישיות</h2>
           {insights.map((ins, i) => (
             <div key={i} className="insight-item">
               <span className="insight-icon" aria-hidden="true">{ins.icon}</span>

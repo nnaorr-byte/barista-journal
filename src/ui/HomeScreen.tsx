@@ -153,7 +153,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       {/* סיכום שבועי — באנר שקט, לחיץ */}
       {week.count > 0 && (
         <button type="button" className="week-banner" onClick={() => navigate('weekly')}>
-          <TrendIcon size={15} strokeWidth={2} />
+          <TrendIcon size={17} strokeWidth={2} />
           <span>
             סיכום השבוע: <b>{week.count} {week.count === 1 ? 'שוט' : 'שוטים'}</b>
             {week.avgRating !== null && <> · ממוצע <b>{week.avgRating.toFixed(1)}</b></>}
@@ -170,7 +170,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       {/* תזכורת גיבוי */}
       {backupStatus.needsBackup && !backupDismissed && (
         <div className="card warn">
-          <h2><SaveIcon size={18} /> הגיע הזמן לגבות</h2>
+          <h2><SaveIcon size={20} /> הגיע הזמן לגבות</h2>
           <p className="muted small" style={{ margin: '0 0 8px' }}>
             {backupStatus.lastBackupAt === null
               ? `יש לך ${backupStatus.shotsSinceBackup} שוטים שמעולם לא גובו. אם המכשיר יאבד — היומן יאבד איתו.`
@@ -187,7 +187,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 else if (result === 'fallback') setBackupMsg('קובץ הגיבוי ירד למכשיר!');
               }}
             >
-              <SaveIcon size={16} /> גבה עכשיו
+              <SaveIcon size={18} /> גבה עכשיו
             </button>
             <button className="btn secondary small" onClick={() => setBackupDismissed(true)}>
               אחר כך
@@ -231,7 +231,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
                   color: freshnessNudge.tone === 'good' ? 'var(--good)' : 'var(--warn)',
                 }}
               >
-                <LeafIcon size={15} strokeWidth={2} /> <span>{freshnessNudge.text}</span>
+                <LeafIcon size={17} strokeWidth={2} /> <span>{freshnessNudge.text}</span>
               </p>
             )}
             {lowStock && (
@@ -239,11 +239,11 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 className="small"
                 style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 6, color: 'var(--warn)' }}
               >
-                <WarnIcon size={15} strokeWidth={2} /> <span>{lowStock}</span>
+                <WarnIcon size={17} strokeWidth={2} /> <span>{lowStock}</span>
               </p>
             )}
             <button className="btn block" onClick={() => navigate('new-shot')}>
-              <CupIcon size={18} /> התחל שוט חדש
+              <CupIcon size={20} /> התחל שוט חדש
             </button>
           </>
         ) : (
@@ -254,7 +254,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
               hint="הוסף פולים והכן את השוט הראשון — ההמלצות יתחילו לזרום מיד."
             />
             <button className="btn block" onClick={() => navigate(beans.length ? 'new-shot' : 'beans')}>
-              {beans.length ? <><CupIcon size={18} /> התחל שוט ראשון</> : <><BeanIcon size={17} /> הוסף פולים ראשונים</>}
+              {beans.length ? <><CupIcon size={20} /> התחל שוט ראשון</> : <><BeanIcon size={19} /> הוסף פולים ראשונים</>}
             </button>
           </>
         )}
@@ -263,7 +263,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       {/* תזכורות תחזוקה */}
       {overdueMaintenance.length > 0 && shots.length > 0 && (
         <div className="card warn">
-          <h2><BellIcon size={18} /> תזכורות תחזוקה</h2>
+          <h2><BellIcon size={20} /> תזכורות תחזוקה</h2>
           {overdueMaintenance.map((m) => (
             <div key={m.rule.kind} style={{ marginBottom: 6 }}>
               <span className="badge warn">
@@ -280,7 +280,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
       {/* סטטיסטיקה אישית */}
       <div className="card">
-        <h2><TrendIcon size={18} /> הסטטיסטיקה שלי</h2>
+        <h2><TrendIcon size={20} /> הסטטיסטיקה שלי</h2>
         <div className="stat-grid">
           <StatTile value={<CountUp value={insights.shotCount} />} label="שוטים סה״כ" />
           <StatTile
@@ -294,8 +294,8 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
         </div>
         {trend.direction !== 'insufficient' && (
           <p className="muted small" style={{ marginTop: 10, display: 'flex', gap: 7, alignItems: 'flex-start' }}>
-            {trend.direction === 'up' && <><TrendIcon size={15} strokeWidth={2} /> <span>מגמת שיפור! הדירוג הממוצע עלה מ-{trend.previousAvg.toFixed(1)} ל-{trend.recentAvg.toFixed(1)} בשוטים האחרונים.</span></>}
-            {trend.direction === 'down' && <><TrendDownIcon size={15} strokeWidth={2} /> <span>שים לב: הדירוג הממוצע ירד מ-{trend.previousAvg.toFixed(1)} ל-{trend.recentAvg.toFixed(1)}. אולי הפולים מתיישנים או שהמכונה צריכה ניקוי?</span></>}
+            {trend.direction === 'up' && <><TrendIcon size={17} strokeWidth={2} /> <span>מגמת שיפור! הדירוג הממוצע עלה מ-{trend.previousAvg.toFixed(1)} ל-{trend.recentAvg.toFixed(1)} בשוטים האחרונים.</span></>}
+            {trend.direction === 'down' && <><TrendDownIcon size={17} strokeWidth={2} /> <span>שים לב: הדירוג הממוצע ירד מ-{trend.previousAvg.toFixed(1)} ל-{trend.recentAvg.toFixed(1)}. אולי הפולים מתיישנים או שהמכונה צריכה ניקוי?</span></>}
             {trend.direction === 'stable' && <span>יציבות: הדירוג הממוצע שלך נשאר סביב {trend.recentAvg.toFixed(1)} — עקביות היא שם המשחק.</span>}
           </p>
         )}
@@ -304,7 +304,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       {/* השוט הטוב ביותר אי פעם */}
       {insights.bestShot && (
         <div className="card">
-          <h2><TrophyIcon size={18} /> השוט הטוב ביותר אי פעם</h2>
+          <h2><TrophyIcon size={20} /> השוט הטוב ביותר אי פעם</h2>
           <div className="shot-item" style={{ cursor: 'default' }}>
             <div className={`shot-rating ${ratingClass(insights.bestShot.rating)}`}>
               {insights.bestShot.rating}
@@ -325,7 +325,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       {/* פולים אחרונים */}
       {recentBeanIds.length > 0 && (
         <div className="card">
-          <h2><BeanIcon size={18} /> הפולים האחרונים שלי</h2>
+          <h2><BeanIcon size={20} /> הפולים האחרונים שלי</h2>
           {recentBeanIds.map((id) => {
             const bean = beanMap.get(id);
             if (!bean) return null;
@@ -347,7 +347,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       {/* ימי ניקיון */}
       {shots.length > 0 && (
         <div className="card">
-          <h2><SoapIcon size={18} /> תחזוקה</h2>
+          <h2><SoapIcon size={20} /> תחזוקה</h2>
           <div className="stat-grid">
             {maintenance.map((m) => (
               <StatTile

@@ -405,7 +405,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     return (
       <div key="setup" className={stepAnim}>
         <div className="card">
-          <h2><CupIcon size={18} /> שוט חדש — שלב 1: הכנה</h2>
+          <h2><CupIcon size={20} /> שוט חדש — שלב 1: הכנה</h2>
 
           {draftRestored && (
             <div className="one-var-banner" style={{ marginTop: 0, marginBottom: 12 }}>
@@ -419,7 +419,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           {lastShot && (
             <div className="btn-row" style={{ marginTop: 0, marginBottom: 12 }}>
               <button className="btn secondary" style={{ flex: 1 }} onClick={applyLastShot}>
-                <ClipboardIcon size={16} /> כמו הקודם
+                <ClipboardIcon size={18} /> כמו הקודם
               </button>
               <button
                 className="btn" style={{ flex: 1.4 }}
@@ -430,7 +430,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                   goStep('results');
                 }}
               >
-                <BoltIcon size={16} /> שוט מהיר (תיעוד ב-10 שניות)
+                <BoltIcon size={18} /> שוט מהיר (תיעוד ב-10 שניות)
               </button>
             </div>
           )}
@@ -489,7 +489,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
           {recipeShot && bagId && (
             <button className="btn block" style={{ marginBottom: 10 }} onClick={applyRecipe}>
-              <StarIcon size={16} /> הכן לפי המתכון השמור ({recipeShot.doseGrams}←{recipeShot.yieldGrams} גרם
+              <StarIcon size={18} /> הכן לפי המתכון השמור ({recipeShot.doseGrams}←{recipeShot.yieldGrams} גרם
               {recipeShot.yieldStopGrams ? `, עצירה ב-${recipeShot.yieldStopGrams}` : ''} · טחינה {recipeShot.grindSetting} · דירוג {recipeShot.rating}/10)
             </button>
           )}
@@ -557,7 +557,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       return (
         <div key="results" className={stepAnim}>
           <div className="card accent">
-            <h2><BoltIcon size={18} /> שוט מהיר</h2>
+            <h2><BoltIcon size={20} /> שוט מהיר</h2>
             <p className="muted small" style={{ marginTop: 0 }}>
               טחינה, טמפרטורה וסלסלה שוכפלו מהשוט הקודם. טעמים והערות אפשר להשלים אחר-כך מהיומן (✏️ עריכה).
             </p>
@@ -580,7 +580,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 disabled={!dose || !yieldGrams || !brewTime || rating === 0 || saving}
                 onClick={saveShot}
               >
-                <SaveIcon size={16} /> {saveError ? 'נסה לשמור שוב' : 'שמור וקבל ניתוח'}
+                <SaveIcon size={18} /> {saveError ? 'נסה לשמור שוב' : 'שמור וקבל ניתוח'}
               </button>
             </div>
             <MissingFieldsHint dose={dose} yieldGrams={yieldGrams} brewTime={brewTime} rating={rating} />
@@ -592,7 +592,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     return (
       <div key="results" className={stepAnim}>
         <div className="card">
-          <h2><ClipboardIcon size={18} /> שלב 3: תוצאות השוט</h2>
+          <h2><ClipboardIcon size={20} /> שלב 3: תוצאות השוט</h2>
 
           {draftRestored && (
             <div className="one-var-banner" style={{ marginTop: 0, marginBottom: 12 }}>
@@ -670,13 +670,13 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
             {showTasteDetail ? (
               <>
                 <span style={{ display: 'inline-flex', transform: 'rotate(180deg)' }} aria-hidden="true">
-                  <ChevronDownIcon size={15} />
+                  <ChevronDownIcon size={17} />
                 </span>{' '}
                 הסתר פירוט טעם{tasteDetailCount > 0 ? ` (${tasteDetailCount} נבחרו — נשמרים)` : ''}
               </>
             ) : (
               <>
-                <PlusIcon size={15} />{' '}
+                <PlusIcon size={17} />{' '}
                 {tasteDetailCount > 0
                   ? `הצג פירוט טעם (${tasteDetailCount} נבחרו)`
                   : 'הוסף פירוט טעם — גלגל טעמים, גוף, קרמה, אחרית'}
@@ -712,7 +712,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 }}
               >
                 <span style={{ display: 'inline-flex', transform: 'rotate(180deg)' }} aria-hidden="true">
-                  <ChevronDownIcon size={14} />
+                  <ChevronDownIcon size={16} />
                 </span>{' '}
                 הסתר פירוט טעם{tasteDetailCount > 0 ? ` (${tasteDetailCount} נבחרו — נשמרים)` : ''}
               </button>
@@ -740,7 +740,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
               disabled={!dose || !yieldGrams || !brewTime || rating === 0 || saving}
               onClick={saveShot}
             >
-              <SaveIcon size={16} /> {saveError ? 'נסה לשמור שוב' : 'שמור וקבל ניתוח'}
+              <SaveIcon size={18} /> {saveError ? 'נסה לשמור שוב' : 'שמור וקבל ניתוח'}
             </button>
           </div>
           <MissingFieldsHint dose={dose} yieldGrams={yieldGrams} brewTime={brewTime} rating={rating} />
@@ -759,7 +759,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
         <div key="coach" className={stepAnim}>
           {celebrate && <Celebration onDone={stopCelebrate} />}
           <div className="card accent">
-            <h2><BrainIcon size={18} /> מוח ה-AI</h2>
+            <h2><BrainIcon size={20} /> מוח ה-AI</h2>
             {/* אזור חי לקורא מסך — קיים בשני מצבי ה-coach, הטקסט מוכרז כשמשתנה */}
             <p className="sr-only" role="status">מנתח את השוט…</p>
             <div className="ai-thinking">
@@ -779,29 +779,29 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       <div key="coach" className={stepAnim}>
         {celebrate && <Celebration onDone={stopCelebrate} />}
         <div className="card accent">
-          <h2><BrainIcon size={18} /> מוח ה-AI — ההמלצה לשוט הבא</h2>
+          <h2><BrainIcon size={20} /> מוח ה-AI — ההמלצה לשוט הבא</h2>
           <p className="sr-only" role="status">
             הניתוח מוכן: {advice.changeKind === 'none' ? 'שמור על המתכון' : `השינוי הבא — ${advice.changeLabel}`}
           </p>
           {beanRecord && (
             <div className="record-banner">
-              <TrophyIcon size={18} /> שיא אישי לפולים האלה! עברת את השיא הקודם ({beanRecord.prevBest}/10).
+              <TrophyIcon size={20} /> שיא אישי לפולים האלה! עברת את השיא הקודם ({beanRecord.prevBest}/10).
             </div>
           )}
           <div className={`coach-verdict ${toneClass}`} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
             {advice.changeKind === 'none'
-              ? <><CheckIcon size={18} /> שמור על המתכון — אין מה לשנות</>
+              ? <><CheckIcon size={20} /> שמור על המתכון — אין מה לשנות</>
               : `השינוי הבא: ${advice.changeLabel}`}
           </div>
 
           {multiVarWarning && (
             <div className="one-var-banner" style={{ borderColor: 'var(--bad)', marginBottom: 10, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-              <WarnIcon size={16} /> <span>{multiVarWarning}</span>
+              <WarnIcon size={18} /> <span>{multiVarWarning}</span>
             </div>
           )}
           {advice.warnings.map((w, i) => (
             <div key={i} className="one-var-banner" style={{ borderColor: 'var(--warn)', marginBottom: 10, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-              <WarnIcon size={16} /> <span>{w}</span>
+              <WarnIcon size={18} /> <span>{w}</span>
             </div>
           ))}
           {advice.recipeNote && (
@@ -834,7 +834,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
             ))}
           </div>
           <div className="one-var-banner" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-            <BulbIcon size={16} /> <span>{advice.reminder}</span>
+            <BulbIcon size={18} /> <span>{advice.reminder}</span>
           </div>
 
           {savedShotId && (
@@ -852,7 +852,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 setMarkedFavorite(true);
               }}
             >
-              {markedFavorite ? <><CheckIcon size={16} /> נשמר כמתכון עבור הפולים האלה</> : <><StarIcon size={16} /> שמור כמתכון — זה השוט שאליו אחזור</>}
+              {markedFavorite ? <><CheckIcon size={18} /> נשמר כמתכון עבור הפולים האלה</> : <><StarIcon size={18} /> שמור כמתכון — זה השוט שאליו אחזור</>}
             </button>
           )}
 
@@ -870,7 +870,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 computeRecommendation();
               }}
             >
-              <CupIcon size={17} /> שוט נוסף
+              <CupIcon size={19} /> שוט נוסף
             </button>
           </div>
         </div>
@@ -1021,7 +1021,7 @@ function BrewStep({
     <div>
       {/* הטיימר למעלה */}
       <div className="card">
-        <h2><TimerIcon size={18} /> טיימר חליטה — יעד {targetMin}–{targetMax} שניות</h2>
+        <h2><TimerIcon size={20} /> טיימר חליטה — יעד {targetMin}–{targetMax} שניות</h2>
         <div
           className={`timer-ring-wrap ${zoneActive ? 'zone-active' : ''} ${stoppedInZone ? 'zone-hit' : ''}`}
           dir="ltr"
@@ -1092,7 +1092,7 @@ function BrewStep({
 
       {/* ההמלצה מתחת לטיימר */}
       <div className="card accent">
-        <h2><TargetIcon size={18} /> ההמלצה עבור {beanName}</h2>
+        <h2><TargetIcon size={20} /> ההמלצה עבור {beanName}</h2>
         <div className="stat-grid">
           <StatTile value={recommendation.doseGrams} label="גרם נכנס" />
           {recommendation.stopAtGrams !== null && (
@@ -1111,7 +1111,7 @@ function BrewStep({
         ))}
         {recommendation.beanNotes.length > 0 && (
           <>
-            <h3><ClipboardIcon size={15} /> הערות על הפולים</h3>
+            <h3><ClipboardIcon size={17} /> הערות על הפולים</h3>
             {recommendation.beanNotes.map((n, i) => (
               <p key={i} className="small" style={{ margin: '4px 0', color: 'var(--crema)' }}>• {n}</p>
             ))}
@@ -1160,7 +1160,7 @@ function QuickBagForm({ beanId, onCreated }: { beanId: string; onCreated: (bag: 
           onCreated(bag);
         }}
       >
-        <PlusIcon size={15} /> צור שקית
+        <PlusIcon size={17} /> צור שקית
       </button>
     </div>
   );

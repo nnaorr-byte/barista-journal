@@ -99,7 +99,7 @@ export function ShotsScreen() {
   return (
     <div>
       <div className="card">
-        <h2><SearchIcon size={18} /> חיפוש ביומן</h2>
+        <h2><SearchIcon size={20} /> חיפוש ביומן</h2>
         <Field label="חיפוש חופשי (פולים, הערות, תאריך, דירוג…)">
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="למשל: אתיופיה, מר, 8…" />
         </Field>
@@ -136,7 +136,7 @@ export function ShotsScreen() {
       })()}
 
       <div className="card">
-        <h2><JournalIcon size={18} /> היומן ({filtered.length} שוטים)</h2>
+        <h2><JournalIcon size={20} /> היומן ({filtered.length} שוטים)</h2>
         {compareIds.length === 1 && (
           <p className="muted small" style={{ marginTop: 0 }}>
             נבחר שוט אחד להשוואה — פתח שוט נוסף ולחץ "השווה".
@@ -156,7 +156,7 @@ export function ShotsScreen() {
               <span className={`shot-rating ${ratingClass(s.rating)}`}>{s.rating}</span>
               <span style={{ flex: 1 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  {s.favorite && <span style={{ color: 'var(--accent-strong)', display: 'inline-flex' }} title="מתכון שמור"><StarIcon size={13} filled /></span>}
+                  {s.favorite && <span style={{ color: 'var(--accent-strong)', display: 'inline-flex' }} title="מתכון שמור"><StarIcon size={15} filled /></span>}
                   {beanMap.get(s.beanId)?.name ?? 'פולים שנמחקו'}
                 </span>
                 <span className="muted small" style={{ display: 'block' }}>
@@ -168,7 +168,7 @@ export function ShotsScreen() {
                 className="muted" aria-hidden="true"
                 style={{ display: 'flex', transform: expanded === s.id ? 'rotate(180deg)' : 'none', transition: 'transform 0.22s var(--spring)' }}
               >
-                <ChevronDownIcon size={16} />
+                <ChevronDownIcon size={18} />
               </span>
             </button>
             {expanded === s.id && (
@@ -207,17 +207,17 @@ export function ShotsScreen() {
                       }
                     }}
                   >
-                    {s.favorite ? <><StarIcon size={15} filled /> הסר מתכון</> : <><StarIcon size={15} /> שמור כמתכון</>}
+                    {s.favorite ? <><StarIcon size={17} filled /> הסר מתכון</> : <><StarIcon size={17} /> שמור כמתכון</>}
                   </button>
-                  <button className="btn small secondary" onClick={() => setEditing(s)}><EditIcon size={15} /> עריכה</button>
+                  <button className="btn small secondary" onClick={() => setEditing(s)}><EditIcon size={17} /> עריכה</button>
                   <button className="btn small secondary" onClick={() => toggleCompare(s.id)}>
-                    <ScaleIcon size={15} /> {compareIds.includes(s.id) ? 'הסר מהשוואה' : 'השווה'}
+                    <ScaleIcon size={17} /> {compareIds.includes(s.id) ? 'הסר מהשוואה' : 'השווה'}
                   </button>
                   <button
                     className="btn small danger"
                     onClick={() => deleteWithUndo(s)}
                   >
-                    <TrashIcon size={15} /> מחיקה
+                    <TrashIcon size={17} /> מחיקה
                   </button>
                 </div>
               </div>
@@ -230,7 +230,7 @@ export function ShotsScreen() {
       {deletedShot && (
         <div className={`undo-toast ${toastClosing ? 'closing' : ''}`} role="status">
           <span>השוט נמחק</span>
-          <button className="btn small" onClick={undoDelete}><UndoIcon size={15} /> ביטול</button>
+          <button className="btn small" onClick={undoDelete}><UndoIcon size={17} /> ביטול</button>
         </div>
       )}
     </div>
@@ -267,14 +267,14 @@ function ShotCompare({
 
   return (
     <div className="card accent">
-      <h2><ScaleIcon size={18} /> השוואת שוטים</h2>
+      <h2><ScaleIcon size={20} /> השוואת שוטים</h2>
       <div style={{ overflowX: 'auto' }}>
         <table className="data">
           <thead>
             <tr>
               <th></th>
-              <th>שוט א׳{better === 'a' && <> <TrophyIcon size={13} /></>}</th>
-              <th>שוט ב׳{better === 'b' && <> <TrophyIcon size={13} /></>}</th>
+              <th>שוט א׳{better === 'a' && <> <TrophyIcon size={15} /></>}</th>
+              <th>שוט ב׳{better === 'b' && <> <TrophyIcon size={15} /></>}</th>
             </tr>
           </thead>
           <tbody>
@@ -348,7 +348,7 @@ function ShotAdviceBlock({ shot, shots, grinders }: { shot: Shot; shots: Shot[];
   return (
     <div style={{ background: 'var(--bg-elevated)', borderRadius: 10, padding: '9px 12px', margin: '6px 0' }}>
       <div className="coach-label" style={{ marginBottom: 4 }}>
-        <BrainIcon size={13} /> ההמלצה שקיבלת על השוט הזה{stored ? '' : ' (שחזור)'}
+        <BrainIcon size={15} /> ההמלצה שקיבלת על השוט הזה{stored ? '' : ' (שחזור)'}
       </div>
       <p className="small" style={{ margin: '3px 0' }}>{advice.diagnosis}</p>
       <p className="small" style={{ margin: '3px 0', fontWeight: 600 }}>
@@ -384,7 +384,7 @@ function EditShotForm({ shot, onClose }: { shot: Shot; onClose: () => void }) {
 
   return (
     <div className="card">
-      <h2><EditIcon size={18} /> עריכת שוט — {formatDateTime(shot.createdAt)}</h2>
+      <h2><EditIcon size={20} /> עריכת שוט — {formatDateTime(shot.createdAt)}</h2>
       <div className="field-row thirds">
         <Field label="גרם נכנס"><input type="number" step="0.1" value={dose} onChange={(e) => setDose(e.target.value)} /></Field>
         <Field label="עצירה בפועל (גרם)"><input type="number" step="0.1" placeholder="לא תועד" value={yieldStop} onChange={(e) => setYieldStop(e.target.value)} /></Field>
@@ -472,7 +472,7 @@ function EditShotForm({ shot, onClose }: { shot: Shot; onClose: () => void }) {
             onClose();
           }}
         >
-          <SaveIcon size={16} /> שמירה
+          <SaveIcon size={18} /> שמירה
         </button>
       </div>
     </div>

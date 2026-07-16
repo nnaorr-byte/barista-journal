@@ -36,7 +36,7 @@ export function SettingsScreen() {
     <div>
       {/* פרופיל */}
       <div className="card">
-        <h2><UserIcon size={18} /> הפרופיל שלי</h2>
+        <h2><UserIcon size={20} /> הפרופיל שלי</h2>
         <div className="field-row thirds">
           <Field label="מנה ברירת מחדל (גרם)">
             <input
@@ -65,7 +65,7 @@ export function SettingsScreen() {
 
       {/* תחזוקה */}
       <div className="card">
-        <h2><SoapIcon size={18} /> תיעוד תחזוקה</h2>
+        <h2><SoapIcon size={20} /> תיעוד תחזוקה</h2>
         {maintenance.map((m) => (
           <div key={m.rule.kind} className="shot-item" style={{ cursor: 'default' }}>
             <div style={{ flex: 1 }}>
@@ -92,7 +92,7 @@ export function SettingsScreen() {
                 });
               }}
             >
-              <CheckIcon size={15} /> בוצע עכשיו
+              <CheckIcon size={17} /> בוצע עכשיו
             </button>
           </div>
         ))}
@@ -100,7 +100,7 @@ export function SettingsScreen() {
 
       {/* ייצוא וגיבוי */}
       <div className="card">
-        <h2><PackageIcon size={18} /> ייצוא וגיבוי</h2>
+        <h2><PackageIcon size={20} /> ייצוא וגיבוי</h2>
         <button
           className="btn block"
           onClick={async () => {
@@ -109,7 +109,7 @@ export function SettingsScreen() {
             else if (result === 'fallback') setMessage('קובץ הגיבוי ירד למכשיר!');
           }}
         >
-          <SaveIcon size={16} /> גבה ושתף (וואטסאפ / מייל)
+          <SaveIcon size={18} /> גבה ושתף (וואטסאפ / מייל)
         </button>
         <p className="muted small" style={{ margin: '6px 0 10px' }}>
           {getLastBackupAt()
@@ -118,13 +118,13 @@ export function SettingsScreen() {
         </p>
         <div className="btn-row">
           <button className="btn secondary" onClick={() => exportCsv(shots, beans)}>
-            <ClipboardIcon size={15} /> ייצוא CSV
+            <ClipboardIcon size={17} /> ייצוא CSV
           </button>
           <button className="btn secondary" onClick={() => exportExcel(shots, beans)}>
-            <ChartIcon size={15} /> ייצוא Excel
+            <ChartIcon size={17} /> ייצוא Excel
           </button>
           <button className="btn secondary" onClick={async () => { await exportBackup(); setMessage('קובץ הגיבוי ירד למכשיר!'); }}>
-            <SaveIcon size={15} /> גיבוי מלא (JSON)
+            <SaveIcon size={17} /> גיבוי מלא (JSON)
           </button>
         </div>
         <hr className="sep" />
@@ -150,7 +150,7 @@ export function SettingsScreen() {
                   setPendingRestore(null);
                 }}
               >
-                <SaveIcon size={15} /> שחזר והחלף הכל
+                <SaveIcon size={17} /> שחזר והחלף הכל
               </button>
               <button className="btn small secondary" onClick={() => setPendingRestore(null)}>
                 ביטול
@@ -163,11 +163,11 @@ export function SettingsScreen() {
 
       {/* אזור מסוכן */}
       <div className="card warn">
-        <h2><WarnIcon size={18} /> אזור מסוכן</h2>
+        <h2><WarnIcon size={20} /> אזור מסוכן</h2>
         <p className="muted small">מחיקת כל ההיסטוריה — כל השוטים, הפולים והתיעודים. מומלץ לגבות קודם.</p>
         <ConfirmButton
           className="btn danger"
-          label={<><TrashIcon size={15} /> מחיקת כל ההיסטוריה</>}
+          label={<><TrashIcon size={17} /> מחיקת כל ההיסטוריה</>}
           confirmLabel="בטוח? לחיצה נוספת תמחק הכל לצמיתות"
           onConfirm={async () => {
             await wipeAllData();
@@ -218,7 +218,7 @@ function EquipmentCard({ machines, grinders, userId }: {
 
   return (
     <div className="card">
-      <h2><ToolsIcon size={18} /> הציוד שלי</h2>
+      <h2><ToolsIcon size={20} /> הציוד שלי</h2>
 
       <h3 style={{ marginTop: 4 }}>מכונות אספרסו</h3>
       {machines.map((m) => (
@@ -232,9 +232,9 @@ function EquipmentCard({ machines, grinders, userId }: {
             {!m.isDefault && (
               <button className="btn small secondary" onClick={() => machineRepo.setDefault(m.id)}>ברירת מחדל</button>
             )}
-            <button className="btn small secondary" aria-label={`עריכת ${m.name}`} onClick={() => setEditingMachine(m)}><EditIcon size={16} /></button>
+            <button className="btn small secondary" aria-label={`עריכת ${m.name}`} onClick={() => setEditingMachine(m)}><EditIcon size={18} /></button>
             {machines.length > 1 && (
-              <button className="btn small danger" aria-label={`מחיקת ${m.name}`} onClick={() => removeMachine(m)}><TrashIcon size={16} /></button>
+              <button className="btn small danger" aria-label={`מחיקת ${m.name}`} onClick={() => removeMachine(m)}><TrashIcon size={18} /></button>
             )}
           </div>
         </div>
@@ -261,7 +261,7 @@ function EquipmentCard({ machines, grinders, userId }: {
           }}
         />
       ) : (
-        <button className="btn small secondary" onClick={() => setAddingMachine(true)}><PlusIcon size={15} /> מכונה חדשה</button>
+        <button className="btn small secondary" onClick={() => setAddingMachine(true)}><PlusIcon size={17} /> מכונה חדשה</button>
       )}
 
       <hr className="sep" />
@@ -276,9 +276,9 @@ function EquipmentCard({ machines, grinders, userId }: {
             {!g.isDefault && (
               <button className="btn small secondary" onClick={() => grinderRepo.setDefault(g.id)}>ברירת מחדל</button>
             )}
-            <button className="btn small secondary" aria-label={`עריכת ${g.name}`} onClick={() => setEditingGrinder(g)}><EditIcon size={16} /></button>
+            <button className="btn small secondary" aria-label={`עריכת ${g.name}`} onClick={() => setEditingGrinder(g)}><EditIcon size={18} /></button>
             {grinders.length > 1 && (
-              <button className="btn small danger" aria-label={`מחיקת ${g.name}`} onClick={() => removeGrinder(g)}><TrashIcon size={16} /></button>
+              <button className="btn small danger" aria-label={`מחיקת ${g.name}`} onClick={() => removeGrinder(g)}><TrashIcon size={18} /></button>
             )}
           </div>
         </div>
@@ -302,7 +302,7 @@ function EquipmentCard({ machines, grinders, userId }: {
           }}
         />
       ) : (
-        <button className="btn small secondary" onClick={() => setAddingGrinder(true)}><PlusIcon size={15} /> מטחנה חדשה</button>
+        <button className="btn small secondary" onClick={() => setAddingGrinder(true)}><PlusIcon size={17} /> מטחנה חדשה</button>
       )}
 
       {msg && <p className="small" style={{ marginTop: 10 }}>{msg}</p>}
@@ -334,7 +334,7 @@ function MachineForm({ initial, onSave, onClose }: {
           className="btn small" disabled={!name.trim()}
           onClick={() => onSave(name.trim(), portafilters.split(',').map((p) => p.trim()).filter(Boolean))}
         >
-          <SaveIcon size={16} /> שמירה
+          <SaveIcon size={18} /> שמירה
         </button>
       </div>
     </div>
@@ -386,7 +386,7 @@ function GrinderForm({ initial, onSave, onClose }: {
             scaleStep: parseFloat(scaleStep) || 1,
           })}
         >
-          <SaveIcon size={16} /> שמירה
+          <SaveIcon size={18} /> שמירה
         </button>
       </div>
     </div>

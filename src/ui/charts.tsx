@@ -135,38 +135,42 @@ export function LineChart({
 export function BarChart({ points, unit = '', maxValue }: { points: Point[]; unit?: string; maxValue?: number }) {
   if (points.length === 0) return <p className="muted small">אין נתונים עדיין.</p>;
 
-  const rowH = 34;
+  // viewBox צר (312 — רוחב הכרטיס בטלפון) + הגבלת רוחב תצוגה — כך הטקסט
+  // מוצג בגודל קריא אמיתי (~13.5px) במקום להתכווץ פי שניים כמו ב-viewBox 640.
+  const BW = 312;
+  const rowH = 30;
   const height = points.length * rowH + 8;
-  const labelW = 150;
-  const valueW = 52;
-  const barMax = W - labelW - valueW - 16;
+  const labelW = 118;
+  const valueW = 42;
+  const barMax = BW - labelW - valueW - 14;
   const max = maxValue ?? Math.max(...points.map((p) => p.value)) * 1.05;
 
   return (
     // dir=ltr כדי ש-textAnchor יתנהג עקבית; המחרוזות בעברית מוצגות נכון בזכות bidi
     <div className="chart-wrap" dir="ltr">
       <svg
-        className="chart-svg" viewBox={`0 0 ${W} ${height}`} role="img"
+        className="chart-svg" viewBox={`0 0 ${BW} ${height}`} role="img"
+        style={{ maxWidth: 380 }}
         aria-label={`גרף השוואה: ${points.map((p) => `${p.label} ${formatVal(p.value)}${unit}`).join(', ')}`}
       >
         {points.map((p, i) => {
           const barW = Math.max(3, (p.value / max) * barMax);
-          const yPos = i * rowH + 6;
+          const yPos = i * rowH + 5;
           return (
             <g key={i}>
-              <text x={W - 4} y={yPos + 15} textAnchor="end" fontSize="12" fill="var(--text)">
-                {truncate(p.label, 20)}
+              <text x={BW - 4} y={yPos + 14} textAnchor="end" fontSize="13.5" fill="var(--text)">
+                {truncate(p.label, 16)}
               </text>
               {/* RTL: הבר גדל מימין לשמאל */}
               <rect
-                x={W - labelW - 8 - barW} y={yPos} width={barW} height={20} rx="4"
+                x={BW - labelW - 8 - barW} y={yPos} width={barW} height={19} rx="4"
                 fill={ACCENT}
               >
                 <title>{`${p.label}: ${p.value}${unit}`}</title>
               </rect>
               <text
-                x={W - labelW - 14 - barW} y={yPos + 15}
-                textAnchor="end" fontSize="12" fontWeight="700" fill="var(--text)"
+                x={BW - labelW - 13 - barW} y={yPos + 14}
+                textAnchor="end" fontSize="13.5" fontWeight="700" fill="var(--text)"
               >
                 {formatVal(p.value)}{unit}
               </text>

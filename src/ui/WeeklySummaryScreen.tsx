@@ -66,7 +66,7 @@ export function WeeklySummaryScreen() {
   return (
     <div>
       <div className="card accent">
-        <h2><TrendIcon size={18} /> סיכום שבועי</h2>
+        <h2><TrendIcon size={20} /> סיכום שבועי</h2>
 
         <div className="wk-nav">
           <button
@@ -135,7 +135,7 @@ export function WeeklySummaryScreen() {
 
       {wk.count > 0 && (
         <div className="card">
-          <h2><ChartIcon size={18} /> שוטים לפי יום</h2>
+          <h2><ChartIcon size={20} /> שוטים לפי יום</h2>
           <div className="wk-days">
             {wk.days.map((n, i) => (
               <span className="wk-day" key={i}>
@@ -153,7 +153,7 @@ export function WeeklySummaryScreen() {
 
       {wk.bestShot && (
         <div className="card">
-          <h2><TrophyIcon size={18} /> השוט של השבוע</h2>
+          <h2><TrophyIcon size={20} /> השוט של השבוע</h2>
           <div className="shot-item" style={{ cursor: 'default' }}>
             <span className={`shot-rating ${ratingClass(wk.bestShot.rating)}`}>{wk.bestShot.rating}</span>
             <span style={{ flex: 1 }}>
@@ -169,7 +169,7 @@ export function WeeklySummaryScreen() {
 
       {insight && (
         <div className="one-var-banner" style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 12 }}>
-          <BulbIcon size={16} /> <span>{insight}</span>
+          <BulbIcon size={18} /> <span>{insight}</span>
         </div>
       )}
     </div>

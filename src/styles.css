@@ -898,6 +898,105 @@ table.data th { color: var(--text-muted); font-weight: 700; font-size: 0.75rem; 
   100% { transform: scale(1); }
 }
 
+/* ---- סיכום שבועי ---- */
+/* באנר שקט במסך הבית (וריאציה C מהפרוטוטייפ) */
+button.week-banner {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  background: color-mix(in srgb, var(--accent) 9%, var(--bg-elevated));
+  border: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-bottom: 12px;
+  font-size: 0.86rem;
+  font-family: inherit;
+  color: var(--crema);
+  text-align: start;
+  cursor: pointer;
+  transition: border-color var(--speed), transform 0.14s var(--spring);
+}
+[data-theme='light'] button.week-banner { color: #6e3f10; }
+button.week-banner svg { color: var(--accent-strong); flex: none; }
+button.week-banner b { font-variant-numeric: tabular-nums; }
+button.week-banner:hover { border-color: var(--glass-border); }
+button.week-banner:active { transform: scale(0.98); }
+
+/* ניווט בין שבועות */
+.wk-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.wk-nav button {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-soft);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 1.15rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color var(--speed), transform 0.14s var(--spring), opacity var(--speed);
+}
+.wk-nav button:hover:not(:disabled) { border-color: var(--glass-border); }
+.wk-nav button:active:not(:disabled) { transform: scale(0.9); }
+.wk-nav button:disabled { opacity: 0.3; cursor: default; }
+.wk-range { font-weight: 700; color: var(--crema); font-size: 0.95rem; text-align: center; }
+
+/* טבעת הממוצע השבועי — אחותה של טבעת הטיימר */
+.wk-ring { display: flex; justify-content: center; margin: 4px 0 12px; position: relative; }
+.wk-ring svg { display: block; }
+.wk-ring-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.wk-ring-num .n {
+  font-size: 2.1rem;
+  font-weight: 800;
+  color: var(--accent-strong);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.wk-ring-num .l { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-top: 4px; }
+
+/* עמודות שוטים לפי יום */
+.wk-days {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 96px;
+  padding: 0 4px;
+  margin-top: 4px;
+}
+.wk-day {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  height: 100%;
+}
+.wk-day i {
+  width: 100%;
+  max-width: 26px;
+  border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(180deg, var(--accent-strong), var(--accent));
+  display: block;
+  min-height: 5px;
+}
+.wk-day i.z { background: var(--bg-elevated); border: 1px solid var(--border-soft); }
+.wk-day em { font-style: normal; font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
+
 /* ---- הפחתת תנועה: כיבוי כל האנימציות ---- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

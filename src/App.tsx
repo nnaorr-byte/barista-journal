@@ -4,6 +4,7 @@ import { NewShotScreen } from './ui/NewShotScreen';
 import { ShotsScreen } from './ui/ShotsScreen';
 import { BeansScreen } from './ui/BeansScreen';
 import { AnalyticsScreen } from './ui/AnalyticsScreen';
+import { WeeklySummaryScreen } from './ui/WeeklySummaryScreen';
 import { SettingsScreen } from './ui/SettingsScreen';
 import { BeansBackground } from './ui/BeansBackground';
 import {
@@ -11,7 +12,7 @@ import {
 } from './ui/icons';
 import type { ReactNode } from 'react';
 
-export type Screen = 'home' | 'new-shot' | 'shots' | 'beans' | 'dashboard' | 'settings';
+export type Screen = 'home' | 'new-shot' | 'shots' | 'beans' | 'dashboard' | 'settings' | 'weekly';
 
 // "שוט חדש" הוא הכפתור המרכזי המורם (FAB); השאר אייקוני קו משני צדדיו.
 // הגדרות — בכפתור העליון ליד מתג יום/לילה; הניתוח מוזג לעמוד הנתונים.
@@ -111,6 +112,8 @@ export default function App() {
         {screen === 'beans' && <BeansScreen />}
         {/* עמוד הנתונים המאוחד — "מבט על" (הדשבורד) הוא קטגוריה בתוך הניתוח */}
         {screen === 'dashboard' && <AnalyticsScreen />}
+        {/* סיכום שבועי — מסך צלילה מהבאנר בבית; Back מחזיר הביתה דרך ההיסטוריה */}
+        {screen === 'weekly' && <WeeklySummaryScreen />}
         {screen === 'settings' && <SettingsScreen />}
       </main>
 

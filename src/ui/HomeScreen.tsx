@@ -6,7 +6,7 @@ import { recommendShot, confidenceLabel, daysSince } from '../services/recommend
 import { computeMaintenanceStatus } from '../services/maintenance';
 import { computeBackupStatus, shareBackup } from '../services/importExport';
 import { computeFreshness, computeWinningWindow } from '../services/freshness';
-import { computeBagUsage, ratingTrend } from '../services/stats';
+import { computeBagUsage, ratingTrend, weeklySummary } from '../services/stats';
 import { shotRatio, type RoastLevel } from '../domain/types';
 import { CountUp, StatTile, EmptyState } from './components';
 import { formatDateTime, ratingClass, shotWeights } from './labels';
@@ -32,6 +32,12 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const { user, shots, beans, bags, events, grinders } = data;
 
   const greeting = timeGreeting(user?.name);
+
+  // באנר הסיכום השבועי (וריאציה C מהפרוטוטייפ) — שקט, מעל ההמלצה
+  const week = weeklySummary(shots);
+  const weekDiff = week.avgRating !== null && week.prevAvg !== null
+    ? Math.round((week.avgRating - week.prevAvg) * 10) / 10
+    : null;
 
   const beanMap = new Map(beans.map((b) => [b.id, b]));
   const roastMap = new Map<string, RoastLevel>(beans.map((b) => [b.id, b.roastLevel]));
@@ -143,6 +149,23 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
         <div className="greeting-main">{greeting.main}</div>
         <div className="greeting-sub">{greeting.sub}</div>
       </div>
+
+      {/* סיכום שבועי — באנר שקט, לחיץ */}
+      {week.count > 0 && (
+        <button type="button" className="week-banner" onClick={() => navigate('weekly')}>
+          <TrendIcon size={15} strokeWidth={2} />
+          <span>
+            סיכום השבוע: <b>{week.count} {week.count === 1 ? 'שוט' : 'שוטים'}</b>
+            {week.avgRating !== null && <> · ממוצע <b>{week.avgRating.toFixed(1)}</b></>}
+            {weekDiff !== null && weekDiff !== 0 && (
+              <b style={{ color: weekDiff > 0 ? 'var(--good)' : 'var(--warn)' }}>
+                {' '}{weekDiff > 0 ? '‎↑' : '‎↓'}{Math.abs(weekDiff).toFixed(1)}
+              </b>
+            )}
+            {' '}— הקש לפרטים
+          </span>
+        </button>
+      )}
 
       {/* תזכורת גיבוי */}
       {backupStatus.needsBackup && !backupDismissed && (

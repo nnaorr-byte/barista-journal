@@ -1,4 +1,4 @@
-import type { AiAdvice, AiTargets, Grinder, Shot, TasteTag } from '../domain/types';
+import type { AiAdvice, AiTargets, Grinder, MachineTempSetting, Shot, TasteTag } from '../domain/types';
 import { auditAdviceHistory } from './adviceAudit';
 
 // ============================================================
@@ -57,6 +57,37 @@ function alreadyAdjustedYield(
   const adjusted = direction === 'up' ? delta >= 1.5 : delta <= -1.5;
   return adjusted && prev.tasteTags.includes(taste as TasteTag);
 }
+
+// ---- הסלמת תיקון: אילו כלים כבר נוסו על "רצף" תלונות מאותו טעם ----
+// רצף = שוטים רצופים (מהחדש לישן) שכולם נשאו את אותו טעם שלילי, כולל האחרון.
+// כך יודעים אם Yield וטחינה כבר מוצו — ואפשר להסלים לטמפרטורה.
+function negativeStreak(history: Shot[], last: Shot, taste: TasteTag): Shot[] {
+  const idx = history.findIndex((s) => s.id === last.id);
+  if (idx < 0) return [last];
+  const streak: Shot[] = [];
+  for (let i = idx; i >= 0; i--) {
+    if (history[i].tasteTags.includes(taste)) streak.unshift(history[i]);
+    else break;
+  }
+  return streak;
+}
+
+// מה כבר שונה לאורך הרצף (בין שוטים עוקבים)
+function remediesTried(streak: Shot[]): { yieldChanged: boolean; grindChanged: boolean } {
+  let yieldChanged = false;
+  let grindChanged = false;
+  for (let i = 1; i < streak.length; i++) {
+    if (Math.abs(streak[i].yieldGrams - streak[i - 1].yieldGrams) >= 1.5) yieldChanged = true;
+    if (Math.abs(streak[i].grindSetting - streak[i - 1].grindSetting) >= 0.01) grindChanged = true;
+  }
+  return { yieldChanged, grindChanged };
+}
+
+// ---- טמפרטורה: כלי כיול שלישי, רק אחרי שמוצו Yield וטחינה ----
+const TEMP_ORDER: MachineTempSetting[] = ['low', 'medium', 'high'];
+const TEMP_HE: Record<MachineTempSetting, string> = {
+  low: 'נמוכה', medium: 'בינונית', high: 'גבוהה',
+};
 
 // ---- מתכון מוצלח: favorite או השוט הטוב ביותר (8+ עם טעם חיובי) ----
 function findRecipe(history: Shot[], last: Shot): Shot | null {
@@ -158,6 +189,7 @@ export function aiRecommend(params: {
     doseGrams: last.doseGrams,
     yieldGrams: last.yieldGrams,
     grindSetting: last.grindSetting,
+    machineTemp: last.machineTemp,
   };
 
   // ---- הפרדת מטחנות: החלפת מטחנה = ניתוח מתחיל מחדש ----
@@ -230,6 +262,31 @@ export function aiRecommend(params: {
     changeKind = 'yield';
     changeLabel = 'Yield — הקטנה';
     instruction = `הקטן את ה-Yield ב-2–4 גרם: כוון ליעד סופי של ${targets.yieldGrams} גרם בכוס (במקום ${last.yieldGrams}). טחינה ומנה נשארות זהות.`;
+  };
+  // טמפרטורה — כלי הכיול השלישי (רק אחרי שמוצו Yield וטחינה)
+  const tempUp = () => {
+    const i = TEMP_ORDER.indexOf(last.machineTemp);
+    const next = TEMP_ORDER[Math.min(TEMP_ORDER.length - 1, i + 1)];
+    targets.machineTemp = next;
+    changeKind = 'temp';
+    changeLabel = 'טמפרטורה — העלאה';
+    if (next === last.machineTemp) {
+      instruction = `הטמפרטורה כבר בשיא (${TEMP_HE[last.machineTemp]}) — מיצית את כל כלי הכיול לחמיצות. אם היא נמשכת, ייתכן שהפולים חמוצים באופיים או טריים מדי (Degassing).`;
+    } else {
+      instruction = `העלה את טמפרטורת המכונה מ${TEMP_HE[last.machineTemp]} ל${TEMP_HE[next]}. טחינה, Yield ומנה נשארים זהים — מים חמים יותר מעמיקים את החילוץ.`;
+    }
+  };
+  const tempDown = () => {
+    const i = TEMP_ORDER.indexOf(last.machineTemp);
+    const next = TEMP_ORDER[Math.max(0, i - 1)];
+    targets.machineTemp = next;
+    changeKind = 'temp';
+    changeLabel = 'טמפרטורה — הורדה';
+    if (next === last.machineTemp) {
+      instruction = `הטמפרטורה כבר במינימום (${TEMP_HE[last.machineTemp]}) — מיצית את כל כלי הכיול למרירות. אם היא נמשכת, ייתכן שהפולים קלויים כהה מאוד או ישנים.`;
+    } else {
+      instruction = `הורד את טמפרטורת המכונה מ${TEMP_HE[last.machineTemp]} ל${TEMP_HE[next]}. טחינה, Yield ומנה נשארים זהים — מים קרירים יותר ממתנים את החילוץ ומפחיתים מרירות.`;
+    }
   };
 
   // ---- עדיפות למתכון מוצלח (עיקרון 4) ----
@@ -304,9 +361,15 @@ export function aiRecommend(params: {
         break;
       case 'negative':
         switch (cls.taste) {
-          case 'sour':
-            if (alreadyAdjustedYield(prev, last, 'up', 'sour')) {
-              diagnosis = `עדיין חמוץ למרות שה-Yield כבר הוגדל בשוט הקודם — הגדלת Yield מוצתה. עוברים לטחינה.`;
+          case 'sour': {
+            // הסלמה: Yield ← טחינה ← טמפרטורה, לפי מה שכבר נוסה ברצף התלונות
+            const tried = remediesTried(negativeStreak(history, last, 'sour'));
+            if (tried.yieldChanged && tried.grindChanged) {
+              diagnosis = 'עדיין חמוץ אחרי שגם ה-Yield וגם הטחינה כבר נוסו — מיצינו את שני הכלים הראשונים. הכלי הבא הוא טמפרטורה.';
+              tempUp();
+              expectedResult = 'מים חמים יותר יעמיקו את החילוץ וימיסו את החמיצות שנותרה.';
+            } else if (tried.yieldChanged) {
+              diagnosis = 'עדיין חמוץ למרות שה-Yield כבר הוגדל — הגדלת Yield מוצתה. עוברים לטחינה.';
               grindFiner();
               expectedResult = 'חילוץ עמוק יותר שימיס את החמיצות במתיקות.';
             } else {
@@ -316,9 +379,15 @@ export function aiRecommend(params: {
             }
             tone = 'warn';
             break;
-          case 'bitter':
-            if (alreadyAdjustedYield(prev, last, 'down', 'bitter')) {
-              diagnosis = `עדיין מר למרות שה-Yield כבר הוקטן — הקטנת Yield מוצתה. עוברים לטחינה.`;
+          }
+          case 'bitter': {
+            const tried = remediesTried(negativeStreak(history, last, 'bitter'));
+            if (tried.yieldChanged && tried.grindChanged) {
+              diagnosis = 'עדיין מר אחרי שגם ה-Yield וגם הטחינה כבר נוסו — מיצינו את שני הכלים הראשונים. הכלי הבא הוא טמפרטורה.';
+              tempDown();
+              expectedResult = 'מים קרירים יותר ימתנו את החילוץ ויעצרו לפני התרכובות המרות.';
+            } else if (tried.yieldChanged) {
+              diagnosis = 'עדיין מר למרות שה-Yield כבר הוקטן — הקטנת Yield מוצתה. עוברים לטחינה.';
               grindCoarser();
               expectedResult = 'חילוץ מתון יותר שיעצור לפני התרכובות המרות.';
             } else {
@@ -328,6 +397,7 @@ export function aiRecommend(params: {
             }
             tone = 'warn';
             break;
+          }
           case 'dry':
             if (alreadyAdjustedYield(prev, last, 'up', 'dry')) {
               diagnosis = `עדיין יבש למרות הגדלת ה-Yield — עוברים לטחינה גסה יותר להפחתת העפיצות.`;
@@ -384,7 +454,7 @@ export function aiRecommend(params: {
   // ההיסטוריה נושאת את ההמלצות שנשמרו עם כל שוט — המוח בודק את הרקורד של עצמו.
   // (cast: TS לא עוקב אחרי השמות שקורות בתוך ה-closures של grindFiner וכו')
   const finalKind = changeKind as AiAdvice['changeKind'];
-  if (finalKind === 'grind' || finalKind === 'yield' || finalKind === 'dose') {
+  if (finalKind === 'grind' || finalKind === 'yield' || finalKind === 'dose' || finalKind === 'temp') {
     const sameKindFollowed = auditAdviceHistory(history)
       .filter((o) => o.changeKind === finalKind && o.followed);
     if (sameKindFollowed.length > 0 && sameKindFollowed.every((o) => !o.improved)) {

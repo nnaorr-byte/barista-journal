@@ -142,13 +142,14 @@ export interface AiTargets {
   doseGrams: number;
   yieldGrams: number;
   grindSetting: number;
+  machineTemp?: MachineTempSetting; // יעד טמפרטורה (כשהמוח ממליץ לשנות אותה)
 }
 
 export interface AiAdvice {
   tone: 'good' | 'warn' | 'bad' | 'info';
   lastShotSummary: string; // 1. סיכום השוט האחרון
   diagnosis: string; // 2. אבחון
-  changeKind: 'none' | 'grind' | 'yield' | 'dose' | 'prep' | 'recipe';
+  changeKind: 'none' | 'grind' | 'yield' | 'dose' | 'temp' | 'prep' | 'recipe';
   changeLabel: string; // 3. השינוי היחיד
   instruction: string;
   targets: AiTargets; // הפרמטרים המומלצים לשוט הבא

@@ -277,6 +277,8 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       setGrindSetting(String(rec.grindSetting));
     }
     if (yieldGrams === '') setYieldGrams(String(rec.yieldGrams));
+    // כשהמוח ממליץ על טמפרטורה (או ממשיך את זו של השוט האחרון) — נטען מראש
+    setTemp(rec.machineTemp);
     goStep('brew');
   }
 
@@ -1102,6 +1104,9 @@ function BrewStep({
           <StatTile value={`${recommendation.brewTimeSecMin}–${recommendation.brewTimeSecMax}`} label="יעד שניות" />
           <StatTile value={`1:${recommendation.ratio}`} label="יחס" />
           {recommendation.grindSetting !== null && <StatTile value={recommendation.grindSetting} label="טחינה" />}
+          {recommendation.machineTemp !== 'medium' && (
+            <StatTile value={TEMP_LABELS[recommendation.machineTemp]} label="טמפרטורה" />
+          )}
         </div>
         <p className="muted small" style={{ marginTop: 8 }}>
           {confidenceLabel(recommendation.confidence, recommendation.basedOnShots)}

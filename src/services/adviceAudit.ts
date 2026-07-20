@@ -16,7 +16,7 @@ export interface AdviceOutcome {
 }
 
 // המלצות מדידות בלבד — prep/recipe לא ניתנות לשיפוט מהפרמטרים
-const MEASURABLE: AiAdvice['changeKind'][] = ['none', 'grind', 'yield', 'dose'];
+const MEASURABLE: AiAdvice['changeKind'][] = ['none', 'grind', 'yield', 'dose', 'temp'];
 
 // האם השוט הבא יישם את יעדי ההמלצה (עם סובלנות מדידה סבירה)
 export function isAdviceFollowed(advice: AiAdvice, next: Shot): boolean {
@@ -28,6 +28,8 @@ export function isAdviceFollowed(advice: AiAdvice, next: Shot): boolean {
       return Math.abs(next.yieldGrams - t.yieldGrams) <= 2;
     case 'dose':
       return Math.abs(next.doseGrams - t.doseGrams) <= 0.3;
+    case 'temp':
+      return t.machineTemp != null && next.machineTemp === t.machineTemp;
     case 'none':
       // "אל תשנה דבר" — יושם אם באמת לא שונה דבר מהותי
       return (

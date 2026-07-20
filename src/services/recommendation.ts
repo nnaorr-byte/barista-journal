@@ -1,6 +1,6 @@
 import {
-  shotRatio, type Bag, type Bean, type Grinder, type RoastLevel, type Shot,
-  type ShotRecommendation, type UserProfile,
+  shotRatio, type Bag, type Bean, type Grinder, type MachineTempSetting, type RoastLevel,
+  type Shot, type ShotRecommendation, type UserProfile,
 } from '../domain/types';
 import { learningConfidence } from './learning';
 import { aiRecommend } from './aiEngine';
@@ -47,6 +47,7 @@ export function recommendShot(params: {
   const reasons: string[] = [];
   const beanNotes: string[] = [];
   const defaults = ROAST_DEFAULTS[bean.roastLevel];
+  let recommendedTemp: MachineTempSetting = 'medium';
 
   const dose = params.doseGrams ?? user.defaultDoseGrams;
 
@@ -124,6 +125,7 @@ export function recommendShot(params: {
     // (שינוי של צעד אחד לכל היותר, או אותה דרגה אם אין צורך בשינוי) —
     // והיא מחליפה את שורת ההסבר הישנה כדי שלא יהיו שני מספרים סותרים.
     grindSetting = ai.targets.grindSetting;
+    recommendedTemp = ai.targets.machineTemp ?? last.machineTemp;
     const oldGrindReason = reasons.findIndex((r) => r.startsWith('דרגת טחינה'));
     if (oldGrindReason !== -1) reasons.splice(oldGrindReason, 1);
 
@@ -171,7 +173,7 @@ export function recommendShot(params: {
     brewTimeSecMax: timeMax,
     ratio: Math.round(ratio * 10) / 10,
     grindSetting,
-    machineTemp: 'medium',
+    machineTemp: recommendedTemp,
     confidence,
     basedOnShots: beanShots.length,
     reasons,

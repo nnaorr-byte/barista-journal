@@ -997,6 +997,35 @@ button.week-banner:active { transform: scale(0.98); }
 .wk-day i.z { background: var(--bg-elevated); border: 1px solid var(--border-soft); }
 .wk-day em { font-style: normal; font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
 
+/* ---- מצב "למה?" — פירוט ההמלצה מתקפל ---- */
+.why-details { margin: 4px 0 2px; }
+.why-details > summary {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--crema);
+  padding: 4px 0;
+  min-height: 32px;
+  user-select: none;
+}
+.why-details > summary::-webkit-details-marker { display: none; }
+.why-details > summary::after {
+  content: '⌄';
+  font-size: 0.95rem;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+.why-details[open] > summary::after { transform: rotate(180deg); }
+.why-details > summary:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
 /* ---- הפחתת תנועה: כיבוי כל האנימציות ---- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

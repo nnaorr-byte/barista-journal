@@ -85,6 +85,21 @@ export interface Trend {
   previousAvg: number;
 }
 
+// ===== חלון היעד ("הדופק שלך") =====
+// שוט "בחלון היעד" = גם זמן חליטה בטווח הקלאסי וגם דירוג מצוין.
+// זהו המדד ל"עקביות אמיתית" — לא רק שוט טוב במקרה, אלא שוט מכוון שהצליח.
+export const TARGET_TIME_MIN = 22;
+export const TARGET_TIME_MAX = 32;
+export const TARGET_RATING = 8;
+
+export function isInTarget(s: Shot): boolean {
+  return (
+    s.brewTimeSec >= TARGET_TIME_MIN &&
+    s.brewTimeSec <= TARGET_TIME_MAX &&
+    s.rating >= TARGET_RATING
+  );
+}
+
 // ===== סיכום שבועי =====
 // שבוע ישראלי: ראשון–שבת, בזמן מקומי.
 
@@ -106,6 +121,10 @@ export interface WeeklySummary {
   daysWithCoffee: number;
   prevCount: number;
   prevAvg: number | null;
+  // הדופק שלך: אחוז השוטים בחלון היעד (זמן 22–32 שנ' + דירוג 8+)
+  inTargetCount: number;
+  inTargetPct: number | null;
+  prevInTargetPct: number | null;
 }
 
 // offset=0 → השבוע הנוכחי, 1 → שעבר, וכן הלאה
@@ -134,6 +153,7 @@ export function weeklySummary(shots: Shot[], offset = 0): WeeklySummary {
   }
   const rated = wk.filter((s) => s.rating > 0);
   const prevRated = prev.filter((s) => s.rating > 0);
+  const inTargetCount = wk.filter(isInTarget).length;
   return {
     start,
     end,
@@ -145,6 +165,11 @@ export function weeklySummary(shots: Shot[], offset = 0): WeeklySummary {
     daysWithCoffee: days.filter(Boolean).length,
     prevCount: prev.length,
     prevAvg: prevRated.length ? prevRated.reduce((a, s) => a + s.rating, 0) / prevRated.length : null,
+    inTargetCount,
+    inTargetPct: wk.length ? Math.round((inTargetCount / wk.length) * 100) : null,
+    prevInTargetPct: prev.length
+      ? Math.round((prev.filter(isInTarget).length / prev.length) * 100)
+      : null,
   };
 }
 

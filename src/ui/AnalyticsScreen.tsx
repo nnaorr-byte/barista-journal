@@ -205,8 +205,9 @@ function DialInHistory({ sessions, shots, bags, beans }: {
 // ===== דשבורד עלויות =====
 const CAFE_ESPRESSO_PRICE = 12; // ₪ — הנחת מחיר אספרסו ממוצע בבית קפה
 
-function CostDashboard({ shots, bags }: { shots: Shot[]; bags: Bag[] }) {
+function CostDashboard({ shots, bags, beans }: { shots: Shot[]; bags: Bag[]; beans: Bean[] }) {
   const bagMap = new Map(bags.map((b) => [b.id, b]));
+  const beanMap = new Map(beans.map((b) => [b.id, b]));
   const pricedShots = shots.filter((s) => {
     const bag = bagMap.get(s.bagId);
     return bag && bag.price !== null && bag.weightGrams > 0;
@@ -221,6 +222,29 @@ function CostDashboard({ shots, bags }: { shots: Shot[]; bags: Bag[] }) {
   const avgCost = totalConsumed / pricedShots.length;
   const totalBagSpend = bags.filter((b) => b.price !== null).reduce((a, b) => a + b.price!, 0);
   const savings = pricedShots.length * CAFE_ESPRESSO_PRICE - totalConsumed;
+
+  // הפולים הכי משתלמים: ₪ שנצרך מכל סוג פולים ÷ מספר השוטים המצוינים (8+).
+  // נמוך = משתלם — כל שוט מעולה מהפולים האלה עלה לך פחות.
+  const byBean = new Map<string, { cost: number; excellent: number; total: number }>();
+  for (const s of pricedShots) {
+    const beanId = bagMap.get(s.bagId)!.beanId;
+    const e = byBean.get(beanId) ?? { cost: 0, excellent: 0, total: 0 };
+    e.cost += shotCost(s);
+    e.total += 1;
+    if (s.rating >= 8) e.excellent += 1;
+    byBean.set(beanId, e);
+  }
+  const beanValue = [...byBean.entries()]
+    .map(([beanId, e]) => ({
+      beanId,
+      name: beanMap.get(beanId)?.name ?? 'פולים שנמחקו',
+      costPerExcellent: e.excellent > 0 ? e.cost / e.excellent : null,
+      hitRate: Math.round((e.excellent / e.total) * 100),
+      excellent: e.excellent,
+      total: e.total,
+    }))
+    .filter((x): x is typeof x & { costPerExcellent: number } => x.costPerExcellent !== null)
+    .sort((a, b) => a.costPerExcellent - b.costPerExcellent);
 
   // פילוח חודשי
   const byMonth = new Map<string, number>();
@@ -248,6 +272,30 @@ function CostDashboard({ shots, bags }: { shots: Shot[]; bags: Bag[] }) {
           <BarChart points={monthly} unit="₪" />
         </>
       )}
+
+      {beanValue.length > 0 && (
+        <>
+          <h3>הפולים הכי משתלמים — ₪ לשוט מצוין</h3>
+          <p className="muted small" style={{ marginTop: 0 }}>
+            כמה עלה לך כל שוט מצוין (8+) מכל סוג פולים — הקפה שנצרך חלקי מספר השוטים המעולים. נמוך = משתלם.
+          </p>
+          <table className="data">
+            <thead>
+              <tr><th>פולים</th><th>₪ לשוט מצוין</th><th>שיעור 8+</th></tr>
+            </thead>
+            <tbody>
+              {beanValue.map((b, i) => (
+                <tr key={b.beanId}>
+                  <td>{i === 0 ? '🏆 ' : ''}{b.name}</td>
+                  <td>₪{b.costPerExcellent.toFixed(1)}</td>
+                  <td>{b.hitRate}% ({b.excellent}/{b.total})</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+
       <p className="muted small" style={{ marginTop: 8 }}>
         החיסכון מחושב מול אספרסו ממוצע בבית קפה (~₪{CAFE_ESPRESSO_PRICE}). מבוסס רק על שוטים משקיות שהוזן להן מחיר.
       </p>
@@ -745,7 +793,7 @@ export function AnalyticsScreen() {
       {show('consistency') && <DialInHistory sessions={sessions} shots={shots} bags={bags} beans={beans} />}
 
       {/* עלויות */}
-      {show('cost') && <CostDashboard shots={shots} bags={bags} />}
+      {show('cost') && <CostDashboard shots={shots} bags={bags} beans={beans} />}
 
       {/* התפלגות הצלחה */}
       {show('quality') && (

@@ -1111,9 +1111,20 @@ function BrewStep({
         <p className="muted small" style={{ marginTop: 8 }}>
           {confidenceLabel(recommendation.confidence, recommendation.basedOnShots)}
         </p>
-        {recommendation.reasons.map((r, i) => (
-          <p key={i} className="muted small" style={{ margin: '4px 0' }}>• {r}</p>
-        ))}
+        {recommendation.reasons.length > 0 && (
+          <>
+            {/* השורה הראשית (בד"כ שורת המוח 🧠) תמיד גלויה — השאר מתקפל */}
+            <p className="muted small" style={{ margin: '4px 0' }}>• {recommendation.reasons[0]}</p>
+            {recommendation.reasons.length > 1 && (
+              <details className="why-details">
+                <summary>למה ההמלצה הזו? ({recommendation.reasons.length - 1})</summary>
+                {recommendation.reasons.slice(1).map((r, i) => (
+                  <p key={i} className="muted small" style={{ margin: '4px 0' }}>• {r}</p>
+                ))}
+              </details>
+            )}
+          </>
+        )}
         {recommendation.beanNotes.length > 0 && (
           <>
             <h3><ClipboardIcon size={17} /> הערות על הפולים</h3>

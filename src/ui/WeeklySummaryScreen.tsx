@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
-import { weeklySummary, weeksBackWithData } from '../services/stats';
+import { weeklySummary, weeksBackWithData, TARGET_TIME_MIN, TARGET_TIME_MAX, TARGET_RATING } from '../services/stats';
 import { shotRatio } from '../domain/types';
 import { StatTile } from './components';
 import { formatDateTime, ratingClass, shotWeights } from './labels';
-import { BulbIcon, ChartIcon, TrendIcon, TrophyIcon } from './icons';
+import { BulbIcon, ChartIcon, TargetIcon, TrendIcon, TrophyIcon } from './icons';
 
 // ===== סיכום שבועי =====
 // המוטיב: טבעת הטיימר החתומה של האפליקציה בתפקיד חדש — מד הממוצע השבועי.
@@ -59,6 +59,22 @@ export function WeeklySummaryScreen() {
       insight = `יום ${FULL_DAY_NAMES[bestDay]} הוא היום החזק של השבוע — ממוצע ${bestAvg.toFixed(1)} על ${wk.days[bestDay]} ${wk.days[bestDay] === 1 ? 'שוט' : 'שוטים'}.`;
     }
   }
+
+  // הדופק שלך: שינוי אחוז חלון-היעד מול השבוע שעבר
+  const pulseDiff =
+    wk.inTargetPct !== null && wk.prevInTargetPct !== null
+      ? wk.inTargetPct - wk.prevInTargetPct
+      : null;
+  const pulseNote =
+    wk.inTargetPct === null
+      ? ''
+      : wk.inTargetPct >= 60
+        ? 'יד יציבה — רוב השוטים שלך נוחתים בול. זו הרמה של בריסטה עקבי.'
+        : pulseDiff !== null && pulseDiff >= 10
+          ? 'העקביות שלך בעלייה — ממשיכים באותה הכנה.'
+          : pulseDiff !== null && pulseDiff <= -10
+            ? 'ירידה בעקביות — שווה לחזור להכנה מוקפדת (WDT, טמפינג ישר) לפני ניסויים.'
+            : 'כל שוט שנוחת בטווח 22–32 שנ\' עם דירוג גבוה מטפס את המספר הזה.';
 
   const ringValue = wk.avgRating ?? 0;
   const dash = (ringValue / 10) * RING_C;
@@ -127,11 +143,33 @@ export function WeeklySummaryScreen() {
               <StatTile value={wk.count} label="שוטים" />
               <StatTile value={wk.bestShot ? wk.bestShot.rating : '—'} label="הכי טוב" />
               <StatTile value={wk.daysWithCoffee} label="ימים עם קפה" />
-              <StatTile value={wk.prevCount} label="שבוע שעבר" />
+              <StatTile
+                value={wk.inTargetPct !== null ? `${wk.inTargetPct}%` : '—'}
+                label="בחלון היעד"
+              />
             </div>
           </>
         )}
       </div>
+
+      {/* הדופק שלך — טרנד עקביות מול השבוע שעבר */}
+      {wk.inTargetPct !== null && (
+        <div className="card">
+          <h2><TargetIcon size={20} /> הדופק שלך</h2>
+          <p className="small" style={{ margin: '2px 0 8px' }}>
+            <b>{wk.inTargetPct}%</b> מהשוטים השבוע נחתו בחלון היעד
+            {' '}({wk.inTargetCount} מתוך {wk.count}) — כלומר זמן חליטה {TARGET_TIME_MIN}–{TARGET_TIME_MAX} שניות <b>וגם</b> דירוג {TARGET_RATING}+.
+            {pulseDiff !== null && pulseDiff !== 0 && (
+              <b style={{ color: pulseDiff > 0 ? 'var(--good)' : 'var(--warn)' }}>
+                {' '}{pulseDiff > 0 ? '‎↑' : '‎↓'}{Math.abs(pulseDiff)} נק' מול שבוע שעבר.
+              </b>
+            )}
+          </p>
+          <p className="muted small" style={{ margin: 0 }}>
+            {pulseNote}
+          </p>
+        </div>
+      )}
 
       {wk.count > 0 && (
         <div className="card">

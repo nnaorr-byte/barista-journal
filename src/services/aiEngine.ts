@@ -72,6 +72,23 @@ function negativeStreak(history: Shot[], last: Shot, taste: TasteTag): Shot[] {
   return streak;
 }
 
+// ---- מודל ביטחון מבוסס-שונות: לזהות הכנה לא עקבית לפני שמכיילים ----
+// מסתכל על עד 5 השוטים האחרונים על המטחנה הזו (דורש לפחות 4 עם זמן חליטה).
+// פער גדול בזמני החליטה = ההכנה עצמה רועדת (WDT/טמפינג/לחץ), וכל שינוי
+// הגדרות עכשיו יכייל על רעש ולא על הפולים. סף "מאוזן": פער ≥8 שניות.
+const INSTABILITY_RANGE_SEC = 8;
+function brewTimeInstability(
+  history: Shot[],
+): { unstable: boolean; count: number; min: number; max: number; range: number } | null {
+  const recent = history.filter((s) => s.brewTimeSec > 0).slice(-5);
+  if (recent.length < 4) return null;
+  const times = recent.map((s) => s.brewTimeSec);
+  const min = Math.min(...times);
+  const max = Math.max(...times);
+  const range = max - min;
+  return { unstable: range >= INSTABILITY_RANGE_SEC, count: recent.length, min, max, range };
+}
+
 // מה כבר שונה לאורך הרצף (בין שוטים עוקבים)
 function remediesTried(streak: Shot[]): { yieldChanged: boolean; grindChanged: boolean } {
   let yieldChanged = false;
@@ -289,6 +306,9 @@ export function aiRecommend(params: {
     }
   };
 
+  // ---- מודל ביטחון: האם ההכנה עצמה יציבה מספיק כדי לכייל? ----
+  const instability = brewTimeInstability(history);
+
   // ---- עדיפות למתכון מוצלח (עיקרון 4) ----
   const recipe = findRecipe(history, last);
   if (recipe && last.rating <= recipe.rating - 2 && deviatesFromRecipe(last, recipe, grindStep)) {
@@ -310,6 +330,22 @@ export function aiRecommend(params: {
     diagnosis = 'חמוץ ומר בו-זמנית — סתירה שמעידה כמעט תמיד על תיעול (Channeling): חלק מהפאק חולץ יתר וחלק בחסר. שינוי הגדרות עכשיו רק יוסיף רעש.';
     instruction = 'חזור על אותם פרמטרים בדיוק, עם הכנת פאק מוקפדת: פיזור יסודי במחט (WDT), פילוס, טמפינג ישר ו-Puck Screen מונח היטב.';
     expectedResult = 'זרימה אחידה מה-Bottomless וטעם עקבי — ואז אפשר לכייל באמת.';
+    tone = 'warn';
+  }
+  // ---- מודל ביטחון: הכנה לא עקבית — מייצבים לפני שמכיילים ----
+  // כשזמני החליטה האחרונים מפוזרים מאוד, טעם שלילי בשוט בודד הוא כנראה
+  // רעש של הכנה ולא בעיית הגדרות. לא רודפים אחרי הרעש — קודם מייצבים.
+  else if (instability?.unstable && cls.kind === 'negative') {
+    changeKind = 'prep';
+    changeLabel = 'ייצוב ההכנה (לא הגדרות!)';
+    diagnosis =
+      `זמני החליטה ב-${instability.count} השוטים האחרונים מפוזרים מאוד ` +
+      `(${instability.min}–${instability.max} שניות, פער ${instability.range}). ` +
+      'כשההכנה לא עקבית, שינוי הגדרות עכשיו מכייל על רעש ולא על הפולים.';
+    instruction =
+      'לפני שמכיילים — יַצֵּב את ההכנה: חזור על אותם פרמטרים בדיוק, עם פיזור אחיד במחט (WDT), ' +
+      'פילוס, טמפינג ישר ולחץ קבוע. כשהזמנים יתכנסו (פער של עד ~4 שניות) — נדע שהשינוי הבא באמת ישקף את הפולים.';
+    expectedResult = 'זמני חליטה צמודים זה לזה — בסיס אמין לכיול הבא.';
     tone = 'warn';
   }
   // ---- שלב 1: זמן חליטה קצר ----

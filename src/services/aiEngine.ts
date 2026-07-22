@@ -15,6 +15,16 @@ export type { AiAdvice, AiTargets };
 const REMINDER =
   'שנה אך ורק את הפרמטר הזה. טחינה, Yield ו-Dose לעולם לא משתנים יחד — כך יודעים בוודאות מה השפיע.';
 
+// התזכורת "משתנה בודד" נכונה רק להמלצות של פרמטר יחיד.
+// המלצת "מתכון" משנה טחינה+Yield+Dose יחד בכוונה, והמלצת "הכנה" לא נוגעת בפרמטרים כלל.
+function reminderFor(kind: AiAdvice['changeKind']): string {
+  if (kind === 'recipe')
+    return 'העתק את שלושת הערכים (טחינה, Yield, Dose) במדויק — זה מתכון שכבר הוכיח את עצמו על הפולים האלה.';
+  if (kind === 'prep')
+    return 'שנה רק את טכניקת ההכנה. הפרמטרים (טחינה, Yield, Dose) נשארים כשהיו — כך יודעים אם הטכניקה היא ששיפרה.';
+  return REMINDER; // grind / yield / dose / temp / none — שינוי משתנה בודד
+}
+
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
 // ---- סיווג טעם (לפי קטגוריות המדריך) ----
@@ -516,6 +526,6 @@ export function aiRecommend(params: {
     confidenceReasons: reasons,
     warnings,
     recipeNote,
-    reminder: REMINDER,
+    reminder: reminderFor(finalKind),
   };
 }

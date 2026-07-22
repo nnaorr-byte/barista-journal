@@ -159,6 +159,8 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   // iOS עלול להרוג את האפליקציה באמצע תיעוד — הטופס נשמר מקומית
   // בכל שינוי ומשוחזר בכניסה הבאה (עד 12 שעות אחורה).
   const [draftRestored, setDraftRestored] = useState(false);
+  // הפניית טיוטה שהתיישנה (פולים אורכבו / שקית נגמרה בזמן שהטיוטה חיכתה)
+  const [restoreWarning, setRestoreWarning] = useState<string | null>(null);
   const draftReadyRef = useRef(false);
   useEffect(() => {
     try {
@@ -211,6 +213,32 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     const t = setTimeout(() => setThinking(false), 850);
     return () => clearTimeout(t);
   }, [thinking]);
+
+  // אימות טיוטה משוחזרת מול הנתונים החיים: אם הפולים אורכבו או השקית נגמרה
+  // בזמן שהטיוטה חיכתה, ההפניה מתה — מנקים אותה ומבקשים לבחור מחדש,
+  // כדי שהשמירה לא תיכשל בשקט (guard על selectedBean/selectedBag).
+  useEffect(() => {
+    if (!draftRestored || !data) return;
+    if (beanId && !data.beans.some((b) => b.id === beanId)) {
+      setBeanId(''); setBagId('');
+      setRestoreWarning('הפולים מהטיוטה כבר לא זמינים (אורכבו או נמחקו). בחר פולים מחדש כדי לשמור.');
+    } else if (bagId && !data.bags.some((b) => b.id === bagId)) {
+      setBagId('');
+      setRestoreWarning('השקית מהטיוטה נגמרה או הוסרה. בחר שקית מחדש כדי לשמור.');
+    }
+  }, [draftRestored, data, beanId, bagId]);
+
+  // ניהול פוקוס במעברי שלב: מעבירים פוקוס לכותרת השלב החדש כדי שמשתמש
+  // מקלדת/קורא-מסך לא יישאר על כפתור שנעלם, והשלב יוכרז. שלב ההתחלה
+  // ו-coach (שמכריז בעצמו דרך role="status") פטורים. שלב brew מטפל בעצמו.
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const prevStepRef = useRef<Step | null>(null);
+  useEffect(() => {
+    if (prevStepRef.current !== null && prevStepRef.current !== step && step !== 'coach') {
+      headingRef.current?.focus();
+    }
+    prevStepRef.current = step;
+  }, [step]);
 
   if (!data) return null;
   const { user, beans, bags, shots, machines, grinders } = data;
@@ -297,10 +325,15 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
   async function saveShot() {
     if (!selectedBean || !selectedBag || !user || saving) return;
+    // ציוד עלול לחסר (DB רוקן / נמחק) — לא נותנים לגישה לזרוק שגיאת "אחסון" מטעה
+    const gId = grinderId || grinders.find((g) => g.isDefault)?.id || grinders[0]?.id;
+    if (!machine || !gId) {
+      setSaveError('לא נמצא ציוד לשמירה (מכונה או מטחנה). הוסף מכונה ומטחנה בהגדרות ונסה שוב.');
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     try {
-      const gId = grinderId || (grinders.find((g) => g.isDefault) ?? grinders[0]).id;
 
       // Dial-In Session: שקית חדשה בלי שוטים פותחת סשן כיול אוטומטית
       const bagShots = shots.filter((s) => s.bagId === selectedBag.id);
@@ -406,7 +439,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     setYieldStop(''); setYieldGrams(''); setBrewTime(''); setQuick(false);
     setGrindSetting(''); setTemp('medium'); setBasketType('IMS/מקצועית'); setPortafilterType('Bottomless');
     setTasteTags([]); setTasteOther(''); setFlavorNotes([]); setBody(null); setCrema(null); setAftertaste(null);
-    setNotes(''); setRating(0); setShowTasteDetail(false); setShowEquipment(false); setDraftRestored(false); setSaveError(null);
+    setNotes(''); setRating(0); setShowTasteDetail(false); setShowEquipment(false); setDraftRestored(false); setSaveError(null); setRestoreWarning(null);
     stepDirRef.current = 'back';
     setStep('setup');
     history.replaceState({ screen: 'new-shot', step: 'setup' }, '');
@@ -420,7 +453,13 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     return (
       <div key="setup" className={stepAnim}>
         <div className="card">
-          <h2><CupIcon size={20} /> שוט חדש — שלב 1: הכנה</h2>
+          <h2 ref={headingRef} tabIndex={-1}><CupIcon size={20} /> שוט חדש — שלב 1: הכנה</h2>
+
+          {restoreWarning && (
+            <div className="one-var-banner" role="status" style={{ marginTop: 0, marginBottom: 12 }}>
+              {restoreWarning}
+            </div>
+          )}
 
           {draftRestored && (
             <div className="one-var-banner" style={{ marginTop: 0, marginBottom: 12 }}>
@@ -612,7 +651,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     return (
       <div key="results" className={stepAnim}>
         <div className="card">
-          <h2><ClipboardIcon size={20} /> שלב 3: תוצאות השוט</h2>
+          <h2 ref={headingRef} tabIndex={-1}><ClipboardIcon size={20} /> שלב 3: תוצאות השוט</h2>
 
           {draftRestored && (
             <div className="one-var-banner" style={{ marginTop: 0, marginBottom: 12 }}>
@@ -983,6 +1022,9 @@ function BrewStep({
   onBack: () => void;
 }) {
   const [running, setRunning] = useState(false);
+  // מעבר לשלב החליטה: פוקוס לכותרת כדי שהשלב יוכרז ומשתמש מקלדת לא יישאר על כפתור שנעלם
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { headingRef.current?.focus(); }, []);
   // elapsed נמדד ברציפות (כולל שברירי שנייה) כדי שהטבעת תזרום חלק,
   // לא בקפיצות של שנייה. הספרות מעוגלות רק בתצוגה.
   const [elapsed, setElapsed] = useState(0);
@@ -1075,7 +1117,7 @@ function BrewStep({
     <div>
       {/* הטיימר למעלה */}
       <div className="card">
-        <h2><TimerIcon size={20} /> טיימר חליטה — יעד {targetMin}–{targetMax} שניות</h2>
+        <h2 ref={headingRef} tabIndex={-1}><TimerIcon size={20} /> טיימר חליטה — יעד {targetMin}–{targetMax} שניות</h2>
         <div
           className={`timer-ring-wrap ${zoneActive ? 'zone-active' : ''} ${stoppedInZone ? 'zone-hit' : ''}`}
           dir="ltr"

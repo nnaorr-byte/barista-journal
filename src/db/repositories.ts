@@ -7,7 +7,8 @@ import type {
 // כך שמימוש ענן עתידי מחליף את הקובץ הזה בלבד.
 
 export const userRepo = {
-  async getCurrent(): Promise<UserProfile> {
+  // עשוי להחזיר undefined אם ה-DB רוקן (למשל אחרי wipeAllData) — הקורא חייב לטפל
+  async getCurrent(): Promise<UserProfile | undefined> {
     const users = await db.users.toArray();
     return users[0];
   },
@@ -18,7 +19,7 @@ export const userRepo = {
 
 export const machineRepo = {
   all: (): Promise<Machine[]> => db.machines.toArray(),
-  async getDefault(): Promise<Machine> {
+  async getDefault(): Promise<Machine | undefined> {
     const all = await db.machines.toArray();
     return all.find((m) => m.isDefault) ?? all[0];
   },
@@ -51,7 +52,7 @@ export const machineRepo = {
 
 export const grinderRepo = {
   all: (): Promise<Grinder[]> => db.grinders.toArray(),
-  async getDefault(): Promise<Grinder> {
+  async getDefault(): Promise<Grinder | undefined> {
     const all = await db.grinders.toArray();
     return all.find((g) => g.isDefault) ?? all[0];
   },
@@ -130,7 +131,16 @@ export const shotRepo = {
     return full;
   },
   put: (s: Shot): Promise<unknown> => db.shots.put(s),
-  remove: (id: string): Promise<void> => db.shots.delete(id),
+  async remove(id: string): Promise<void> {
+    // מחיקת שוט מנקה גם הפניה יתומה אליו מסשן dial-in (bestShotId)
+    await db.transaction('rw', [db.shots, db.dialInSessions], async () => {
+      const sessions = await db.dialInSessions.toArray();
+      for (const s of sessions) {
+        if (s.bestShotId === id) await db.dialInSessions.put({ ...s, bestShotId: null });
+      }
+      await db.shots.delete(id);
+    });
+  },
 };
 
 export const dialInRepo = {

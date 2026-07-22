@@ -158,12 +158,19 @@ export async function restoreBackup(file: File): Promise<{ ok: boolean; error?: 
     if (backup.app !== 'barista-journal' || !backup.tables) {
       return { ok: false, error: 'הקובץ אינו גיבוי תקין של יומן הבריסטה.' };
     }
+    if (backup.version !== 1) {
+      return {
+        ok: false,
+        error: `גרסת גיבוי לא נתמכת (${backup.version ?? 'לא ידועה'}). הקובץ נוצר בגרסה אחרת של האפליקציה.`,
+      };
+    }
     await db.transaction('rw', db.tables, async () => {
+      // שחזור הוא דריסה מלאה: מנקים כל טבלה — גם כזו שהגיבוי לא כולל —
+      // כדי שלא יישארו רשומות ישנות שמתערבבות עם הנתונים המשוחזרים.
       for (const table of db.tables) {
-        const rows = backup.tables[table.name];
-        if (!Array.isArray(rows)) continue;
         await table.clear();
-        await table.bulkAdd(rows as never[]);
+        const rows = backup.tables[table.name];
+        if (Array.isArray(rows)) await table.bulkAdd(rows as never[]);
       }
     });
     return { ok: true };

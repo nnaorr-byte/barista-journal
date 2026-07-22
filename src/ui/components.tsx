@@ -69,7 +69,9 @@ export function RatingPicker({ value, onChange }: { value: number; onChange: (n:
           aria-checked={value === n}
           aria-label={`${n} מתוך 10`}
           tabIndex={value === n || (value === 0 && n === 1) ? 0 : -1}
-          className={value === n ? 'selected' : ''}
+          // גוון הבחירה לפי הערך: דירוג גבוה חוגג (זוהר ענבר), נמוך/בינוני
+          // נשאר רגוע — כדי שרגע הדירוג הנמוך לא יורגש כחגיגה
+          className={value === n ? `selected ${n <= 4 ? 'rate-low' : n <= 6 ? 'rate-mid' : 'rate-high'}` : ''}
           onClick={() => onChange(n)}
         >
           {n}

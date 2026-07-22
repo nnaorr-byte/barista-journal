@@ -38,4 +38,4 @@ web
 
 ## Accessibility & Inclusion
 
-יעד: **WCAG AA**. האפליקציה כבר קרובה — קונטרסט טקסט ≥4.5:1 בשני המצבים, מצבי ARIA (aria-pressed / aria-current), טבעת פוקוס אחידה, `role="status"` להודעות, ותמיכה מלאה ב-`prefers-reduced-motion` (כולל כיבוי קנבס הפולים וההבזקים). פערים ידועים שנותרו לסגירה לכיוון AA מלא: תיאורי טקסט לגרפים (role="img"+aria-label), סמנטיקת radiogroup ל-RatingPicker, והפחתת אימוג'י בתוך טקסט שמוקרא ע"י קורא מסך.
+יעד: **WCAG AA**. האפליקציה כבר קרובה — קונטרסט טקסט ≥4.5:1 בשני המצבים, מצבי ARIA (aria-pressed / aria-current), טבעת פוקוס אחידה, `role="status"` להודעות, ותמיכה מלאה ב-`prefers-reduced-motion` (כולל כיבוי קנבס הפולים וההבזקים). ה-RatingPicker מיושם כ-radiogroup מלא (role=radio, aria-checked, ניווט חצים, roving tabindex). אימוג'י בצ'יפים של תווי טעם מוסתר מקורא-מסך (`aria-hidden`), ושדות הטקסט החופשי בתיעוד שוט קיבלו `aria-label`. הפער הידוע היחיד שנותר לסגירה לכיוון AA מלא: תיאורי טקסט לגרפים (`role="img"` + `aria-label`).

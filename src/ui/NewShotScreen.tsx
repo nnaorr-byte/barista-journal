@@ -101,6 +101,8 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const [showTasteDetail, setShowTasteDetail] = useState(false);
   const tasteDetailCount =
     flavorNotes.length + (body ? 1 : 0) + (crema ? 1 : 0) + (aftertaste ? 1 : 0);
+  // תווית "הסתר פירוט טעם" — מקור אחד לשני הכפתורים (המתג העליון + הכפתור במגירה)
+  const hideTasteLabel = `הסתר פירוט טעם${tasteDetailCount > 0 ? ` (${tasteDetailCount} נבחרו — נשמרים)` : ''}`;
   // מתג המגירה — עוגן פוקוס קבוע לפתיחה ולסגירה
   const tasteToggleRef = useRef<HTMLButtonElement>(null);
   // מגירת ציוד — סלסלה + פורטפילטר כמעט לא משתנים שוט-לשוט, לכן מקופלים
@@ -581,6 +583,11 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
             </Field>
             <h3>דירוג אישי (1–10)</h3>
             <RatingPicker value={rating} onChange={setRating} />
+            {rating > 0 && rating <= 4 && (
+              <p className="muted small" style={{ margin: '6px 0 0' }}>
+                קורה לכולם — עכשיו נראה מה לכוונן בשוט הבא.
+              </p>
+            )}
             {saveError && (
               <div className="one-var-banner" role="alert" style={{ borderColor: 'var(--bad)', marginTop: 10 }}>
                 {saveError}
@@ -712,7 +719,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 <span style={{ display: 'inline-flex', transform: 'rotate(180deg)' }} aria-hidden="true">
                   <ChevronDownIcon size={17} />
                 </span>{' '}
-                הסתר פירוט טעם{tasteDetailCount > 0 ? ` (${tasteDetailCount} נבחרו — נשמרים)` : ''}
+                {hideTasteLabel}
               </>
             ) : (
               <>
@@ -755,7 +762,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 <span style={{ display: 'inline-flex', transform: 'rotate(180deg)' }} aria-hidden="true">
                   <ChevronDownIcon size={16} />
                 </span>{' '}
-                הסתר פירוט טעם{tasteDetailCount > 0 ? ` (${tasteDetailCount} נבחרו — נשמרים)` : ''}
+                {hideTasteLabel}
               </button>
             </div>
           </div>
@@ -769,6 +776,11 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
           <h3>דירוג אישי (1–10)</h3>
           <RatingPicker value={rating} onChange={setRating} />
+          {rating > 0 && rating <= 4 && (
+            <p className="muted small" style={{ margin: '6px 0 0' }}>
+              קורה לכולם — עכשיו נראה מה לכוונן בשוט הבא.
+            </p>
+          )}
 
           {saveError && (
             <div className="one-var-banner" role="alert" style={{ borderColor: 'var(--bad)', marginTop: 10 }}>

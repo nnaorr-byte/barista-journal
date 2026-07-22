@@ -11,15 +11,17 @@ export function StatTile({ value, label }: { value: ReactNode; label: string }) 
 }
 
 export function Chips<T extends string>({
-  options, selected, onToggle, multi = true,
+  options, selected, onToggle, multi = true, groupLabel,
 }: {
-  options: { value: T; label: string }[];
+  options: { value: T; label: string; emoji?: string }[];
   selected: T[];
   onToggle: (value: T) => void;
   multi?: boolean;
+  // תווית הקבוצה לקורא מסך — למשל "טעם" במקום "בחירה מרובה" הגנרי
+  groupLabel?: string;
 }) {
   return (
-    <div className="chips" role="group" aria-label={multi ? 'בחירה מרובה' : 'בחירה יחידה'}>
+    <div className="chips" role="group" aria-label={groupLabel ?? (multi ? 'בחירה מרובה' : 'בחירה יחידה')}>
       {options.map((o) => (
         <button
           key={o.value}
@@ -28,7 +30,8 @@ export function Chips<T extends string>({
           aria-pressed={selected.includes(o.value)}
           onClick={() => onToggle(o.value)}
         >
-          {o.label}
+          {/* האימוג'י דקורטיבי — מוסתר מקורא-מסך כדי שיוקרא רק שם התו */}
+          {o.emoji && <span aria-hidden="true">{o.emoji} </span>}{o.label}
         </button>
       ))}
     </div>

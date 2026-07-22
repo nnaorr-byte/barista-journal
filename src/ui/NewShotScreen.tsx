@@ -8,7 +8,7 @@ import type {
   Bag, FlavorNote, MachineTempSetting, QualityLevel, Shot, ShotRecommendation, TasteTag,
 } from '../domain/types';
 import { Chips, Field, RatingPicker, StatTile } from './components';
-import { FLAVOR_LABELS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS } from './labels';
+import { FLAVOR_OPTIONS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS } from './labels';
 import { BoltIcon, BrainIcon, BulbIcon, CheckIcon, ChevronDownIcon, ClipboardIcon, CupIcon, PlusIcon, SaveIcon, StarIcon, TargetIcon, TimerIcon, TrophyIcon, WarnIcon } from './icons';
 import { Celebration } from './Celebration';
 import type { Screen } from '../App';
@@ -51,9 +51,6 @@ const TASTE_OPTIONS = (Object.entries(TASTE_LABELS) as [TasteTag, string][]).map
   ([value, label]) => ({ value, label }),
 );
 const QUALITY_OPTIONS = (Object.entries(QUALITY_LABELS) as [QualityLevel, string][]).map(
-  ([value, label]) => ({ value, label }),
-);
-const FLAVOR_OPTIONS = (Object.entries(FLAVOR_LABELS) as [FlavorNote, string][]).map(
   ([value, label]) => ({ value, label }),
 );
 
@@ -106,6 +103,12 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     flavorNotes.length + (body ? 1 : 0) + (crema ? 1 : 0) + (aftertaste ? 1 : 0);
   // מתג המגירה — עוגן פוקוס קבוע לפתיחה ולסגירה
   const tasteToggleRef = useRef<HTMLButtonElement>(null);
+  // מגירת ציוד — סלסלה + פורטפילטר כמעט לא משתנים שוט-לשוט, לכן מקופלים
+  // כברירת מחדל. נפתחת אוטומטית אם הערך שונה מברירת המחדל (טיוטה משוחזרת).
+  const DEFAULT_BASKET = 'IMS/מקצועית';
+  const DEFAULT_PORTAFILTER = 'Bottomless';
+  const [showEquipment, setShowEquipment] = useState(false);
+  const equipmentToggleRef = useRef<HTMLButtonElement>(null);
 
   // כיוון המעבר האחרון בין שלבים — קובע את כיוון אנימציית הכניסה (RTL)
   const stepDirRef = useRef<'fwd' | 'back'>('fwd');
@@ -171,6 +174,9 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           setAftertaste(d.aftertaste ?? null); setNotes(d.notes ?? ''); setRating(d.rating ?? 0);
           // טיוטה עם נתוני עומק — פותחים את מגירת הפירוט כדי שלא "ייעלמו"
           if (d.flavorNotes?.length || d.body || d.crema || d.aftertaste) setShowTasteDetail(true);
+          // ציוד ששונה מברירת המחדל — פותחים את מגירת הציוד כדי שהשינוי לא "ייעלם"
+          if ((d.basketType && d.basketType !== DEFAULT_BASKET) ||
+              (d.portafilterType && d.portafilterType !== DEFAULT_PORTAFILTER)) setShowEquipment(true);
           // חזרה לשלב שבו עצרנו — עם רשומת היסטוריה כדי ש-Back יעבוד
           if ((d.step === 'results' || (d.step === 'brew' && d.recommendation))) {
             setStep(d.step);
@@ -273,8 +279,13 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       lastGrinderShot: shots.find((s) => s.grinderId === gId), // האחרון על המטחנה, מכל פולים
     });
     setRecommendation(rec);
-    if (rec.grindSetting !== null && grindSetting === '') {
-      setGrindSetting(String(rec.grindSetting));
+    // דרגת הטחינה בשלב התוצאות: ברירת מחדל = הדרגה שהוזנה בפועל בשוט
+    // הקודם על אותה מטחנה (מה שהמטחנה מכוונת אליו כרגע) — לא המלצת ה-AI.
+    // אם דיאלת אחרת, פשוט משנים ידנית. נופלים להמלצה רק כשאין שוט קודם על המטחנה.
+    if (grindSetting === '') {
+      const lastOnGrinder = shots.find((s) => s.grinderId === gId);
+      if (lastOnGrinder) setGrindSetting(String(lastOnGrinder.grindSetting));
+      else if (rec.grindSetting !== null) setGrindSetting(String(rec.grindSetting));
     }
     if (yieldGrams === '') setYieldGrams(String(rec.yieldGrams));
     // כשהמוח ממליץ על טמפרטורה (או ממשיך את זו של השוט האחרון) — נטען מראש
@@ -393,7 +404,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     setYieldStop(''); setYieldGrams(''); setBrewTime(''); setQuick(false);
     setGrindSetting(''); setTemp('medium'); setBasketType('IMS/מקצועית'); setPortafilterType('Bottomless');
     setTasteTags([]); setTasteOther(''); setFlavorNotes([]); setBody(null); setCrema(null); setAftertaste(null);
-    setNotes(''); setRating(0); setShowTasteDetail(false); setDraftRestored(false); setSaveError(null);
+    setNotes(''); setRating(0); setShowTasteDetail(false); setShowEquipment(false); setDraftRestored(false); setSaveError(null);
     stepDirRef.current = 'back';
     setStep('setup');
     history.replaceState({ screen: 'new-shot', step: 'setup' }, '');
@@ -624,28 +635,55 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
             </Field>
           </div>
 
-          <div className="field-row">
-            <Field label="סוג סלסלה">
-              <select value={basketType} onChange={(e) => setBasketType(e.target.value)}>
-                <option value="סטנדרטית">סטנדרטית</option>
-                <option value="Pressurized">Pressurized (מקורית)</option>
-                <option value="IMS/מקצועית">IMS / מקצועית</option>
-              </select>
-            </Field>
-            <Field label="פורטפילטר">
-              <select value={portafilterType} onChange={(e) => setPortafilterType(e.target.value)}>
-                {(machine?.portafilterTypes ?? ['Bottomless']).map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </Field>
+          {/* ציוד — סלסלה + פורטפילטר מקופלים כברירת מחדל (כמעט לא משתנים).
+              נפתחים אוטומטית כשהערך שונה מברירת המחדל, כמו מגירת הטעם. */}
+          <button
+            ref={equipmentToggleRef}
+            type="button"
+            className="btn secondary block"
+            aria-expanded={showEquipment}
+            onClick={() => setShowEquipment(!showEquipment)}
+          >
+            {showEquipment ? (
+              <>
+                <span style={{ display: 'inline-flex', transform: 'rotate(180deg)' }} aria-hidden="true">
+                  <ChevronDownIcon size={17} />
+                </span>{' '}
+                הסתר ציוד
+              </>
+            ) : (
+              <>
+                <PlusIcon size={17} /> ציוד: {basketType} · {portafilterType}
+              </>
+            )}
+          </button>
+          <div className={`collapse ${showEquipment ? 'open' : ''}`}>
+            <div className="collapse-inner">
+              <div className="field-row">
+                <Field label="סוג סלסלה">
+                  <select value={basketType} onChange={(e) => setBasketType(e.target.value)}>
+                    <option value="סטנדרטית">סטנדרטית</option>
+                    <option value="Pressurized">Pressurized (מקורית)</option>
+                    <option value="IMS/מקצועית">IMS / מקצועית</option>
+                  </select>
+                </Field>
+                <Field label="פורטפילטר">
+                  <select value={portafilterType} onChange={(e) => setPortafilterType(e.target.value)}>
+                    {(machine?.portafilterTypes ?? ['Bottomless']).map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+              <p className="muted small" style={{ marginTop: -4, marginBottom: 0 }}>
+                Bottomless = פורטפילטר פתוח מלמטה שמראה את הזרימה · Pressurized = סלסלת הלחץ המקורית, סלחנית לטחינה
+              </p>
+            </div>
           </div>
-          <p className="muted small" style={{ marginTop: -4 }}>
-            Bottomless = פורטפילטר פתוח מלמטה שמראה את הזרימה · Pressurized = סלסלת הלחץ המקורית, סלחנית לטחינה
-          </p>
 
           <h3>טעם (אפשר לבחור כמה)</h3>
           <Chips
+            groupLabel="טעם"
             options={TASTE_OPTIONS}
             selected={tasteTags}
             onToggle={(t) =>
@@ -654,7 +692,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           />
           {tasteTags.includes('other') && (
             <div style={{ marginTop: 8 }}>
-              <input placeholder="תאר את הטעם…" value={tasteOther} onChange={(e) => setTasteOther(e.target.value)} />
+              <input aria-label="תיאור הטעם" placeholder="תאר את הטעם…" value={tasteOther} onChange={(e) => setTasteOther(e.target.value)} />
             </div>
           )}
 
@@ -689,6 +727,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
             <div className="collapse-inner">
               <h3>תווי טעם — גלגל הטעמים (לא חובה)</h3>
               <Chips
+                groupLabel="תווי טעם"
                 options={FLAVOR_OPTIONS}
                 selected={flavorNotes}
                 onToggle={(f) =>
@@ -697,11 +736,11 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
               />
 
               <h3>גוף (Body)</h3>
-              <Chips options={QUALITY_OPTIONS} selected={body ? [body] : []} onToggle={(v) => setBody(body === v ? null : v)} />
+              <Chips groupLabel="גוף" multi={false} options={QUALITY_OPTIONS} selected={body ? [body] : []} onToggle={(v) => setBody(body === v ? null : v)} />
               <h3>קרמה (Crema)</h3>
-              <Chips options={QUALITY_OPTIONS} selected={crema ? [crema] : []} onToggle={(v) => setCrema(crema === v ? null : v)} />
+              <Chips groupLabel="קרמה" multi={false} options={QUALITY_OPTIONS} selected={crema ? [crema] : []} onToggle={(v) => setCrema(crema === v ? null : v)} />
               <h3>אחרית חיך (Aftertaste)</h3>
-              <Chips options={QUALITY_OPTIONS} selected={aftertaste ? [aftertaste] : []} onToggle={(v) => setAftertaste(aftertaste === v ? null : v)} />
+              <Chips groupLabel="אחרית חיך" multi={false} options={QUALITY_OPTIONS} selected={aftertaste ? [aftertaste] : []} onToggle={(v) => setAftertaste(aftertaste === v ? null : v)} />
 
               <button
                 type="button"
@@ -723,6 +762,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
           <h3>הערות חופשיות</h3>
           <textarea
+            aria-label="הערות חופשיות"
             placeholder="ריח, מראה הזרימה מה-Bottomless, הרגשה כללית…"
             value={notes} onChange={(e) => setNotes(e.target.value)}
           />
@@ -866,7 +906,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 // שוט נוסף עם אותם פולים — איפוס תוצאות בלבד
                 setYieldStop(''); setYieldGrams(''); setBrewTime(''); setTasteTags([]); setTasteOther('');
                 setFlavorNotes([]); setBody(null); setCrema(null); setAftertaste(null);
-                setNotes(''); setRating(0); setQuick(false); setShowTasteDetail(false);
+                setNotes(''); setRating(0); setQuick(false); setShowTasteDetail(false); setShowEquipment(false);
                 setAdvice(null); setMultiVarWarning(null); setSavedShotId(null); setMarkedFavorite(false);
                 setBeanRecord(null); setThinking(false); setCelebrate(false);
                 computeRecommendation();

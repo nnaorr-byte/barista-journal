@@ -10,11 +10,10 @@ import {
   type QualityLevel, type Shot, type TasteTag,
 } from '../domain/types';
 import { Chips, EmptyState, Field, RatingPicker } from './components';
-import { FLAVOR_LABELS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
+import { FLAVOR_LABELS, FLAVOR_OPTIONS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
 import { BrainIcon, ChevronDownIcon, EditIcon, JournalIcon, SaveIcon, ScaleIcon, SearchIcon, StarIcon, TrashIcon, TrophyIcon, UndoIcon } from './icons';
 
 const TASTE_OPTIONS = (Object.entries(TASTE_LABELS) as [TasteTag, string][]).map(([value, label]) => ({ value, label }));
-const FLAVOR_OPTIONS = (Object.entries(FLAVOR_LABELS) as [FlavorNote, string][]).map(([value, label]) => ({ value, label }));
 const QUALITY_OPTIONS = (Object.entries(QUALITY_LABELS) as [QualityLevel, string][]).map(([value, label]) => ({ value, label }));
 
 export function ShotsScreen() {
@@ -420,27 +419,29 @@ function EditShotForm({ shot, onClose }: { shot: Shot; onClose: () => void }) {
 
       <h3>טעם</h3>
       <Chips
+        groupLabel="טעם"
         options={TASTE_OPTIONS} selected={tasteTags}
         onToggle={(t) => setTasteTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]))}
       />
       {tasteTags.includes('other') && (
         <div style={{ marginTop: 8 }}>
-          <input placeholder="תאר את הטעם…" value={tasteOther} onChange={(e) => setTasteOther(e.target.value)} />
+          <input aria-label="תיאור הטעם" placeholder="תאר את הטעם…" value={tasteOther} onChange={(e) => setTasteOther(e.target.value)} />
         </div>
       )}
 
       <h3>תווי טעם — גלגל הטעמים</h3>
       <Chips
+        groupLabel="תווי טעם"
         options={FLAVOR_OPTIONS} selected={flavorNotes}
         onToggle={(f) => setFlavorNotes((prev) => (prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]))}
       />
 
       <h3>Body</h3>
-      <Chips options={QUALITY_OPTIONS} selected={body ? [body] : []} onToggle={(v) => setBody(body === v ? null : v)} />
+      <Chips groupLabel="גוף" multi={false} options={QUALITY_OPTIONS} selected={body ? [body] : []} onToggle={(v) => setBody(body === v ? null : v)} />
       <h3>Crema</h3>
-      <Chips options={QUALITY_OPTIONS} selected={crema ? [crema] : []} onToggle={(v) => setCrema(crema === v ? null : v)} />
+      <Chips groupLabel="קרמה" multi={false} options={QUALITY_OPTIONS} selected={crema ? [crema] : []} onToggle={(v) => setCrema(crema === v ? null : v)} />
       <h3>Aftertaste</h3>
-      <Chips options={QUALITY_OPTIONS} selected={aftertaste ? [aftertaste] : []} onToggle={(v) => setAftertaste(aftertaste === v ? null : v)} />
+      <Chips groupLabel="אחרית חיך" multi={false} options={QUALITY_OPTIONS} selected={aftertaste ? [aftertaste] : []} onToggle={(v) => setAftertaste(aftertaste === v ? null : v)} />
 
       <Field label="הערות"><textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
       <h3>דירוג</h3>

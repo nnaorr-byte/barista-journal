@@ -27,6 +27,15 @@ export const FLAVOR_LABELS: Record<FlavorNote, string> = {
   buttery: '🧈 חמאתי',
 };
 
+// גרסה מפוצלת של תווי הטעם לצ'יפים: האימוג'י בנפרד מהטקסט, כדי שקורא-מסך
+// יקריא רק את המילה ("פירותי") ולא את שם האימוג'י ("אפרסק פירותי").
+// FLAVOR_LABELS נשאר עם האימוג'י לתצוגת תוכן (יומן, אנליטיקה) שם הוא רצוי.
+export const FLAVOR_OPTIONS: { value: FlavorNote; label: string; emoji: string }[] =
+  (Object.entries(FLAVOR_LABELS) as [FlavorNote, string][]).map(([value, full]) => {
+    const [emoji, ...rest] = full.split(' ');
+    return { value, label: rest.join(' '), emoji };
+  });
+
 export const QUALITY_LABELS: Record<QualityLevel, string> = {
   poor: 'חלש',
   ok: 'סביר',

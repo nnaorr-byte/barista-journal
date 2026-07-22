@@ -15,7 +15,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       workbox: {
         // כולל את קובצי הפונט במטמון — כדי שהעיצוב יעבוד גם אופליין
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],

@@ -4,7 +4,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   // חותמת זמן הבנייה — מוצגת בהגדרות כדי לוודא שהעדכון הגיע למכשיר
-  define: { __BUILD_TIME__: JSON.stringify(new Date().toISOString()) },
+  // מספר גרסה ידני — פורמט cm + ddmmyy. לעדכן בכל שחרור.
+  define: { __APP_VERSION__: JSON.stringify('cm250726') },
   // בבניית GitHub Pages (משתנה סביבה בזרימת ה-Actions) האתר יושב תחת
   // https://<user>.github.io/barista-journal/ — מקומית נשארים בשורש.
   base: process.env.GITHUB_PAGES ? '/barista-journal/' : '/',

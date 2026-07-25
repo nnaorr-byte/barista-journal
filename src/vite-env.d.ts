@@ -1,4 +1,4 @@
 /// <reference types="vite/client" />
 
-// חותמת זמן הבנייה — מוזרקת ב-vite.config.ts (define)
-declare const __BUILD_TIME__: string;
+// מספר גרסה ידני — מוזרק ב-vite.config.ts (define)
+declare const __APP_VERSION__: string;

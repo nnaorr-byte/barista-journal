@@ -295,6 +295,44 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     setPortafilterType(lastShot.portafilterType);
   }
 
+  // שוט מהיר: כבר עשית dial-in והאספרסו זורם באותו טעם.
+  // משכפלים הכול מהשוט האחרון (כולל הטעם המסומן), נכנסים לטיימר העגול,
+  // ובתוצאות מזינים מחדש רק מה שנמדד בפועל: עצירה / סופי / זמן.
+  function startQuickShot() {
+    if (!lastShot) return;
+    applyLastShot(); // פולים, שקית, מטחנה, מנה, טחינה, טמפרטורה, ציוד
+    setYieldStop(lastShot.yieldStopGrams != null ? String(lastShot.yieldStopGrams) : '');
+    setYieldGrams(String(lastShot.yieldGrams));
+    setTasteTags(lastShot.tasteTags);
+    setTasteOther(lastShot.tasteOther ?? '');
+    setFlavorNotes(lastShot.flavorNotes ?? []);
+    setBody(lastShot.body ?? null);
+    setCrema(lastShot.crema ?? null);
+    setAftertaste(lastShot.aftertaste ?? null);
+    setNotes(lastShot.notes ?? '');
+    setRating(lastShot.rating);
+    setBrewTime(''); // הזמן נקבע בטיימר (או בהזנה ידנית בתוצאות)
+    // המלצה לתצוגה בעמוד הטיימר — חזרה מדויקת על השוט האחרון
+    setRecommendation({
+      doseGrams: lastShot.doseGrams,
+      yieldGrams: lastShot.yieldGrams,
+      stopAtGrams: lastShot.yieldStopGrams ?? Math.round((lastShot.yieldGrams - 3.5) * 10) / 10,
+      brewTimeSecMin: Math.max(1, lastShot.brewTimeSec - 2),
+      brewTimeSecMax: lastShot.brewTimeSec + 2,
+      ratio: Math.round((lastShot.yieldGrams / lastShot.doseGrams) * 10) / 10,
+      grindSetting: lastShot.grindSetting,
+      machineTemp: lastShot.machineTemp,
+      confidence: 'high',
+      basedOnShots: 1,
+      reasons: [
+        `שוט מהיר — חזרה מדויקת על השוט האחרון (דירוג ${lastShot.rating}/10). תזמן והזן משקל בלבד; שנה טעם רק אם השתנה.`,
+      ],
+      beanNotes: [],
+    });
+    setQuick(true);
+    goStep('brew');
+  }
+
   function computeRecommendation() {
     if (!selectedBean || !selectedBag || !user) return;
     const gId = grinderId || (grinders.find((g) => g.isDefault) ?? grinders[0])?.id;
@@ -477,14 +515,9 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
               </button>
               <button
                 className="btn" style={{ flex: 1.4 }}
-                onClick={() => {
-                  applyLastShot();
-                  setYieldGrams(String(lastShot.yieldGrams));
-                  setQuick(true);
-                  goStep('results');
-                }}
+                onClick={startQuickShot}
               >
-                <BoltIcon size={18} /> שוט מהיר (תיעוד ב-10 שניות)
+                <BoltIcon size={18} /> שוט מהיר
               </button>
             </div>
           )}
@@ -613,13 +646,27 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           <div className="card accent">
             <h2><BoltIcon size={20} /> שוט מהיר</h2>
             <p className="muted small" style={{ marginTop: 0 }}>
-              טחינה, טמפרטורה וסלסלה שוכפלו מהשוט הקודם. טעמים והערות אפשר להשלים אחר-כך מהיומן (✏️ עריכה).
+              הכול שוכפל מהשוט הקודם — כולל הטעם. עדכן משקל, זמן וטעם רק אם השתנו.
             </p>
             {weightFields}
             {ratioLine}
             <Field label="זמן חליטה (שניות)">
               <input type="number" inputMode="numeric" value={brewTime} onChange={(e) => setBrewTime(e.target.value)} />
             </Field>
+            <h3>טעם</h3>
+            <Chips
+              groupLabel="טעם"
+              options={TASTE_OPTIONS}
+              selected={tasteTags}
+              onToggle={(t) =>
+                setTasteTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]))
+              }
+            />
+            {tasteTags.includes('other') && (
+              <div style={{ marginTop: 8 }}>
+                <input aria-label="תיאור הטעם" placeholder="תאר את הטעם…" value={tasteOther} onChange={(e) => setTasteOther(e.target.value)} />
+              </div>
+            )}
             <h3>דירוג אישי (1–10)</h3>
             <RatingPicker value={rating} onChange={setRating} />
             {rating > 0 && rating <= 4 && (

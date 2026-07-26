@@ -4,27 +4,15 @@ import {
 } from '../domain/types';
 import { learningConfidence } from './learning';
 import { aiRecommend } from './aiEngine';
+import { ROAST_DEFAULTS, bestShotsForCalibration, computeTargetWindow } from './targetWindow';
 
 // מנוע ההמלצות: שרשרת של שלושה מודולים —
 // 1. חוקים כלליים של אספרסו לפי רמת קלייה
 // 2. התאמות לפי טריות הפולים (Degassing/Aging)
 // 3. למידה אישית מההיסטוריה (גוברת על הכללים ככל שיש יותר נתונים)
-
-interface RoastDefaults {
-  ratio: number;
-  timeMin: number;
-  timeMax: number;
-}
-
-// נקודות פתיחה מקובלות: קליות בהירות סולחות ליחס ארוך יותר וזמן ארוך,
-// קליות כהות מחלצות מהר וצריכות יחס קצר יותר.
-const ROAST_DEFAULTS: Record<RoastLevel, RoastDefaults> = {
-  'light': { ratio: 2.5, timeMin: 28, timeMax: 34 },
-  'light-medium': { ratio: 2.3, timeMin: 27, timeMax: 32 },
-  'medium': { ratio: 2.0, timeMin: 25, timeMax: 30 },
-  'medium-dark': { ratio: 1.9, timeMin: 24, timeMax: 29 },
-  'dark': { ratio: 1.8, timeMin: 22, timeMax: 28 },
-};
+//
+// חלון זמן החליטה נגזר כולו מ-services/targetWindow.ts — מקור האמת היחיד
+// שממנו ניזונים גם מוח ה-AI וגם מדד "הדופק שלך".
 
 export function daysSince(isoDate: string | null): number | null {
   if (!isoDate) return null;
@@ -53,15 +41,12 @@ export function recommendShot(params: {
 
   // שלב 1: חוקים כלליים
   let ratio = defaults.ratio;
-  let timeMin = defaults.timeMin;
-  let timeMax = defaults.timeMax;
-  reasons.push(`נקודת פתיחה לקליית ${roastLabel(bean.roastLevel)}: יחס 1:${ratio.toFixed(1)}, ${timeMin}–${timeMax} שניות.`);
+  reasons.push(`נקודת פתיחה לקליית ${roastLabel(bean.roastLevel)}: יחס 1:${ratio.toFixed(1)}, ${defaults.timeMin}–${defaults.timeMax} שניות.`);
 
   // שלב 2: התאמת טריות
   const roastAge = daysSince(bag.roastDate);
   if (roastAge !== null) {
     if (roastAge < 5) {
-      timeMin += 2; timeMax += 2;
       beanNotes.push(`הפולים בני ${roastAge} ימים בלבד — עדיין משחררים CO₂. צפה לקרמה תוססת ולזרימה לא יציבה; אם השוט רץ מהר, אל תמהר להאשים את הטחינה.`);
     } else if (roastAge > 30) {
       beanNotes.push(`עברו ${roastAge} ימים מהקלייה — הפולים מאבדים גזים וטעם. סביר שתצטרך טחינה עדינה בדרגה אחת מהרגיל כדי לשמור על זמן החליטה.`);
@@ -74,18 +59,26 @@ export function recommendShot(params: {
     beanNotes.push(`השקית פתוחה כבר ${openAge} ימים — חמצון מואץ. שקול לסיים אותה בקרוב.`);
   }
 
-  // שלב 3: למידה אישית מהפולים האלה
-  const ratedShots = beanShots.filter((s) => s.rating >= 6);
-  const confidence = learningConfidence(beanShots.length);
+  // ---- חלון זמן היעד: מקור האמת (כללים לפי קלייה → טריות → כיול אישי) ----
+  // אותו חלון עובר גם למוח ה-AI וגם למדד "הדופק שלך", כדי שהאפליקציה לא
+  // תסתור את עצמה: שוט שעמד ביעד שהיא נתנה נחשב הצלחה בכל המסכים.
+  const targetWindow = computeTargetWindow({
+    roastLevel: bean.roastLevel,
+    roastAgeDays: roastAge,
+    beanShots,
+  });
+  let timeMin = targetWindow.min;
+  let timeMax = targetWindow.max;
 
-  if (ratedShots.length > 0) {
-    const best = [...ratedShots].sort((a, b) => b.rating - a.rating).slice(0, Math.max(3, Math.ceil(ratedShots.length / 3)));
+  // שלב 3: למידה אישית מהפולים האלה — כיול היחס
+  // (חלון הזמן כבר מכויל אישית בתוך computeTargetWindow)
+  const confidence = learningConfidence(beanShots.length);
+  const best = bestShotsForCalibration(beanShots);
+
+  if (best.length > 0) {
     const avg = (pick: (s: Shot) => number) => best.reduce((a, s) => a + pick(s), 0) / best.length;
     ratio = avg((s) => shotRatio(s));
-    const avgTime = avg((s) => s.brewTimeSec);
-    timeMin = Math.round(avgTime - 2);
-    timeMax = Math.round(avgTime + 2);
-    reasons.push(`מכויל לפי ${best.length} השוטים הטובים ביותר שלך עם ${bean.name} (דירוג ממוצע ${(best.reduce((a, s) => a + s.rating, 0) / best.length).toFixed(1)}).`);
+    reasons.push(`מכויל לפי ${best.length} השוטים הטובים ביותר שלך עם ${bean.name} (דירוג ממוצע ${avg((s) => s.rating).toFixed(1)}), יעד זמן ${timeMin}–${timeMax} שניות.`);
   } else if (beanShots.length > 0) {
     reasons.push(`יש ${beanShots.length} שוטים קודמים עם הפולים האלה אך אף אחד לא דורג 6+, לכן ההמלצה נשארת על הכללים הכלליים.`);
   }
@@ -116,6 +109,7 @@ export function recommendShot(params: {
     const ai = aiRecommend({
       lastShot: last, beanShots: history, grinder,
       agingGapDays: gapDays, roastAgeDays: roastAge,
+      targetWindow,
     });
 
     // Yield: יעד המוח, מותאם פרופורציונלית אם המשתמש בחר מנה שונה

@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import { shotRepo } from '../db/repositories';
 import { aiRecommend } from '../services/aiEngine';
+import { makeWindowResolver, type WindowResolver } from '../services/targetWindow';
 import { adviceOutcomeForShot } from '../services/adviceAudit';
 import {
   shotRatio, shotFlowRate,
@@ -18,12 +19,13 @@ const QUALITY_OPTIONS = (Object.entries(QUALITY_LABELS) as [QualityLevel, string
 
 export function ShotsScreen() {
   const data = useLiveQuery(async () => {
-    const [shots, beans, grinders] = await Promise.all([
+    const [shots, beans, grinders, bags] = await Promise.all([
       db.shots.orderBy('createdAt').reverse().toArray(),
       db.beans.toArray(),
       db.grinders.toArray(),
+      db.bags.toArray(),
     ]);
-    return { shots, beans, grinders };
+    return { shots, beans, grinders, bags };
   });
 
   const [query, setQuery] = useState('');
@@ -73,6 +75,12 @@ export function ShotsScreen() {
   const beanMap = useMemo(
     () => new Map((data?.beans ?? []).map((b) => [b.id, b])),
     [data?.beans],
+  );
+
+  // חלון היעד לכל שוט — לשחזור המלצות היסטוריות לפי הקלייה שהייתה תקפה אז
+  const resolveWindow = useMemo(
+    () => makeWindowResolver(data?.beans ?? [], data?.bags ?? []),
+    [data?.beans, data?.bags],
   );
 
   if (!data) return null;
@@ -198,7 +206,7 @@ export function ShotsScreen() {
                   </p>
                 )}
                 {s.notes && <p className="small muted" style={{ margin: '4px 0' }}>"{s.notes}"</p>}
-                <ShotAdviceBlock shot={s} shots={data.shots} grinders={data.grinders} />
+                <ShotAdviceBlock shot={s} shots={data.shots} grinders={data.grinders} resolveWindow={resolveWindow} />
                 <div className="btn-row">
                   <button
                     className="btn small secondary"
@@ -323,7 +331,9 @@ function ShotCompare({
 
 // ההמלצה שמוח ה-AI נתן על השוט: מהתיעוד שנשמר איתו, או שחזור
 // מהנתונים ההיסטוריים עבור שוטים שנשמרו לפני שהמוח נוסף.
-function reconstructAdvice(shot: Shot, shots: Shot[], grinders: Grinder[]): AiAdvice | null {
+function reconstructAdvice(
+  shot: Shot, shots: Shot[], grinders: Grinder[], resolveWindow: WindowResolver,
+): AiAdvice | null {
   try {
     const history = shots
       .filter((x) => x.beanId === shot.beanId && x.grinderId === shot.grinderId && x.createdAt <= shot.createdAt)
@@ -337,15 +347,19 @@ function reconstructAdvice(shot: Shot, shots: Shot[], grinders: Grinder[]): AiAd
       beanShots: history,
       grinder: grinders.find((g) => g.id === shot.grinderId),
       grinderChanged: !!prevBeanShot && prevBeanShot.grinderId !== shot.grinderId,
+      // חלון היעד שהיה תקף לשוט הזה — לפי הקלייה וגיל הקלייה שלו
+      targetWindow: resolveWindow(shot),
     });
   } catch {
     return null;
   }
 }
 
-function ShotAdviceBlock({ shot, shots, grinders }: { shot: Shot; shots: Shot[]; grinders: Grinder[] }) {
+function ShotAdviceBlock({ shot, shots, grinders, resolveWindow }: {
+  shot: Shot; shots: Shot[]; grinders: Grinder[]; resolveWindow: WindowResolver;
+}) {
   const stored = shot.aiAdvice ?? null;
-  const advice = stored ?? reconstructAdvice(shot, shots, grinders);
+  const advice = stored ?? reconstructAdvice(shot, shots, grinders, resolveWindow);
   if (!advice) return null;
 
   // מה קרה להמלצה בשוט הבא — המוח בודק את עצמו

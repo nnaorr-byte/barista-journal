@@ -4,6 +4,7 @@ import { db } from '../db/database';
 import { bagRepo, dialInRepo, shotRepo } from '../db/repositories';
 import { recommendShot, confidenceLabel } from '../services/recommendation';
 import { aiRecommend, type AiAdvice } from '../services/aiEngine';
+import { computeTargetWindow } from '../services/targetWindow';
 import type {
   Bag, FlavorNote, MachineTempSetting, QualityLevel, Shot, ShotRecommendation, TasteTag,
 } from '../domain/types';
@@ -443,6 +444,12 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
         grinderChanged,
         agingGapDays,
         roastAgeDays,
+        // אותו חלון יעד שההמלצה במסך הבית מציגה — כדי שהמוח לא יסתור אותה
+        targetWindow: computeTargetWindow({
+          roastLevel: selectedBean.roastLevel,
+          roastAgeDays,
+          beanShots: beanHistory,
+        }),
       });
       // ההמלצה נשמרת עם השוט — תופיע גם ביומן לצד פרטי השוט
       await shotRepo.put({ ...shot, aiAdvice: newAdvice });

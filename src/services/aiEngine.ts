@@ -1,5 +1,6 @@
 import type { AiAdvice, AiTargets, Grinder, MachineTempSetting, Shot, TasteTag } from '../domain/types';
 import { auditAdviceHistory } from './adviceAudit';
+import { DEFAULT_TARGET_WINDOW, diagnosisBounds, type TargetWindow } from './targetWindow';
 
 // ============================================================
 // מוח ה-AI — מנוע ההמלצות לשוט הבא
@@ -198,6 +199,7 @@ export function aiRecommend(params: {
   grinderChanged?: boolean; // המטחנה שונה מזו של השוט הקודם של הפולים
   agingGapDays?: number | null; // ימים שעברו מאז השוט הקודם על הפולים האלה
   roastAgeDays?: number | null; // גיל הקלייה בימים בזמן השוט המתוכנן
+  targetWindow?: TargetWindow; // חלון היעד של הפולים האלה — מקור האמת לזמן החליטה
 }): AiAdvice {
   const { lastShot: last, beanShots, grinder, grinderChanged } = params;
   const history = beanShots;
@@ -206,6 +208,13 @@ export function aiRecommend(params: {
   const t = last.brewTimeSec;
   const cls = classifyTaste(last);
   const warnings: string[] = [];
+
+  // גבולות אבחון נגזרים מחלון היעד של הפולים האלה (ולא מקבוע גלובלי):
+  // קלייה בהירה טרייה שואפת ל-30–36 שניות, כהה ל-22–28. שוט בתוך החלון
+  // (או במרווח הסובלנות סביבו) נשפט לפי הטעם, לא לפי השעון.
+  const window = params.targetWindow ?? DEFAULT_TARGET_WINDOW;
+  const { tooFast, tooSlow } = diagnosisBounds(window);
+  const windowText = `${window.min}–${window.max} שניות`;
 
   const lastShotSummary =
     `${last.doseGrams}←${last.yieldGrams} גרם · ${t} שניות · טחינה ${last.grindSetting}` +
@@ -359,14 +368,14 @@ export function aiRecommend(params: {
     tone = 'warn';
   }
   // ---- שלב 1: זמן חליטה קצר ----
-  else if (t > 0 && t < 20) {
+  else if (t > 0 && t < tooFast) {
     if (cls.kind === 'negative') {
-      diagnosis = `זמן חליטה קצר (${t} שניות) יחד עם טעם ${TASTE_HE[cls.taste]} — המים עברו מהר מדי דרך הפאק. הטחינה גסה מדי.`;
+      diagnosis = `זמן חליטה קצר (${t} שניות מול יעד ${windowText}) יחד עם טעם ${TASTE_HE[cls.taste]} — המים עברו מהר מדי דרך הפאק. הטחינה גסה מדי.`;
       grindFiner();
       expectedResult = 'זמן החליטה יתארך לכיוון חלון היעד, החילוץ יעמיק והטעם יתאזן.';
       tone = 'warn';
     } else if (cls.kind === 'positive') {
-      diagnosis = `השוט מוצלח (${tasteText(last)}) למרות זמן קצר מהמקובל (${t} שניות). לפי הכללים — הטעם הוא המדד החשוב ביותר, וזמן הוא רק כלי אבחון.`;
+      diagnosis = `השוט מוצלח (${tasteText(last)}) למרות זמן קצר מהיעד (${t} שניות מול ${windowText}). לפי הכללים — הטעם הוא המדד החשוב ביותר, וזמן הוא רק כלי אבחון.`;
       instruction = 'אל תשנה דבר. חזור על המתכון בדיוק.';
       expectedResult = 'שחזור של אותה תוצאה טובה.';
       tone = 'good';
@@ -378,14 +387,14 @@ export function aiRecommend(params: {
     }
   }
   // ---- שלב 1: זמן חליטה ארוך ----
-  else if (t > 35) {
+  else if (t > tooSlow) {
     if (cls.kind === 'negative') {
-      diagnosis = `זמן חליטה ארוך (${t} שניות) יחד עם טעם ${TASTE_HE[cls.taste]} — המים שהו יותר מדי בפאק. הטחינה דקה מדי.`;
+      diagnosis = `זמן חליטה ארוך (${t} שניות מול יעד ${windowText}) יחד עם טעם ${TASTE_HE[cls.taste]} — המים שהו יותר מדי בפאק. הטחינה דקה מדי.`;
       grindCoarser();
       expectedResult = 'זמן החליטה יתקצר לכיוון חלון היעד והטעם יתנקה.';
       tone = 'warn';
     } else if (cls.kind === 'positive') {
-      diagnosis = `השוט מוצלח (${tasteText(last)}) למרות זמן ארוך מהמקובל (${t} שניות). הטעם מנצח — לא נוגעים.`;
+      diagnosis = `השוט מוצלח (${tasteText(last)}) למרות זמן ארוך מהיעד (${t} שניות מול ${windowText}). הטעם מנצח — לא נוגעים.`;
       instruction = 'אל תשנה דבר. חזור על המתכון בדיוק.';
       expectedResult = 'שחזור של אותה תוצאה טובה.';
       tone = 'good';

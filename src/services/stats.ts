@@ -1,4 +1,5 @@
 import { shotRatio, type Bag, type Bean, type Shot } from '../domain/types';
+import { DEFAULT_TARGET_WINDOW, type TargetWindow, type WindowResolver } from './targetWindow';
 
 // שירות סטטיסטיקה: חישובי Dashboard, צריכת פולים ועלות לשוט.
 
@@ -86,16 +87,18 @@ export interface Trend {
 }
 
 // ===== חלון היעד ("הדופק שלך") =====
-// שוט "בחלון היעד" = גם זמן חליטה בטווח הקלאסי וגם דירוג מצוין.
+// שוט "בחלון היעד" = גם זמן החליטה בחלון של הפולים האלה, וגם דירוג מצוין.
 // זהו המדד ל"עקביות אמיתית" — לא רק שוט טוב במקרה, אלא שוט מכוון שהצליח.
-export const TARGET_TIME_MIN = 22;
-export const TARGET_TIME_MAX = 32;
+//
+// חלון הזמן אינו קבוע גלובלי: הוא נגזר מרמת הקלייה ומגיל הקלייה של השוט
+// (services/targetWindow.ts). קודם היה כאן 22–32 קבוע, וזה העניש שוטים
+// בקליות בהירות — שם היעד שהאפליקציה עצמה נותנת הוא 28–36 שניות.
 export const TARGET_RATING = 8;
 
-export function isInTarget(s: Shot): boolean {
+export function isInTarget(s: Shot, window: TargetWindow): boolean {
   return (
-    s.brewTimeSec >= TARGET_TIME_MIN &&
-    s.brewTimeSec <= TARGET_TIME_MAX &&
+    s.brewTimeSec >= window.min &&
+    s.brewTimeSec <= window.max &&
     s.rating >= TARGET_RATING
   );
 }
@@ -128,7 +131,13 @@ export interface WeeklySummary {
 }
 
 // offset=0 → השבוע הנוכחי, 1 → שעבר, וכן הלאה
-export function weeklySummary(shots: Shot[], offset = 0): WeeklySummary {
+// resolveWindow: חלון היעד לכל שוט (makeWindowResolver מ-targetWindow.ts).
+// בלעדיו נופלים לחלון ברירת מחדל — המדד עדיין עובד, פחות מדויק.
+export function weeklySummary(
+  shots: Shot[],
+  offset = 0,
+  resolveWindow: WindowResolver = () => DEFAULT_TARGET_WINDOW,
+): WeeklySummary {
   const start = weekStart(new Date());
   start.setDate(start.getDate() - 7 * offset);
   const end = new Date(start);
@@ -153,7 +162,7 @@ export function weeklySummary(shots: Shot[], offset = 0): WeeklySummary {
   }
   const rated = wk.filter((s) => s.rating > 0);
   const prevRated = prev.filter((s) => s.rating > 0);
-  const inTargetCount = wk.filter(isInTarget).length;
+  const inTargetCount = wk.filter((s) => isInTarget(s, resolveWindow(s))).length;
   return {
     start,
     end,
@@ -168,7 +177,7 @@ export function weeklySummary(shots: Shot[], offset = 0): WeeklySummary {
     inTargetCount,
     inTargetPct: wk.length ? Math.round((inTargetCount / wk.length) * 100) : null,
     prevInTargetPct: prev.length
-      ? Math.round((prev.filter(isInTarget).length / prev.length) * 100)
+      ? Math.round((prev.filter((s) => isInTarget(s, resolveWindow(s))).length / prev.length) * 100)
       : null,
   };
 }

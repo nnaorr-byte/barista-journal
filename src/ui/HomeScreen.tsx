@@ -7,6 +7,7 @@ import { computeMaintenanceStatus } from '../services/maintenance';
 import { computeBackupStatus, shareBackup } from '../services/importExport';
 import { computeFreshness, computeWinningWindow } from '../services/freshness';
 import { computeBagUsage, ratingTrend, weeklySummary } from '../services/stats';
+import { makeWindowResolver } from '../services/targetWindow';
 import { shotRatio, type RoastLevel } from '../domain/types';
 import { CountUp, StatTile, EmptyState } from './components';
 import { formatDateTime, ratingClass, shotWeights } from './labels';
@@ -34,7 +35,8 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const greeting = timeGreeting(user?.name);
 
   // באנר הסיכום השבועי (וריאציה C מהפרוטוטייפ) — שקט, מעל ההמלצה
-  const week = weeklySummary(shots);
+  // חלון היעד לכל שוט נגזר מהפולים והקלייה שלו, לא מקבוע גלובלי
+  const week = weeklySummary(shots, 0, makeWindowResolver(beans, bags));
   const weekDiff = week.avgRating !== null && week.prevAvg !== null
     ? Math.round((week.avgRating - week.prevAvg) * 10) / 10
     : null;

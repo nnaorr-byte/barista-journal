@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
-import { weeklySummary, weeksBackWithData, TARGET_TIME_MIN, TARGET_TIME_MAX, TARGET_RATING } from '../services/stats';
+import { weeklySummary, weeksBackWithData, TARGET_RATING } from '../services/stats';
+import { makeWindowResolver } from '../services/targetWindow';
 import { shotRatio } from '../domain/types';
 import { StatTile } from './components';
 import { formatDateTime, ratingClass, shotWeights } from './labels';
@@ -28,20 +29,22 @@ function weekLabel(start: Date, end: Date): string {
 
 export function WeeklySummaryScreen() {
   const data = useLiveQuery(async () => {
-    const [shots, beans] = await Promise.all([
+    const [shots, beans, bags] = await Promise.all([
       db.shots.orderBy('createdAt').toArray(),
       db.beans.toArray(),
+      db.bags.toArray(),
     ]);
-    return { shots, beans };
+    return { shots, beans, bags };
   });
   const [offset, setOffset] = useState(0);
 
   if (!data) return null;
-  const { shots, beans } = data;
+  const { shots, beans, bags } = data;
   const beanMap = new Map(beans.map((b) => [b.id, b]));
 
   const maxBack = weeksBackWithData(shots);
-  const wk = weeklySummary(shots, offset);
+  // חלון היעד לכל שוט לפי הפולים והקלייה שלו — לא קבוע גלובלי
+  const wk = weeklySummary(shots, offset, makeWindowResolver(beans, bags));
   const diff = wk.avgRating !== null && wk.prevAvg !== null
     ? Math.round((wk.avgRating - wk.prevAvg) * 10) / 10
     : null;
@@ -158,7 +161,8 @@ export function WeeklySummaryScreen() {
           <h2><TargetIcon size={20} /> הדופק שלך</h2>
           <p className="small" style={{ margin: '2px 0 8px' }}>
             <b>{wk.inTargetPct}%</b> מהשוטים השבוע נחתו בחלון היעד
-            {' '}({wk.inTargetCount} מתוך {wk.count}) — כלומר זמן חליטה {TARGET_TIME_MIN}–{TARGET_TIME_MAX} שניות <b>וגם</b> דירוג {TARGET_RATING}+.
+            {' '}({wk.inTargetCount} מתוך {wk.count}) — כלומר זמן חליטה בחלון של אותם פולים
+            {' '}(לפי רמת הקלייה וגיל הקלייה) <b>וגם</b> דירוג {TARGET_RATING}+.
             {pulseDiff !== null && pulseDiff !== 0 && (
               <b style={{ color: pulseDiff > 0 ? 'var(--good)' : 'var(--warn)' }}>
                 {' '}{pulseDiff > 0 ? '‎↑' : '‎↓'}{Math.abs(pulseDiff)} נק' מול שבוע שעבר.

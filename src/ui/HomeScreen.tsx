@@ -169,13 +169,21 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
       {/* תזכורת גיבוי */}
       {backupStatus.needsBackup && !backupDismissed && (
-        <div className="card warn">
-          <h2><SaveIcon size={20} /> הגיע הזמן לגבות</h2>
+        <div className={`card warn${backupStatus.urgent ? ' urgent' : ''}`}>
+          <h2>
+            {backupStatus.urgent ? <WarnIcon size={20} /> : <SaveIcon size={20} />}
+            {backupStatus.urgent ? ' גיבוי דחוף — אל תדחה עוד' : ' הגיע הזמן לגבות'}
+          </h2>
           <p className="muted small" style={{ margin: '0 0 8px' }}>
             {backupStatus.lastBackupAt === null
               ? `יש לך ${backupStatus.shotsSinceBackup} שוטים שמעולם לא גובו. אם המכשיר יאבד — היומן יאבד איתו.`
               : `${backupStatus.shotsSinceBackup} שוטים חדשים מאז הגיבוי האחרון (לפני ${backupStatus.daysSinceBackup} ימים).`}
           </p>
+          {backupStatus.urgent && (
+            <p className="small" style={{ margin: '0 0 8px', color: 'var(--bad)', fontWeight: 600 }}>
+              עבר יותר מדי זמן. גבה עכשיו ושמור את הקובץ מחוץ לטלפון (וואטסאפ לעצמך / מייל / Drive).
+            </p>
+          )}
           {backupMsg && <p className="small" style={{ margin: '0 0 8px', color: 'var(--good)' }}>{backupMsg}</p>}
           <div className="btn-row" style={{ marginTop: 0 }}>
             <button

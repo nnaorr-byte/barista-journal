@@ -94,10 +94,12 @@ export interface BackupStatus {
   daysSinceBackup: number | null;
   shotsSinceBackup: number;
   needsBackup: boolean;
+  urgent: boolean; // איחור גדול — התזכורת עולה לדרגת אזהרה אדומה
 }
 
 // תזכורת כשנצברו 10+ שוטים לא מגובים, או שעבר שבוע ויש שוטים חדשים,
 // או שיש 3+ שוטים ומעולם לא גובה.
+// דחוף (urgent) כשהאיחור גדול: 30+ שוטים לא מגובים, או 21+ יום עם שוטים חדשים.
 export function computeBackupStatus(shots: Shot[]): BackupStatus {
   const last = getLastBackupAt();
   const daysSinceBackup = last
@@ -110,7 +112,10 @@ export function computeBackupStatus(shots: Shot[]): BackupStatus {
     shotsSinceBackup >= 10 ||
     (last === null && shots.length >= 3) ||
     (daysSinceBackup !== null && daysSinceBackup >= 7 && shotsSinceBackup > 0);
-  return { lastBackupAt: last, daysSinceBackup, shotsSinceBackup, needsBackup };
+  const urgent =
+    shotsSinceBackup >= 30 ||
+    (daysSinceBackup !== null && daysSinceBackup >= 21 && shotsSinceBackup > 0);
+  return { lastBackupAt: last, daysSinceBackup, shotsSinceBackup, needsBackup, urgent };
 }
 
 async function buildBackupBlob(): Promise<Blob> {

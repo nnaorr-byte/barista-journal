@@ -9,6 +9,7 @@ import { BarChart, LineChart, ScatterChart, Histogram, type Point, type ScatterP
 import { CountUp, StatTile, EmptyState } from './components';
 import { computeWinningWindow, shotAgeRatings } from '../services/freshness';
 import { auditAllAdvice } from '../services/adviceAudit';
+import { analyzeRecurringProblems } from '../services/recurringProblems';
 import { FLAVOR_LABELS, formatDateTime, shotWeights } from './labels';
 import { DashboardScreen } from './DashboardScreen';
 import { BeanIcon, BrainIcon, BulbIcon, ChartIcon, CoinIcon, CupIcon, FlameIcon, GearIcon, GiftIcon, LeafIcon, MedalIcon, ScaleIcon, SettingsIcon, StarIcon, TargetIcon, TasteIcon, TimerIcon, TrendIcon, TrophyIcon } from './icons';
@@ -543,6 +544,102 @@ function FreshnessCurve({ shots, bags }: { shots: Shot[]; bags: Bag[] }) {
   );
 }
 
+// ===== הבעיה החוזרת שלך =====
+// המוח מנתח שוט מול שוט; הכרטיס הזה מסתכל על כל ההיסטוריה ואומר מה
+// חוזר, באיזה הקשר, ומה מבין התיקונים באמת פתר את זה אצלך בפועל.
+function RecurringProblemsCard({ shots, beans, bags }: { shots: Shot[]; beans: Bean[]; bags: Bag[] }) {
+  const problems = analyzeRecurringProblems({ shots, beans, bags });
+  if (problems.length === 0) return null;
+
+  const [top, ...rest] = problems;
+  const overIndexed = top.contexts.filter((c) => c.overIndexed);
+  const multiFix = top.fixes.find((f) => f.kind === 'multi');
+
+  return (
+    <div className="card">
+      <h2><TasteIcon size={20} /> הבעיה החוזרת שלך</h2>
+
+      <p className="small" style={{ margin: '2px 0 8px' }}>
+        הבעיה שחוזרת אליך יותר מכל היא <b>{top.label}</b> —{' '}
+        <b>{top.count}</b> שוטים ({top.share}% מהמדורגים), בדירוג ממוצע{' '}
+        {top.avgRating.toFixed(1)}.
+      </p>
+
+      {overIndexed.length > 0 ? (
+        <p className="small" style={{ margin: '2px 0 8px' }}>
+          מרוכזת במיוחד ב־
+          {overIndexed.map((c, i) => (
+            <span key={c.label}>
+              {i > 0 && ' וב־'}
+              <b style={{ color: 'var(--crema)' }}>{c.label}</b> ({c.share}% מהמופעים)
+            </span>
+          ))}
+          {' '}— שם כדאי לצפות לה מראש.
+        </p>
+      ) : (
+        top.contexts.length > 0 && (
+          <p className="muted small" style={{ margin: '2px 0 8px' }}>
+            מפוזרת על כל סוגי הפולים והגילים — לא תלויה בהקשר מסוים,
+            כלומר כנראה עניין של כיול או טכניקה ולא של הפולים.
+          </p>
+        )
+      )}
+
+      {top.bestFix ? (
+        <div style={{ background: 'var(--bg-elevated)', borderRadius: 10, padding: '9px 12px', margin: '8px 0' }}>
+          <div className="coach-label" style={{ marginBottom: 4 }}>
+            <BulbIcon size={15} /> מה עבד לך בפועל
+          </div>
+          <p className="small" style={{ margin: '3px 0' }}>
+            <b>{top.bestFix.label}</b> פתר את הבעיה ב-{top.bestFix.resolveRate}% מהפעמים
+            ({top.bestFix.resolved} מתוך {top.bestFix.attempts}).
+          </p>
+        </div>
+      ) : (
+        <p className="muted small" style={{ margin: '2px 0 8px' }}>
+          עדיין אין תיקון עם רקורד מוכח על הבעיה הזו — צריך עוד נסיונות
+          כדי לדעת מה עובד. חשוב לשנות משתנה אחד בכל פעם, אחרת לא נדע מה השפיע.
+        </p>
+      )}
+
+      {top.fixes.length > 1 && (
+        <div style={{ overflowX: 'auto' }}>
+          <table className="data">
+            <thead>
+              <tr><th>מה שינית</th><th>נסיונות</th><th>נפתר</th><th>אחוז</th></tr>
+            </thead>
+            <tbody>
+              {top.fixes.map((f) => (
+                <tr key={f.kind}>
+                  <th>{f.label}</th>
+                  <td>{f.attempts}</td>
+                  <td>{f.resolved}</td>
+                  <td style={{ color: f.resolveRate >= 50 ? 'var(--good)' : 'var(--text-muted)', fontWeight: 600 }}>
+                    {f.resolveRate}%
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {multiFix && multiFix.attempts >= 2 && (
+        <p className="small" style={{ margin: '8px 0 0', color: 'var(--warn)' }}>
+          שים לב: ב-{multiFix.attempts} מהפעמים שינית כמה פרמטרים יחד. גם אם זה עבד,
+          אי אפשר לדעת מה מהם עשה את העבודה — ולכן הידע הזה לא מצטבר.
+        </p>
+      )}
+
+      {rest.length > 0 && (
+        <p className="muted small" style={{ marginTop: 10 }}>
+          בעיות נוספות: {rest.map((p) => `${p.label} (${p.count})`).join(' · ')}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ===== מדד אמינות המוח: כמה מההמלצות שיושמו באמת עבדו =====
 function AdviceReliabilityCard({ shots }: { shots: Shot[] }) {
   const outcomes = auditAllAdvice(shots);
@@ -734,6 +831,8 @@ export function AnalyticsScreen() {
       )}
 
       {/* מדד אמינות המוח: המוח בודק את עצמו */}
+      {show('quality') && <RecurringProblemsCard shots={shots} beans={beans} bags={bags} />}
+
       {show('consistency') && <AdviceReliabilityCard shots={shots} />}
 
       {/* דירוג לאורך זמן */}

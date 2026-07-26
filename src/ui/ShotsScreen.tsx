@@ -31,6 +31,8 @@ export function ShotsScreen() {
   const [tasteFilter, setTasteFilter] = useState<TasteTag | ''>('');
   const [editing, setEditing] = useState<Shot | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  // ברירת מחדל: 10 שוטים אחרונים. השאר מוסתרים מאחורי כפתור הרחבה.
+  const [showAll, setShowAll] = useState(false);
 
   // השוואת שוטים: עד שני שוטים נבחרים — טבלת "מה שונה" מעל היומן
   const [compareIds, setCompareIds] = useState<string[]>([]);
@@ -91,6 +93,11 @@ export function ShotsScreen() {
     return true;
   });
 
+  // כשמחפשים או מסננים — מציגים את כל התוצאות. אחרת רק 10 האחרונים.
+  const isFiltering = query.trim() !== '' || minRating > 0 || tasteFilter !== '';
+  const visible = showAll || isFiltering ? filtered : filtered.slice(0, 10);
+  const hiddenCount = filtered.length - visible.length;
+
   if (editing) {
     return <EditShotForm shot={editing} onClose={() => setEditing(null)} />;
   }
@@ -144,7 +151,7 @@ export function ShotsScreen() {
         {filtered.length === 0 && (
           <EmptyState icon={<SearchIcon size={40} />} text="אין שוטים תואמים" hint="נסה לשנות את הסינון או להכין שוט חדש." />
         )}
-        {filtered.map((s) => (
+        {visible.map((s) => (
           <div key={s.id}>
             <button
               type="button"
@@ -223,6 +230,22 @@ export function ShotsScreen() {
             )}
           </div>
         ))}
+
+        {!isFiltering && filtered.length > 10 && (
+          <button
+            type="button"
+            className="btn secondary block"
+            style={{ marginTop: 8 }}
+            onClick={() => setShowAll((v) => !v)}
+            aria-expanded={showAll}
+          >
+            {showAll ? (
+              <>הצג פחות</>
+            ) : (
+              <><ChevronDownIcon size={17} /> הצג עוד {hiddenCount} שוטים ישנים יותר</>
+            )}
+          </button>
+        )}
       </div>
 
       {/* טוסט ביטול מחיקה — לא גונב פוקוס, מוכרז לקורא מסך */}

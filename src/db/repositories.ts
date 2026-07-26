@@ -116,6 +116,15 @@ export const bagRepo = {
     return full;
   },
   put: (b: Bag): Promise<unknown> => db.bags.put(b),
+  async remove(id: string): Promise<void> {
+    // מחיקת שקית מנקה סשני dial-in ששייכים לה. שוטים נשארים תחת הפולים
+    // (הם תיעוד אמיתי) — רק חישוב העלות-לשקית שלהם נעלם יחד עם השקית.
+    await db.transaction('rw', [db.bags, db.dialInSessions], async () => {
+      const sessions = await db.dialInSessions.where('bagId').equals(id).toArray();
+      for (const s of sessions) await db.dialInSessions.delete(s.id);
+      await db.bags.delete(id);
+    });
+  },
 };
 
 export const shotRepo = {

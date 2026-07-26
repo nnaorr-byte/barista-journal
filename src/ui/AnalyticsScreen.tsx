@@ -6,7 +6,7 @@ import {
   type Bag, type Bean, type DialInSession, type FlavorNote, type Shot,
 } from '../domain/types';
 import { BarChart, LineChart, ScatterChart, Histogram, type Point, type ScatterPoint } from './charts';
-import { StatTile, EmptyState } from './components';
+import { CountUp, StatTile, EmptyState } from './components';
 import { computeWinningWindow, shotAgeRatings } from '../services/freshness';
 import { auditAllAdvice } from '../services/adviceAudit';
 import { FLAVOR_LABELS, formatDateTime, shotWeights } from './labels';
@@ -261,10 +261,10 @@ function CostDashboard({ shots, bags, beans }: { shots: Shot[]; bags: Bag[]; bea
     <div className="card">
       <h2><CoinIcon size={20} /> עלויות הקפה שלי</h2>
       <div className="stat-grid">
-        <StatTile value={`₪${avgCost.toFixed(1)}`} label="עלות לשוט" />
-        <StatTile value={`₪${Math.round(totalConsumed)}`} label="קפה שנצרך" />
-        <StatTile value={`₪${Math.round(totalBagSpend)}`} label="הושקע בפולים" />
-        <StatTile value={`₪${Math.round(savings)}`} label="חיסכון מול בית קפה" />
+        <StatTile value={<CountUp value={avgCost} decimals={1} prefix="₪" />} label="עלות לשוט" />
+        <StatTile value={<CountUp value={totalConsumed} decimals={0} prefix="₪" />} label="קפה שנצרך" />
+        <StatTile value={<CountUp value={totalBagSpend} decimals={0} prefix="₪" />} label="הושקע בפולים" />
+        <StatTile value={<CountUp value={savings} decimals={0} prefix="₪" />} label="חיסכון מול בית קפה" />
       </div>
       {monthly.length > 1 && (
         <>
@@ -355,11 +355,11 @@ function CoffeeWrapped({ shots, beans, onBack }: { shots: Shot[]; beans: Bean[];
         <h2><GiftIcon size={20} /> Coffee Wrapped {year}</h2>
         <p className="muted small" style={{ marginTop: 0 }}>השנה שלך באספרסו, במספרים.</p>
         <div className="stat-grid">
-          <StatTile value={yearShots.length} label="שוטים השנה" />
-          <StatTile value={`${(totalCoffee / 1000).toFixed(2)} ק״ג`} label="קפה נטחן" />
-          <StatTile value={`${(totalEspresso / 1000).toFixed(1)} ליטר`} label="אספרסו בכוס" />
-          <StatTile value={distinctBeans} label="סוגי פולים" />
-          <StatTile value={avgRating.toFixed(1)} label="דירוג ממוצע" />
+          <StatTile value={<CountUp value={yearShots.length} />} label="שוטים השנה" />
+          <StatTile value={<CountUp value={totalCoffee / 1000} decimals={2} suffix=" ק״ג" />} label="קפה נטחן" />
+          <StatTile value={<CountUp value={totalEspresso / 1000} decimals={1} suffix=" ליטר" />} label="אספרסו בכוס" />
+          <StatTile value={<CountUp value={distinctBeans} />} label="סוגי פולים" />
+          <StatTile value={<CountUp value={avgRating} decimals={1} />} label="דירוג ממוצע" />
         </div>
       </div>
 
@@ -397,8 +397,8 @@ function CoffeeWrapped({ shots, beans, onBack }: { shots: Shot[]; beans: Bean[];
         <div className="card">
           <h2><TrendIcon size={20} /> המסע שלך</h2>
           <div className="stat-grid">
-            <StatTile value={firstAvg.toFixed(1)} label="ממוצע — תחילת השנה" />
-            <StatTile value={secondAvg.toFixed(1)} label="ממוצע — ההמשך" />
+            <StatTile value={<CountUp value={firstAvg} decimals={1} />} label="ממוצע — תחילת השנה" />
+            <StatTile value={<CountUp value={secondAvg} decimals={1} />} label="ממוצע — ההמשך" />
           </div>
           <p className="muted small" style={{ marginTop: 8 }}>
             {secondAvg > firstAvg + 0.3
@@ -557,9 +557,9 @@ function AdviceReliabilityCard({ shots }: { shots: Shot[] }) {
     <div className="card">
       <h2><BrainIcon size={20} /> מדד אמינות המוח</h2>
       <div className="stat-grid">
-        <StatTile value={followed.length} label="המלצות שיישמת" />
-        <StatTile value={succeeded} label="שיפרו / שמרו רמה" />
-        <StatTile value={`${pct}%`} label="אחוז הצלחה" />
+        <StatTile value={<CountUp value={followed.length} />} label="המלצות שיישמת" />
+        <StatTile value={<CountUp value={succeeded} />} label="שיפרו / שמרו רמה" />
+        <StatTile value={<CountUp value={pct} suffix="%" />} label="אחוז הצלחה" />
       </div>
       <p className="muted small" style={{ marginTop: 10 }}>
         המוח בודק את עצמו: על כל המלצה שיישמת, הוא משווה את דירוג השוט הבא לקודם.
@@ -706,12 +706,12 @@ export function AnalyticsScreen() {
         <div className="card">
           <h2><ScaleIcon size={20} /> ממוצעי ההכנה שלי</h2>
           <div className="stat-grid">
-            <StatTile value={avgRating.toFixed(1)} label="דירוג ממוצע" />
-            <StatTile value={`${Math.round(avgTime)}s`} label="זמן ממוצע" />
-            <StatTile value={`1:${avgRatio.toFixed(1)}`} label="יחס ממוצע" />
-            <StatTile value={`${avgDose.toFixed(1)}g`} label="מנה ממוצעת" />
-            <StatTile value={`${avgYield.toFixed(1)}g`} label="יוצא בכוס (Yield)" />
-            <StatTile value={avgFlow.toFixed(1)} label="זרימה (גרם/שנ')" />
+            <StatTile value={<CountUp value={avgRating} decimals={1} />} label="דירוג ממוצע" />
+            <StatTile value={<CountUp value={avgTime} decimals={0} suffix="s" />} label="זמן ממוצע" />
+            <StatTile value={<CountUp value={avgRatio} decimals={1} prefix="1:" />} label="יחס ממוצע" />
+            <StatTile value={<CountUp value={avgDose} decimals={1} suffix="g" />} label="מנה ממוצעת" />
+            <StatTile value={<CountUp value={avgYield} decimals={1} suffix="g" />} label="יוצא בכוס (Yield)" />
+            <StatTile value={<CountUp value={avgFlow} decimals={1} />} label="זרימה (גרם/שנ')" />
           </div>
         </div>
       )}
@@ -721,8 +721,8 @@ export function AnalyticsScreen() {
         <div className="card">
           <h2><TargetIcon size={20} /> מדד העקביות שלי</h2>
           <div className="stat-grid">
-            <StatTile value={consistency} label="ציון עקביות (10 אחרונים)" />
-            {prevConsistency !== null && <StatTile value={prevConsistency} label="10 הקודמים" />}
+            <StatTile value={<CountUp value={consistency} />} label="ציון עקביות (10 אחרונים)" />
+            {prevConsistency !== null && <StatTile value={<CountUp value={prevConsistency} />} label="10 הקודמים" />}
           </div>
           <p className="muted small" style={{ marginTop: 10 }}>
             המדד בודק כמה השוטים שלך צמודים זה לזה בזמן החליטה וביחס (0–100).

@@ -5,7 +5,7 @@ import { bagRepo, beanRepo } from '../db/repositories';
 import { computeBagUsage } from '../services/stats';
 import { computeFreshness, formatDeadline } from '../services/freshness';
 import type { Bag, RoastLevel, Shot } from '../domain/types';
-import { ConfirmButton, EmptyState, Field, StatTile } from './components';
+import { ConfirmButton, CountUp, EmptyState, Field, StatTile } from './components';
 import { ROAST_LEVELS, formatDate, ratingClass } from './labels';
 import { BeanIcon, CalendarIcon, PlusIcon, SaveIcon, TrashIcon, UndoIcon, WarnIcon } from './icons';
 
@@ -146,12 +146,20 @@ export function BeansScreen() {
                       סמן כנגמרה
                     </button>
                   ) : (
-                    <button
-                      className="btn small secondary" style={{ marginTop: 6 }}
-                      onClick={() => { setFarewellBagId(null); bagRepo.put({ ...bag, finished: false }); }}
-                    >
-                      <UndoIcon size={17} /> החזר שקית
-                    </button>
+                    <div className="btn-row" style={{ marginTop: 6 }}>
+                      <button
+                        className="btn small secondary"
+                        onClick={() => { setFarewellBagId(null); bagRepo.put({ ...bag, finished: false }); }}
+                      >
+                        <UndoIcon size={17} /> החזר שקית
+                      </button>
+                      <ConfirmButton
+                        className="btn small danger"
+                        label={<><TrashIcon size={17} /> מחק שקית</>}
+                        confirmLabel="למחוק? העלויות לא ייספרו יותר — אישור"
+                        onConfirm={() => { setFarewellBagId(null); void bagRepo.remove(bag.id); }}
+                      />
+                    </div>
                   )}
                   {farewellBagId === bag.id && (
                     <BagFarewell
@@ -216,12 +224,12 @@ function BagFarewell({
     >
       <h3 style={{ marginTop: 0 }}>סיכום השקית — {beanName}</h3>
       <div className="stat-grid">
-        <StatTile value={usage.shotsCount} label="שוטים" />
-        <StatTile value={avg !== null ? avg.toFixed(1) : '—'} label="דירוג ממוצע" />
+        <StatTile value={<CountUp value={usage.shotsCount} />} label="שוטים" />
+        <StatTile value={avg !== null ? <CountUp value={avg} decimals={1} /> : '—'} label="דירוג ממוצע" />
         {usage.costPerShot !== null && (
-          <StatTile value={`₪${usage.costPerShot.toFixed(1)}`} label="עלות לשוט" />
+          <StatTile value={<CountUp value={usage.costPerShot} decimals={1} prefix="₪" />} label="עלות לשוט" />
         )}
-        {daysOpen !== null && <StatTile value={daysOpen} label="ימים מהפתיחה" />}
+        {daysOpen !== null && <StatTile value={<CountUp value={daysOpen} />} label="ימים מהפתיחה" />}
       </div>
       {best && (
         <p className="small" style={{ margin: '10px 0 4px', color: 'var(--crema)' }}>

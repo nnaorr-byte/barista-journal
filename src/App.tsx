@@ -1,12 +1,20 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { HomeScreen } from './ui/HomeScreen';
 import { NewShotScreen } from './ui/NewShotScreen';
 import { ShotsScreen } from './ui/ShotsScreen';
 import { BeansScreen } from './ui/BeansScreen';
-import { AnalyticsScreen } from './ui/AnalyticsScreen';
-import { WeeklySummaryScreen } from './ui/WeeklySummaryScreen';
-import { SettingsScreen } from './ui/SettingsScreen';
 import { BeansBackground } from './ui/BeansBackground';
+
+// פיצול לפי מסך: בית, שוט חדש, יומן ופולים נטענים מיד (נתיב קריטי — נכנסים
+// אליהם ישר מהניווט התחתון). הנתונים, הסיכום השבועי וההגדרות נטענים בעת
+// הצורך, וכך הם יוצאים מהחבילה של הפתיחה הקרה. ה-service worker מקדים
+// ומאחסן גם את ה-chunks האלה, כך שאחרי ההתקנה הראשונה המעבר מיידי.
+const AnalyticsScreen = lazy(() =>
+  import('./ui/AnalyticsScreen').then((m) => ({ default: m.AnalyticsScreen })));
+const WeeklySummaryScreen = lazy(() =>
+  import('./ui/WeeklySummaryScreen').then((m) => ({ default: m.WeeklySummaryScreen })));
+const SettingsScreen = lazy(() =>
+  import('./ui/SettingsScreen').then((m) => ({ default: m.SettingsScreen })));
 import {
   BeanIcon, ChartIcon, CupIcon, HomeIcon, JournalIcon, MoonIcon, SettingsIcon, SunIcon,
 } from './ui/icons';
@@ -23,6 +31,16 @@ const NAV: { screen: Screen; icon: ReactNode; label: string; fab?: boolean }[] =
   { screen: 'beans', icon: <BeanIcon />, label: 'פולים' },
   { screen: 'dashboard', icon: <ChartIcon />, label: 'נתונים' },
 ];
+
+// מצב טעינה למסך מפוצל. שקט בכוונה: ה-chunk מקודם-אוחסן ב-service worker,
+// כך שברוב המקרים הוא כלל לא נראה. שומר על גובה כדי שהעמוד לא יקפוץ.
+function ScreenLoading() {
+  return (
+    <div className="card" role="status" aria-live="polite" style={{ minHeight: 140 }}>
+      <p className="muted small" style={{ margin: 0 }}>טוען…</p>
+    </div>
+  );
+}
 
 export default function App() {
   const [screen, setScreenState] = useState<Screen>('home');
@@ -110,11 +128,13 @@ export default function App() {
         {screen === 'new-shot' && <NewShotScreen navigate={setScreen} />}
         {screen === 'shots' && <ShotsScreen />}
         {screen === 'beans' && <BeansScreen />}
-        {/* עמוד הנתונים המאוחד — "מבט על" (הדשבורד) הוא קטגוריה בתוך הניתוח */}
-        {screen === 'dashboard' && <AnalyticsScreen />}
-        {/* סיכום שבועי — מסך צלילה מהבאנר בבית; Back מחזיר הביתה דרך ההיסטוריה */}
-        {screen === 'weekly' && <WeeklySummaryScreen />}
-        {screen === 'settings' && <SettingsScreen />}
+        <Suspense fallback={<ScreenLoading />}>
+          {/* עמוד הנתונים המאוחד — "מבט על" (הדשבורד) הוא קטגוריה בתוך הניתוח */}
+          {screen === 'dashboard' && <AnalyticsScreen />}
+          {/* סיכום שבועי — מסך צלילה מהבאנר בבית; Back מחזיר הביתה דרך ההיסטוריה */}
+          {screen === 'weekly' && <WeeklySummaryScreen />}
+          {screen === 'settings' && <SettingsScreen />}
+        </Suspense>
       </main>
 
       <nav className="bottom-nav">

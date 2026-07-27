@@ -217,12 +217,8 @@ function BagFarewell({
     : null;
 
   return (
-    <div
-      className="card accent"
-      style={{ marginTop: 8, marginBottom: 0 }}
-      role="status"
-    >
-      <h3 style={{ marginTop: 0 }}>סיכום השקית — {beanName}</h3>
+    <div className="bag-farewell" role="status">
+      <h3>סיכום השקית — {beanName}</h3>
       <div className="stat-grid">
         <StatTile value={<CountUp value={usage.shotsCount} />} label="שוטים" />
         <StatTile value={avg !== null ? <CountUp value={avg} decimals={1} /> : '—'} label="דירוג ממוצע" />

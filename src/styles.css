@@ -688,6 +688,18 @@ button.shot-item {
 }
 [data-theme='light'] .one-var-banner { color: #6e3f10; }
 
+/* תעודת סיום שקית — פאנל בתוך השקית, לא כרטיס.
+   בלי box-shadow ובלי radius מלא: הגבהה מקוננת היא מה שגורם לכרטיס-בתוך-כרטיס
+   להיראות שגוי. ההיררכיה נבנית מהגבול המודגש ומהרווח, בשפה של .one-var-banner. */
+.bag-farewell {
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border-soft));
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-top: 12px;
+}
+.bag-farewell > h3 { margin-top: 0; }
+
 /* ---- שונות ---- */
 .empty-state {
   text-align: center;

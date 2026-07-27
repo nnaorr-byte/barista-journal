@@ -3,14 +3,14 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import {
   shotRatio, shotFlowRate,
-  type Bag, type Bean, type DialInSession, type FlavorNote, type Shot,
+  type Bag, type Bean, type DialInSession, type Shot,
 } from '../domain/types';
 import { BarChart, LineChart, ScatterChart, Histogram, type Point, type ScatterPoint } from './charts';
 import { CountUp, StatTile, EmptyState } from './components';
 import { computeWinningWindow, shotAgeRatings } from '../services/freshness';
 import { auditAllAdvice } from '../services/adviceAudit';
 import { analyzeRecurringProblems } from '../services/recurringProblems';
-import { FLAVOR_LABELS, formatDateTime, shotWeights } from './labels';
+import { formatDateTime, shotWeights } from './labels';
 import { DashboardScreen } from './DashboardScreen';
 import { BeanIcon, BrainIcon, BulbIcon, ChartIcon, CoinIcon, CupIcon, FlameIcon, GearIcon, GiftIcon, LeafIcon, MedalIcon, ScaleIcon, SettingsIcon, StarIcon, TargetIcon, TasteIcon, TimerIcon, TrendIcon, TrophyIcon } from './icons';
 
@@ -340,11 +340,6 @@ function CoffeeWrapped({ shots, beans, onBack }: { shots: Shot[]; beans: Bean[];
   const topMonth = [...byMonth.entries()].sort((a, b) => b[1] - a[1])[0];
   const monthName = new Date(year, topMonth[0], 1).toLocaleDateString('he-IL', { month: 'long' });
 
-  // תווי הטעם של השנה
-  const byFlavor = new Map<FlavorNote, number>();
-  for (const s of yearShots) for (const f of s.flavorNotes ?? []) byFlavor.set(f, (byFlavor.get(f) ?? 0) + 1);
-  const topFlavors = [...byFlavor.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
-
   // שיפור: מחצית ראשונה מול שנייה
   const half = Math.floor(yearShots.length / 2);
   const firstAvg = half >= 3 ? mean(yearShots.slice(0, half).map((s) => s.rating)) : null;
@@ -382,17 +377,6 @@ function CoffeeWrapped({ shots, beans, onBack }: { shots: Shot[]; beans: Bean[];
         </p>
         <p className="muted small">החודש החזק שלך: {monthName} ({topMonth[1]} שוטים)</p>
       </div>
-
-      {topFlavors.length > 0 && (
-        <div className="card">
-          <h2><TasteIcon size={20} /> הטעמים של השנה</h2>
-          <div className="chips">
-            {topFlavors.map(([f, n]) => (
-              <span key={f} className="chip selected">{FLAVOR_LABELS[f]} × {n}</span>
-            ))}
-          </div>
-        </div>
-      )}
 
       {firstAvg !== null && secondAvg !== null && (
         <div className="card">

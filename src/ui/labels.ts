@@ -1,4 +1,4 @@
-import type { FlavorNote, MachineTempSetting, QualityLevel, RoastLevel, TasteTag } from '../domain/types';
+import type { MachineTempSetting, QualityLevel, RoastLevel, TasteTag } from '../domain/types';
 
 export const TASTE_LABELS: Record<TasteTag, string> = {
   sour: 'חמוץ',
@@ -9,32 +9,6 @@ export const TASTE_LABELS: Record<TasteTag, string> = {
   watery: 'מימי',
   other: 'אחר',
 };
-
-export const FLAVOR_LABELS: Record<FlavorNote, string> = {
-  fruity: '🍑 פירותי',
-  citrus: '🍋 הדרים',
-  berries: '🫐 פירות יער',
-  floral: '🌸 פרחוני',
-  chocolate: '🍫 שוקולד',
-  caramel: '🍮 קרמל',
-  nutty: '🥜 אגוזי',
-  honey: '🍯 דבש',
-  vanilla: '🌾 וניל',
-  spices: '🌶️ תבלינים',
-  earthy: '🪵 אדמתי',
-  smoky: '💨 מעושן',
-  winey: '🍷 ייני',
-  buttery: '🧈 חמאתי',
-};
-
-// גרסה מפוצלת של תווי הטעם לצ'יפים: האימוג'י בנפרד מהטקסט, כדי שקורא-מסך
-// יקריא רק את המילה ("פירותי") ולא את שם האימוג'י ("אפרסק פירותי").
-// FLAVOR_LABELS נשאר עם האימוג'י לתצוגת תוכן (יומן, אנליטיקה) שם הוא רצוי.
-export const FLAVOR_OPTIONS: { value: FlavorNote; label: string; emoji: string }[] =
-  (Object.entries(FLAVOR_LABELS) as [FlavorNote, string][]).map(([value, full]) => {
-    const [emoji, ...rest] = full.split(' ');
-    return { value, label: rest.join(' '), emoji };
-  });
 
 export const QUALITY_LABELS: Record<QualityLevel, string> = {
   poor: 'חלש',

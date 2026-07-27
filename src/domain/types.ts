@@ -79,21 +79,6 @@ export type TasteTag =
   | 'other';
 
 // גלגל טעמים בהשראת SCA — שכבה נוספת מעל תגיות הטעם הבסיסיות
-export type FlavorNote =
-  | 'fruity' // פירותי
-  | 'citrus' // הדרים
-  | 'berries' // פירות יער
-  | 'floral' // פרחוני
-  | 'chocolate' // שוקולד
-  | 'caramel' // קרמל
-  | 'nutty' // אגוזי
-  | 'honey' // דבש
-  | 'vanilla' // וניל
-  | 'spices' // תבלינים
-  | 'earthy' // אדמתי
-  | 'smoky' // מעושן
-  | 'winey' // ייני
-  | 'buttery'; // חמאתי
 
 export type QualityLevel = 'poor' | 'ok' | 'good' | 'excellent';
 
@@ -118,7 +103,6 @@ export interface Shot {
 
   tasteTags: TasteTag[]; // רב-בחירה
   tasteOther: string;
-  flavorNotes?: FlavorNote[]; // גלגל טעמים — אופציונלי (שוטים ישנים בלעדיו)
   body: QualityLevel | null;
   crema: QualityLevel | null;
   aftertaste: QualityLevel | null;

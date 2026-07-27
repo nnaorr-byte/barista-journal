@@ -7,11 +7,11 @@ import { makeWindowResolver, type WindowResolver } from '../services/targetWindo
 import { adviceOutcomeForShot } from '../services/adviceAudit';
 import {
   shotRatio, shotFlowRate,
-  type AiAdvice, type FlavorNote, type Grinder, type MachineTempSetting,
+  type AiAdvice, type Grinder, type MachineTempSetting,
   type QualityLevel, type Shot, type TasteTag,
 } from '../domain/types';
 import { Chips, EmptyState, Field, RatingPicker } from './components';
-import { FLAVOR_LABELS, FLAVOR_OPTIONS, QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
+import { QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
 import { BrainIcon, ChevronDownIcon, EditIcon, JournalIcon, SaveIcon, ScaleIcon, SearchIcon, StarIcon, TrashIcon, TrophyIcon, UndoIcon } from './icons';
 
 const TASTE_OPTIONS = (Object.entries(TASTE_LABELS) as [TasteTag, string][]).map(([value, label]) => ({ value, label }));
@@ -198,11 +198,6 @@ export function ShotsScreen() {
                   <p className="small" style={{ margin: '4px 0' }}>
                     טעמים: {s.tasteTags.map((t) => TASTE_LABELS[t]).join(', ')}
                     {s.tasteOther && ` (${s.tasteOther})`}
-                  </p>
-                )}
-                {(s.flavorNotes?.length ?? 0) > 0 && (
-                  <p className="small" style={{ margin: '4px 0' }}>
-                    תווי טעם: {s.flavorNotes!.map((f) => FLAVOR_LABELS[f]).join(' · ')}
                   </p>
                 )}
                 {s.notes && <p className="small muted" style={{ margin: '4px 0' }}>"{s.notes}"</p>}
@@ -411,7 +406,6 @@ function EditShotForm({ shot, onClose }: { shot: Shot; onClose: () => void }) {
   const [portafilterType, setPortafilterType] = useState(shot.portafilterType);
   const [tasteTags, setTasteTags] = useState<TasteTag[]>(shot.tasteTags);
   const [tasteOther, setTasteOther] = useState(shot.tasteOther);
-  const [flavorNotes, setFlavorNotes] = useState<FlavorNote[]>(shot.flavorNotes ?? []);
   const [body, setBody] = useState<QualityLevel | null>(shot.body);
   const [crema, setCrema] = useState<QualityLevel | null>(shot.crema);
   const [aftertaste, setAftertaste] = useState<QualityLevel | null>(shot.aftertaste);
@@ -466,13 +460,6 @@ function EditShotForm({ shot, onClose }: { shot: Shot; onClose: () => void }) {
         </div>
       )}
 
-      <h3>תווי טעם — גלגל הטעמים</h3>
-      <Chips
-        groupLabel="תווי טעם"
-        options={FLAVOR_OPTIONS} selected={flavorNotes}
-        onToggle={(f) => setFlavorNotes((prev) => (prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]))}
-      />
-
       <h3>Body</h3>
       <Chips groupLabel="גוף" multi={false} options={QUALITY_OPTIONS} selected={body ? [body] : []} onToggle={(v) => setBody(body === v ? null : v)} />
       <h3>Crema</h3>
@@ -500,7 +487,6 @@ function EditShotForm({ shot, onClose }: { shot: Shot; onClose: () => void }) {
               portafilterType,
               tasteTags,
               tasteOther: tasteTags.includes('other') ? tasteOther : '',
-              flavorNotes,
               body,
               crema,
               aftertaste,

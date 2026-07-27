@@ -27,6 +27,14 @@ colors:
   latte-good: "#41682f"
   latte-warn: "#7a5a1d"
   latte-bad: "#ad4a39"
+  fab-terracotta-light: "#cf7240"
+  fab-terracotta-dark: "#98431f"
+  fab-ink: "#fff6ec"
+  danger-ink: "#ffd9cf"
+  latte-danger-ink: "#8a2f1e"
+  banner-ink: "#6e3f10"
+  seg-ink: "#1d130a"
+  latte-seg-ink: "#fff4e4"
 typography:
   display:
     fontFamily: "Heebo, Segoe UI, Arial, sans-serif"

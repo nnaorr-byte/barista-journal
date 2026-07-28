@@ -339,6 +339,9 @@ button:focus-visible {
 .card.hero > h2 {
   font-size: 1.22rem;
   color: var(--accent-strong);
+  /* הכרטיס הזה צפוף בכוונה: המרשם הוא הגיבור, לא הרווחים סביבו */
+  margin-bottom: 9px;
+  padding-bottom: 8px;
 }
 .card.warn { border-color: color-mix(in srgb, var(--warn) 55%, var(--border-soft)); }
 
@@ -349,7 +352,7 @@ button:focus-visible {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 .fresh-track {
   position: relative;
@@ -376,11 +379,15 @@ button:focus-visible {
 }
 .fresh-label { flex: none; font-weight: 700; font-variant-numeric: tabular-nums; }
 
-/* המרשם נקרא מנה→עצירה→כוס, ולכן השורה הזאת בלבד היא LTR */
+/* המרשם נקרא מנה→עצירה→כוס, ולכן השורה הזאת בלבד היא LTR.
+   space-between מותח את השורה על כל רוחב הכרטיס — המרשם הוא הגיבור,
+   ולכן הוא לא מצטמצם לפינה. הגדלים ב-clamp כדי שהם יגדלו עם המסך
+   ולא ישברו ב-375px, גם כשהמנה היא 15.8 ולא 16. */
 .recipe-row {
   display: flex;
   align-items: flex-end;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 4px;
   direction: ltr;
   margin-bottom: 2px;
 }
@@ -390,34 +397,48 @@ button:focus-visible {
   align-items: flex-start;
   gap: 2px;
 }
+/* "גרם" נשארת דבוקה למספר האחרון — היא היחידה שלו, לא פריט בשורה */
+.recipe-tail {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
 .recipe-label {
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.3px;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 .recipe-value {
-  font-size: 2.4rem;
+  font-size: clamp(2.3rem, 10vw, 2.8rem);
   font-weight: 800;
   line-height: 1;
-  letter-spacing: -1.5px;
+  /* ב-em ולא ב-px: המספר גדל עם המסך, והמעקב מתהדק איתו.
+     זה גם מה שמשאיר מקום ל-16 → 26.9 → 30.4 בלי שבירה ב-375px. */
+  letter-spacing: -0.04em;
   color: var(--accent-strong);
   font-variant-numeric: tabular-nums;
 }
 .recipe-label.cup, .recipe-value.cup { color: var(--crema); }
 .recipe-arrow {
-  font-size: 1.25rem;
+  font-size: clamp(1.25rem, 5.5vw, 1.55rem);
   font-weight: 300;
-  line-height: 2.4;
+  line-height: 1;
+  /* המפריד והיחידה ממורכזים אל גובה המספר. padding ב-em כדי שהמרכוז
+     ישרוד את ה-clamp: המספר גדל עם המסך, וההיסט גדל איתו. */
+  padding-bottom: 0.56em;
   color: var(--text-muted);
 }
 .recipe-unit {
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 700;
-  line-height: 3.2;
+  line-height: 1;
+  padding-bottom: 1.07em;
   color: var(--text-muted);
+  white-space: nowrap;
 }
-.recipe-divider { height: 1px; background: var(--hairline); margin: 14px 0; }
+.recipe-divider { height: 1px; background: var(--hairline); margin: 12px 0; }
 
 .verify-row { display: flex; gap: 8px; margin-bottom: 14px; }
 .verify-tile {
@@ -425,15 +446,17 @@ button:focus-visible {
   flex: 1;
   flex-direction: column;
   gap: 2px;
-  padding: 9px 10px;
+  padding: 10px 10px 11px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
 }
-.verify-label { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); }
+.verify-label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+/* גדול מספיק כדי להיקרא כנתון של הכרטיס, וקטן מובהק מספרי המרשם */
 .verify-value {
-  font-size: 1.05rem;
+  font-size: clamp(1.3rem, 5.5vw, 1.5rem);
   font-weight: 800;
+  line-height: 1.15;
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }

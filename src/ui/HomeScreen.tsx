@@ -335,7 +335,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
         <h2><TargetIcon size={20} /> המלצת השוט הבא</h2>
         {recommendation && lastBean ? (
           <>
-            <div className="muted small" style={{ marginBottom: 12 }}>
+            <div className="muted small" style={{ marginBottom: 7 }}>
               {lastBean.name} · {lastBean.roastery}
             </div>
 
@@ -376,11 +376,13 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 </>
               )}
               <span className="recipe-arrow">→</span>
-              <div className="recipe-num">
-                <span className="recipe-label cup">בכוס</span>
-                <span className="recipe-value cup"><CountUp value={recommendation.yieldGrams} /></span>
+              <div className="recipe-tail">
+                <div className="recipe-num">
+                  <span className="recipe-label cup">בכוס</span>
+                  <span className="recipe-value cup"><CountUp value={recommendation.yieldGrams} /></span>
+                </div>
+                <span className="recipe-unit">גרם</span>
               </div>
-              <span className="recipe-unit">גרם</span>
             </div>
 
             <div className="recipe-divider" />

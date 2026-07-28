@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import { computeInsights } from '../services/learning';
@@ -11,12 +11,36 @@ import { makeWindowResolver } from '../services/targetWindow';
 import { shotRatio, type RoastLevel } from '../domain/types';
 import { CountUp, StatTile, EmptyState } from './components';
 import { formatDateTime, ratingClass, shotWeights } from './labels';
-import { BeanIcon, BellIcon, CupIcon, LeafIcon, SaveIcon, SoapIcon, TargetIcon, TrendDownIcon, TrendIcon, TrophyIcon, WarnIcon } from './icons';
+import { BeanIcon, ChevronDownIcon, CupIcon, LeafIcon, SaveIcon, SoapIcon, TargetIcon, TrendDownIcon, TrendIcon, TrophyIcon, WarnIcon } from './icons';
 import type { Screen } from '../App';
+
+// ===== שכבת ההתראות =====
+// התראה אחת מוצגת במלואה (הראשונה בסולם העדיפות), היתר נספרות ב-+N.
+// הסולם קבוע: גיבוי דחוף → שקית ריקה → תחזוקה באיחור → טריות מעבר לטווח →
+// גיבוי רגיל → מלאי מתחת ל-10. עדיפות היא נתון אחד, לא סדרת && בתוך ה-JSX.
+type AlertTone = 'bad' | 'warn' | 'muted';
+
+interface HomeAlert {
+  key: string;
+  tone: AlertTone;
+  icon: ReactNode;
+  title: string;
+  sub: string;
+  cta: string; // הכיתוב במצב המקופל ("גבה עכשיו")
+  action: { label: string; secondary?: boolean; onClick: () => void };
+  isBackup?: boolean;
+}
+
+const TONE_VAR: Record<AlertTone, string> = {
+  bad: 'var(--bad)',
+  warn: 'var(--warn)',
+  muted: 'var(--text-muted)',
+};
 
 export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const [backupMsg, setBackupMsg] = useState('');
   const [backupDismissed, setBackupDismissed] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const data = useLiveQuery(async () => {
     const [user, shots, beans, bags, events, grinders] = await Promise.all([
       db.users.toArray().then((u) => u[0]),
@@ -84,11 +108,8 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const newestOpenBag = [...openBags]
     .sort((a, b) => (b.openDate ?? b.createdAt).localeCompare(a.openDate ?? a.createdAt))[0] ?? null;
   const activeBag = lastBag && !lastBag.finished ? lastBag : newestOpenBag;
+  // שם הפולים של השקית הפעילה — מופיע בהתראת המלאי, כדי שברור על איזו שקית מדובר
   const activeBagBean = activeBag ? beanMap.get(activeBag.beanId) : null;
-  // כשההתראה עברה לשקית אחרת מזו של השוט האחרון — מציינים את שם הפולים
-  const bagLabel = activeBag && activeBag.id !== lastBag?.id && activeBagBean
-    ? `השקית החדשה (${activeBagBean.name})`
-    : 'השקית';
 
   // התראת טריות: איפה השקית הפעילה ביחס לחלון הטריות.
   // עדיפות לחלון האישי (מההיסטוריה) — אך רק אם הוא סביר (מתחיל עד יום 30).
@@ -97,164 +118,310 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const winning = computeWinningWindow(shots, bags);
   const personalWindow = winning && winning.from <= 30 ? winning : null;
   const bagAge = activeBag ? daysSince(activeBag.roastDate) : null;
-  let freshnessNudge: { text: string; tone: 'good' | 'warn' } | null = null;
+  // חלון הטריות להצגה בפס שבתוך ההמלצה. FALLBACK_WINDOW הוא החלון המקצועי
+  // (5–30 יום) שמשמש כשאין חלון אישי אמין — אותו טווח שהטקסטים דיברו עליו עד היום.
+  const freshWindow = personalWindow ?? { from: 5, to: 30 };
+  // טון הטריות: מקור האמת נשאר הלוגיקה הקיימת (חלון אישי / שלב הטריות),
+  // כי היא זו שקובעת אם יש כאן משהו לעשות. הפס עצמו נצבע לפי המקום בטווח.
+  let freshnessNudge: { sub: string; tone: 'good' | 'warn' } | null = null;
   if (recommendation && bagAge !== null && activeBag) {
     if (personalWindow) {
       const w = personalWindow;
-      if (bagAge >= w.from && bagAge <= w.to) {
-        freshnessNudge = {
-          tone: 'good',
-          text: `${bagLabel} ביום ${bagAge} מהקלייה — בדיוק בטווח שבו יצאו לך השוטים הכי טובים (ימים ${w.from}–${w.to}). זה הזמן ליהנות ממנה!`,
-        };
+      if (bagAge > w.to) {
+        freshnessNudge = { tone: 'warn', sub: `אחרי הטווח ${w.from}–${w.to} — שווה לסיים` };
       } else if (bagAge < w.from) {
-        freshnessNudge = {
-          tone: 'good',
-          text: `${bagLabel} ביום ${bagAge} מהקלייה. לפי ההיסטוריה שלך, השוטים הכי טובים יוצאים בימים ${w.from}–${w.to} — היא תיכנס לטווח בעוד ${w.from - bagAge} ימים.`,
-        };
+        freshnessNudge = { tone: 'good', sub: `נכנסת לטווח ${w.from}–${w.to} בעוד ${w.from - bagAge} ימים` };
       } else {
-        freshnessNudge = {
-          tone: 'warn',
-          text: `${bagLabel} ביום ${bagAge} מהקלייה — אחרי הטווח שבו יצאו לך השוטים הכי טובים (ימים ${w.from}–${w.to}). שווה לסיים אותה בקרוב.`,
-        };
+        freshnessNudge = { tone: 'good', sub: `בתוך הטווח ${w.from}–${w.to}` };
       }
     } else {
       // אין חלון אישי אמין — הערכת הטריות המקצועית (5–30 יום אידיאלי, דד-ליין 60)
       const fresh = computeFreshness(activeBag.roastDate);
-      const stageText: Partial<Record<typeof fresh.stage, { text: string; tone: 'good' | 'warn' }>> = {
-        resting: { tone: 'warn', text: `${bagLabel} ביום ${bagAge} מהקלייה — הפולים עדיין משחררים גזים; חלון הטריות האידיאלי מתחיל סביב יום 5.` },
-        peak: { tone: 'good', text: `${bagLabel} ביום ${bagAge} מהקלייה — בשיא הטריות. זה הזמן ליהנות ממנה!` },
-        good: { tone: 'good', text: `${bagLabel} ביום ${bagAge} מהקלייה — עדיין בחלון טריות טוב.` },
-        fading: { tone: 'warn', text: `${bagLabel} ביום ${bagAge} מהקלייה — הטריות יורדת; שווה לסיים אותה בקרוב.` },
-        expired: { tone: 'warn', text: `${bagLabel} ביום ${bagAge} מהקלייה — מעבר לחלון הטריות (60 יום). עדיף לסיים אותה מהר.` },
+      const stageText: Partial<Record<typeof fresh.stage, { sub: string; tone: 'good' | 'warn' }>> = {
+        resting: { tone: 'warn', sub: 'עדיין משחרר גזים — הטווח מתחיל ביום 5' },
+        peak: { tone: 'good', sub: 'בשיא הטריות' },
+        good: { tone: 'good', sub: 'עדיין בחלון טריות טוב' },
+        fading: { tone: 'warn', sub: 'הטריות יורדת — שווה לסיים בקרוב' },
+        expired: { tone: 'warn', sub: 'מעבר לדד-ליין 60 יום — עדיף לסיים מהר' },
       };
       freshnessNudge = stageText[fresh.stage] ?? null;
     }
   }
 
-  // התראת מלאי נמוך: פחות מ-10 שוטים משוערים בשקית הפעילה
-  let lowStock: string | null = null;
+  // מלאי השקית הפעילה: כמה שוטים נשארו לפי המנה הממוצעת בפועל
+  let stock: { shotsLeft: number; gramsLeft: number; label: string } | null = null;
   if (recommendation && activeBag && !activeBag.finished) {
     const usage = computeBagUsage(activeBag, shots);
     const avgDose = usage.shotsCount > 0 ? usage.gramsUsed / usage.shotsCount : (user?.defaultDoseGrams ?? 16);
     const shotsLeft = avgDose > 0 ? Math.floor(usage.gramsLeft / avgDose) : 0;
     if (usage.shotsCount > 0 && shotsLeft < 10) {
-      lowStock = shotsLeft <= 0
-        ? 'השקית כמעט ריקה לפי התיעוד — הזמן פולים חדשים!'
-        : `נשארו ~${shotsLeft} שוטים בשקית (~${usage.gramsLeft.toFixed(0)} גרם) — כדאי להזמין פולים חדשים.`;
+      stock = {
+        shotsLeft,
+        gramsLeft: usage.gramsLeft,
+        label: activeBagBean?.name ?? 'השקית הפעילה',
+      };
     }
   }
 
+  // בניית שכבת ההתראות לפי סולם העדיפות
+  const alerts: HomeAlert[] = [];
+  const backupSub = backupStatus.lastBackupAt === null
+    ? 'מעולם לא גובה'
+    : `לפני ${backupStatus.daysSinceBackup} ימים`;
+  const backupAlert = (tone: AlertTone): HomeAlert => ({
+    key: 'backup',
+    tone,
+    icon: tone === 'bad' ? <WarnIcon size={18} strokeWidth={1.8} /> : <SaveIcon size={18} strokeWidth={1.8} />,
+    title: `${backupStatus.shotsSinceBackup} שוטים לא מגובים`,
+    sub: backupSub,
+    cta: 'גבה עכשיו',
+    action: {
+      label: 'גבה',
+      onClick: async () => {
+        const result = await shareBackup();
+        if (result === 'shared') setBackupMsg('הגיבוי שותף בהצלחה!');
+        else if (result === 'fallback') setBackupMsg('קובץ הגיבוי ירד למכשיר!');
+      },
+    },
+    isBackup: true,
+  });
+  const showBackup = backupStatus.needsBackup && !backupDismissed;
+
+  if (showBackup && backupStatus.urgent) alerts.push(backupAlert('bad'));
+  if (stock && stock.shotsLeft <= 0) {
+    alerts.push({
+      key: 'stock-empty',
+      tone: 'warn',
+      icon: <BeanIcon size={18} strokeWidth={1.8} />,
+      title: 'השקית כמעט ריקה',
+      sub: `~${stock.gramsLeft.toFixed(0)} גרם · ${stock.label}`,
+      cta: 'הזמן פולים חדשים',
+      action: { label: 'שקית חדשה', secondary: true, onClick: () => navigate('beans') },
+    });
+  }
+  if (shots.length > 0) {
+    for (const m of overdueMaintenance) {
+      alerts.push({
+        key: `maint-${m.rule.kind}`,
+        tone: 'warn',
+        icon: <SoapIcon size={18} strokeWidth={1.8} />,
+        title: shortMaintLabel(m.rule.kind),
+        sub: m.daysAgo !== null ? `לפני ${m.daysAgo} ימים` : 'לא תועד עדיין',
+        cta: 'תעד ניקוי',
+        action: { label: 'תיעוד', secondary: true, onClick: () => navigate('settings') },
+      });
+    }
+  }
+  if (freshnessNudge?.tone === 'warn' && bagAge !== null) {
+    alerts.push({
+      key: 'freshness',
+      tone: 'warn',
+      icon: <LeafIcon size={18} strokeWidth={1.8} />,
+      title: `יום ${bagAge} מהקלייה`,
+      sub: freshnessNudge.sub,
+      cta: 'בדוק את הפולים',
+      action: { label: 'הפולים שלי', secondary: true, onClick: () => navigate('beans') },
+    });
+  }
+  if (showBackup && !backupStatus.urgent) alerts.push(backupAlert('warn'));
+  if (stock && stock.shotsLeft > 0) {
+    alerts.push({
+      key: 'stock-low',
+      tone: 'muted',
+      icon: <BeanIcon size={18} strokeWidth={1.8} />,
+      title: `~${stock.shotsLeft} שוטים בשקית`,
+      sub: `~${stock.gramsLeft.toFixed(0)} גרם · ${stock.label}`,
+      cta: 'כדאי להזמין פולים',
+      action: { label: 'שקית חדשה', secondary: true, onClick: () => navigate('beans') },
+    });
+  }
+
+  const lead = alerts[0];
+  // שינוי הטחינה מול השוט האחרון — המשתנה היחיד שההמלצה מזיזה, ולכן היחיד שמודגש
+  const grindDelta =
+    recommendation?.grindSetting != null && lastShot?.grindSetting != null
+      ? Math.round((recommendation.grindSetting - lastShot.grindSetting) * 10) / 10
+      : 0;
+
   return (
     <div>
-      {/* ברכת פתיחה לפי שעת היום */}
+      {/* ברכת פתיחה — כשיש שוטים בשבוע, השורה השנייה היא הסיכום השבועי ולחיצה עליה מנווטת אליו */}
       <div className="home-greeting">
-        <div className="greeting-main">{greeting.main}</div>
-        <div className="greeting-sub">{greeting.sub}</div>
+        {week.count > 0 ? (
+          <button type="button" className="greeting-tap" onClick={() => navigate('weekly')}>
+            <span className="greeting-main">{greeting.main}</span>
+            <span className="greeting-sub">
+              {week.count} {week.count === 1 ? 'שוט' : 'שוטים'} השבוע
+              {week.avgRating !== null && <> · ממוצע {week.avgRating.toFixed(1)}</>}
+              {weekDiff !== null && weekDiff !== 0 && (
+                <b style={{ color: weekDiff > 0 ? 'var(--good)' : 'var(--warn)' }}>
+                  {' '}{weekDiff > 0 ? '‎↑' : '‎↓'}{Math.abs(weekDiff).toFixed(1)}
+                </b>
+              )}
+              {' · '}<span style={{ color: 'var(--crema)' }}>הקש לסיכום</span>
+            </span>
+          </button>
+        ) : (
+          <>
+            <span className="greeting-main">{greeting.main}</span>
+            <span className="greeting-sub">{greeting.sub}</span>
+          </>
+        )}
       </div>
 
-      {/* סיכום שבועי — באנר שקט, לחיץ */}
-      {week.count > 0 && (
-        <button type="button" className="week-banner" onClick={() => navigate('weekly')}>
-          <TrendIcon size={17} strokeWidth={2} />
-          <span>
-            סיכום השבוע: <b>{week.count} {week.count === 1 ? 'שוט' : 'שוטים'}</b>
-            {week.avgRating !== null && <> · ממוצע <b>{week.avgRating.toFixed(1)}</b></>}
-            {weekDiff !== null && weekDiff !== 0 && (
-              <b style={{ color: weekDiff > 0 ? 'var(--good)' : 'var(--warn)' }}>
-                {' '}{weekDiff > 0 ? '‎↑' : '‎↓'}{Math.abs(weekDiff).toFixed(1)}
-              </b>
+      {/* שכבת ההתראות — ההתראה הדחופה ביותר, והשאר נספרות. אין שכבה כשאין התראות. */}
+      {lead && (
+        <div
+          className={`alert-layer${alertsOpen ? ' open' : ''}`}
+          style={{ ['--alert-tone' as string]: TONE_VAR[lead.tone] }}
+        >
+          <button
+            type="button"
+            className="alert-toggle"
+            aria-expanded={alertsOpen}
+            onClick={() => setAlertsOpen((v) => !v)}
+          >
+            {alertsOpen ? (
+              <span className="alert-head">
+                {alerts.length === 1 ? 'דבר אחד לטיפול' : `${alerts.length} דברים לטיפול`}
+              </span>
+            ) : (
+              <>
+                <span className="alert-ico">{lead.icon}</span>
+                <span className="small alert-text" role="status">
+                  {lead.title} · {lead.sub}
+                  <br />
+                  <b style={{ color: 'var(--alert-tone)' }}>{lead.cta}</b>
+                </span>
+                {alerts.length > 1 && <span className="alert-count">{`‎+${alerts.length - 1}`}</span>}
+              </>
             )}
-            {' '}— הקש לפרטים
-          </span>
-        </button>
-      )}
-
-      {/* תזכורת גיבוי */}
-      {backupStatus.needsBackup && !backupDismissed && (
-        <div className={`card warn${backupStatus.urgent ? ' urgent' : ''}`}>
-          <h2>
-            {backupStatus.urgent ? <WarnIcon size={20} /> : <SaveIcon size={20} />}
-            {backupStatus.urgent ? ' גיבוי דחוף — אל תדחה עוד' : ' הגיע הזמן לגבות'}
-          </h2>
-          <p className="muted small" style={{ margin: '0 0 8px' }}>
-            {backupStatus.lastBackupAt === null
-              ? `יש לך ${backupStatus.shotsSinceBackup} שוטים שמעולם לא גובו. אם המכשיר יאבד — היומן יאבד איתו.`
-              : `${backupStatus.shotsSinceBackup} שוטים חדשים מאז הגיבוי האחרון (לפני ${backupStatus.daysSinceBackup} ימים).`}
-          </p>
-          {backupStatus.urgent && (
-            <p className="small" style={{ margin: '0 0 8px', color: 'var(--bad)', fontWeight: 600 }}>
-              עבר יותר מדי זמן. גבה עכשיו ושמור את הקובץ מחוץ לטלפון (וואטסאפ לעצמך / מייל / Drive).
-            </p>
-          )}
-          {backupMsg && <p className="small" style={{ margin: '0 0 8px', color: 'var(--good)' }}>{backupMsg}</p>}
-          <div className="btn-row" style={{ marginTop: 0 }}>
-            <button
-              className="btn"
-              style={{ flex: 1 }}
-              onClick={async () => {
-                const result = await shareBackup();
-                if (result === 'shared') setBackupMsg('הגיבוי שותף בהצלחה!');
-                else if (result === 'fallback') setBackupMsg('קובץ הגיבוי ירד למכשיר!');
-              }}
-            >
-              <SaveIcon size={18} /> גבה עכשיו
-            </button>
-            <button className="btn secondary small" onClick={() => setBackupDismissed(true)}>
-              אחר כך
-            </button>
+            <span className="alert-chevron"><ChevronDownIcon size={16} strokeWidth={1.9} /></span>
+          </button>
+          <div className={`collapse${alertsOpen ? ' open' : ''}`}>
+            <div className="collapse-inner">
+              {alerts.map((a) => (
+                <div key={a.key} className="alert-row" style={{ ['--alert-tone' as string]: TONE_VAR[a.tone] }}>
+                  <span className="alert-ico">{a.icon}</span>
+                  <span className="small alert-body">
+                    {a.title}
+                    <span className="muted alert-sub">{a.sub}</span>
+                    {a.isBackup && backupMsg && (
+                      <span className="alert-sub" style={{ color: 'var(--good)' }}>{backupMsg}</span>
+                    )}
+                  </span>
+                  {a.isBackup ? (
+                    <>
+                      <button className="btn small" onClick={a.action.onClick}>{a.action.label}</button>
+                      <button className="btn small secondary" onClick={() => setBackupDismissed(true)}>אחר כך</button>
+                    </>
+                  ) : (
+                    <button
+                      className={`btn small${a.action.secondary ? ' secondary' : ''}`}
+                      onClick={a.action.onClick}
+                    >
+                      {a.action.label}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
+
       {/* המלצת השוט הבא — הכרטיס הראשי, מודגש מעל השאר */}
       <div className="card accent hero">
         <h2><TargetIcon size={20} /> המלצת השוט הבא</h2>
         {recommendation && lastBean ? (
           <>
-            <div className="muted small" style={{ marginBottom: 8 }}>
+            <div className="muted small" style={{ marginBottom: 12 }}>
               {lastBean.name} · {lastBean.roastery}
             </div>
-            <div className="stat-grid">
-              <StatTile value={<CountUp value={recommendation.doseGrams} />} label="גרם נכנס" />
+
+            {/* פס חלון הטריות: המסילה היא כל אורך החיים, המלבן הירוק הוא הטווח, הסמן הוא היום */}
+            {bagAge !== null && (() => {
+              const scaleMax = Math.max(bagAge, freshWindow.to) * 1.15;
+              const pct = (n: number) => `${(n / scaleMax) * 100}%`;
+              const past = bagAge > freshWindow.to;
+              return (
+                <div className="fresh-bar">
+                  <div className="fresh-track">
+                    <div
+                      className="fresh-window"
+                      style={{ insetInlineStart: pct(freshWindow.from), width: pct(freshWindow.to - freshWindow.from) }}
+                    />
+                    <div className="fresh-today" style={{ insetInlineStart: pct(bagAge) }} />
+                  </div>
+                  <span className="small fresh-label" style={{ color: past ? 'var(--warn)' : 'var(--good)' }}>
+                    יום {bagAge} · טווח {freshWindow.from}–{freshWindow.to}
+                  </span>
+                </div>
+              );
+            })()}
+
+            {/* המרשם: מנה → עצור ב־ → בכוס, שלושה מספרים בגודל זהה */}
+            <div className="recipe-row">
+              <div className="recipe-num">
+                <span className="recipe-label">מנה</span>
+                <span className="recipe-value"><CountUp value={recommendation.doseGrams} /></span>
+              </div>
               {recommendation.stopAtGrams !== null && (
-                <StatTile value={<CountUp value={recommendation.stopAtGrams} />} label="עצירה בפועל" />
+                <>
+                  <span className="recipe-arrow">→</span>
+                  <div className="recipe-num">
+                    <span className="recipe-label">עצור ב־</span>
+                    <span className="recipe-value"><CountUp value={recommendation.stopAtGrams} /></span>
+                  </div>
+                </>
               )}
-              <StatTile value={<CountUp value={recommendation.yieldGrams} />} label="גרם יוצא" />
-              <StatTile value={`${recommendation.brewTimeSecMin}–${recommendation.brewTimeSecMax}`} label="שניות" />
-              <StatTile value={`1:${recommendation.ratio}`} label="יחס" />
+              <span className="recipe-arrow">→</span>
+              <div className="recipe-num">
+                <span className="recipe-label cup">בכוס</span>
+                <span className="recipe-value cup"><CountUp value={recommendation.yieldGrams} /></span>
+              </div>
+              <span className="recipe-unit">גרם</span>
+            </div>
+
+            <div className="recipe-divider" />
+
+            {/* שורת האימות: שלושת המשתנים שמאמתים את המרשם. הטחינה מודגשת רק כשהיא משתנה. */}
+            <div className="verify-row">
+              <div className="verify-tile">
+                <span className="verify-label">שניות</span>
+                <span className="verify-value">{recommendation.brewTimeSecMin}–{recommendation.brewTimeSecMax}</span>
+              </div>
+              <div className="verify-tile">
+                <span className="verify-label">יחס</span>
+                <span className="verify-value">1:{recommendation.ratio.toFixed(1)}</span>
+              </div>
               {recommendation.grindSetting !== null && (
-                <StatTile value={<CountUp value={recommendation.grindSetting} />} label="טחינה" />
+                <div className={`verify-tile${grindDelta !== 0 ? ' changed' : ''}`}>
+                  <span className="verify-label">
+                    טחינה{grindDelta !== 0 && ` ${grindDelta < 0 ? '‎↓' : '‎↑'}${Math.abs(grindDelta)}`}
+                  </span>
+                  <span className="verify-value">{recommendation.grindSetting}</span>
+                </div>
               )}
             </div>
-            {recommendation.reasons[0]?.startsWith('🧠') && (
-              <p className="small" style={{ marginTop: 10, color: 'var(--crema)' }}>
-                {recommendation.reasons[0]}
-              </p>
-            )}
-            <p className="muted small" style={{ marginTop: 6 }}>
-              {confidenceLabel(recommendation.confidence, recommendation.basedOnShots)}
-            </p>
-            {freshnessNudge && (
-              <p
-                className="small"
-                style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 6,
-                  color: freshnessNudge.tone === 'good' ? 'var(--good)' : 'var(--warn)',
-                }}
-              >
-                <LeafIcon size={17} strokeWidth={2} /> <span>{freshnessNudge.text}</span>
-              </p>
-            )}
-            {lowStock && (
-              <p
-                className="small"
-                style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 6, color: 'var(--warn)' }}
-              >
-                <WarnIcon size={17} strokeWidth={2} /> <span>{lowStock}</span>
-              </p>
-            )}
+
             <button className="btn block" onClick={() => navigate('new-shot')}>
               <CupIcon size={20} /> התחל שוט חדש
             </button>
+            <details className="why-details" style={{ marginTop: 8 }}>
+              <summary>
+                {recommendation.grindSetting !== null ? `למה טחינה ${recommendation.grindSetting}?` : 'למה ההמלצה הזאת?'}
+                {' · '}{shortConfidence(recommendation.confidence)}
+              </summary>
+              {recommendation.reasons[0] && (
+                <p className="muted small" style={{ margin: '0 0 4px' }}>
+                  {recommendation.reasons[0].replace(/^🧠\s*/, '')}
+                </p>
+              )}
+              <p className="muted small" style={{ margin: 0 }}>
+                {confidenceLabel(recommendation.confidence, recommendation.basedOnShots)}
+              </p>
+            </details>
           </>
         ) : (
           <>
@@ -270,28 +437,10 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
         )}
       </div>
 
-      {/* תזכורות תחזוקה */}
-      {overdueMaintenance.length > 0 && shots.length > 0 && (
-        <div className="card warn">
-          <h2><BellIcon size={20} /> תזכורות תחזוקה</h2>
-          {overdueMaintenance.map((m) => (
-            <div key={m.rule.kind} style={{ marginBottom: 6 }}>
-              <span className="badge warn">
-                {m.rule.label}
-                {m.daysAgo !== null ? ` — לפני ${m.daysAgo} ימים` : ' — לא תועד עדיין'}
-              </span>
-            </div>
-          ))}
-          <button className="btn small secondary" onClick={() => navigate('settings')}>
-            תיעוד ניקוי בהגדרות
-          </button>
-        </div>
-      )}
-
       {/* סטטיסטיקה אישית */}
       <div className="card">
         <h2><TrendIcon size={20} /> הסטטיסטיקה שלי</h2>
-        <div className="stat-grid">
+        <div className="stat-grid cols-3">
           <StatTile value={<CountUp value={insights.shotCount} />} label="שוטים סה״כ" />
           <StatTile
             value={insights.shotCount ? <CountUp value={insights.avgRating} decimals={1} /> : '—'}
@@ -358,7 +507,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       {shots.length > 0 && (
         <div className="card">
           <h2><SoapIcon size={20} /> תחזוקה</h2>
-          <div className="stat-grid">
+          <div className="stat-grid cols-3">
             {maintenance.map((m) => (
               <StatTile
                 key={m.rule.kind}
@@ -382,6 +531,16 @@ function timeGreeting(name?: string): { main: string; sub: string } {
   if (hour < 15) return { main: `צהריים טובים${who}`, sub: 'הפסקת קפה? הגעת למקום הנכון.' };
   if (hour < 18) return { main: `אחר צהריים טובים${who}`, sub: 'שוט של אחר הצהריים מגיע לך.' };
   return { main: `ערב טוב${who}`, sub: 'שוט ערב — נהנים בכיף, רק שהקפאין לא יעיר אותך.' };
+}
+
+// תווית ביטחון קצרה ל-summary של "למה?" — הניסוח המלא נשאר בתוך הפירוט
+function shortConfidence(c: 'rules' | 'low' | 'medium' | 'high'): string {
+  switch (c) {
+    case 'rules': return 'כללים מקצועיים';
+    case 'low': return 'ביטחון נמוך';
+    case 'medium': return 'ביטחון בינוני';
+    case 'high': return 'ביטחון גבוה';
+  }
 }
 
 function shortMaintLabel(kind: string): string {

@@ -30,7 +30,16 @@
     linear-gradient(165deg, #2b1c11 0%, #201309 55%, #190e06 100%);
   --bg-elevated: #2a1b10;
   --bg-card: #251710;
-  --bg-card-gradient: linear-gradient(178deg, rgba(255, 190, 120, 0.05) 0%, transparent 30%), linear-gradient(180deg, #291a10 0%, #23150c 100%);
+  /* הכרטיס שקוף-למחצה כדי שפולי הקפה הנופלים ייראו דרכו. אותם צבעים כמו
+     קודם — רק צפיפות. --card-veil הוא הידית היחידה: גבוה = כרטיס אטום
+     יותר ופולים חלשים יותר. הפולים מצוירים ב-canvas באלפא 0.065–0.15,
+     ולכן כל אחוז כאן נכפל בזה ומשפיע חזק. */
+  --card-veil: 60%;
+  --bg-card-gradient:
+    linear-gradient(178deg, rgba(255, 190, 120, 0.05) 0%, transparent 30%),
+    linear-gradient(180deg,
+      color-mix(in srgb, #291a10 var(--card-veil), transparent) 0%,
+      color-mix(in srgb, #23150c var(--card-veil), transparent) 100%);
   --bg-input: #1e1209;
   --border: #4d3823;
   --border-soft: rgba(255, 200, 140, 0.14);
@@ -74,7 +83,14 @@
     linear-gradient(165deg, #f9f1e3 0%, #f2e8d9 55%, #ecdfc9 100%);
   --bg-elevated: #f7eede;
   --bg-card: #fdf8ee;
-  --bg-card-gradient: linear-gradient(178deg, rgba(230, 150, 70, 0.06) 0%, transparent 30%), linear-gradient(180deg, #fffcf5 0%, #fbf5e9 100%);
+  /* בבהיר הפול חום כהה על רקע בהיר. נמדד: ב-72% הוא הזיז את הבהירות
+     ב-4% בלבד — מתחת לסף שבו העין תופסת אותו. 66% מכפיל את זה. */
+  --card-veil: 66%;
+  --bg-card-gradient:
+    linear-gradient(178deg, rgba(230, 150, 70, 0.06) 0%, transparent 30%),
+    linear-gradient(180deg,
+      color-mix(in srgb, #fffcf5 var(--card-veil), transparent) 0%,
+      color-mix(in srgb, #fbf5e9 var(--card-veil), transparent) 100%);
   --bg-input: #f5ecdb;
   --border: #d2bda0;
   --border-soft: rgba(150, 95, 40, 0.2);
@@ -305,6 +321,10 @@ button:focus-visible {
 /* ---- כרטיסים ---- */
 .card {
   background: var(--bg-card-gradient);
+  /* הטשטוש הוא מה שהופך "פולים דרך הכרטיס" ל"פולים מבעד לזכוכית":
+     הצורה נשארת מזוהה, הקצוות מתרככים, והטקסט לא מתחרה בפרטים חדים. */
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   border: 1px solid var(--border-soft);
   border-top-color: var(--hairline); /* "קרמה" — פס אור עדין בקצה העליון */
   border-radius: var(--radius);

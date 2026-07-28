@@ -353,8 +353,10 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
                     />
                     <div className="fresh-today" style={{ insetInlineStart: pct(bagAge) }} />
                   </div>
+                  {/* "הטווח שלך" כשהוא נגזר מהיומן, "טווח מומלץ" כשזה החלון המקצועי —
+                      אחרת המספר נראה חיצוני, בזמן שהוא בא מהשוטים של נאור עצמו */}
                   <span className="small fresh-label" style={{ color: past ? 'var(--warn)' : 'var(--good)' }}>
-                    יום {bagAge} · טווח {freshWindow.from}–{freshWindow.to}
+                    יום {bagAge} · {personalWindow ? 'הטווח שלך' : 'טווח מומלץ'} {freshWindow.from}–{freshWindow.to}
                   </span>
                 </div>
               );
@@ -411,8 +413,12 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
               <CupIcon size={20} /> התחל שוט חדש
             </button>
             <details className="why-details" style={{ marginTop: 8 }}>
+              {/* הניסוח הספציפי נשמר לרגע שבו הטחינה באמת זזה — אחרת "למה טחינה 6?"
+                  שואל על שינוי שלא קרה. אותו תנאי שמדגיש את אריח הטחינה. */}
               <summary>
-                {recommendation.grindSetting !== null ? `למה טחינה ${recommendation.grindSetting}?` : 'למה ההמלצה הזאת?'}
+                {recommendation.grindSetting !== null && grindDelta !== 0
+                  ? `למה טחינה ${recommendation.grindSetting}?`
+                  : 'למה ההמלצה הזו?'}
                 {' · '}{shortConfidence(recommendation.confidence)}
               </summary>
               {recommendation.reasons[0] && (

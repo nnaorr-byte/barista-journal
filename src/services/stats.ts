@@ -93,6 +93,10 @@ export interface Trend {
 // חלון הזמן אינו קבוע גלובלי: הוא נגזר מרמת הקלייה ומגיל הקלייה של השוט
 // (services/targetWindow.ts). קודם היה כאן 22–32 קבוע, וזה העניש שוטים
 // בקליות בהירות — שם היעד שהאפליקציה עצמה נותנת הוא 28–36 שניות.
+//
+// מי שקורא: מסך הסיכום מזרים לכאן את makePersonalWindowResolver — החלון
+// המכויל מהשוטים שקדמו לכל שוט. החלון המקצועי לפי הקלייה נשאר הגיבוי
+// כשאין מספיק היסטוריה.
 export const TARGET_RATING = 8;
 
 export function isInTarget(s: Shot, window: TargetWindow): boolean {
@@ -124,7 +128,7 @@ export interface WeeklySummary {
   daysWithCoffee: number;
   prevCount: number;
   prevAvg: number | null;
-  // הדופק שלך: אחוז השוטים בחלון היעד (זמן 22–32 שנ' + דירוג 8+)
+  // הדופק שלך: אחוז השוטים בחלון היעד (זמן בחלון של אותם פולים + דירוג 8+)
   inTargetCount: number;
   inTargetPct: number | null;
   prevInTargetPct: number | null;

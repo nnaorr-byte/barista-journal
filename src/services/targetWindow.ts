@@ -98,9 +98,18 @@ export function roastAgeAt(roastDate: string | null, atIso: string): number | nu
 
 export type WindowResolver = (shot: Shot) => TargetWindow;
 
+// כמה שוטים צריכים להיות לאותם פולים לפני שהחלון האישי נחשב אמין.
+// מתחת לזה החלון היה נגזר מקבוצה קטנה מדי ומספר את עצמו.
+export const MIN_PERSONAL_CALIBRATION_SHOTS = 5;
+
+// חלון הדופק מכויל מהשוטים האחרונים ולא מכל ההיסטוריה. הסיבה נמדדה:
+// כשהזמנים משתנים (למשל מ-26 שנ' ל-19), ממוצע על כל ההיסטוריה נופל בין
+// שני הסגנונות ולא מתאים לאף אחד מהם — החלון יצא 20–24 בזמן שההמלצה על
+// מסך הבית אמרה 16–20. הצירוף הזה הוא בדיוק הסתירה שהמדד היה אמור לפתור.
+export const RECENT_CALIBRATION_SHOTS = 10;
+
 // פותר חלון יעד לכל שוט היסטורי, לפי רמת הקלייה של הפולים וגיל הקלייה
-// ברגע השוט. בכוונה *בלי* כיול אישי: מדד עקביות שנגזר מהשוטים הטובים
-// עצמם הוא מעגלי — הוא היה מודד את עצמו ולא את הדיוק שלך.
+// ברגע השוט. בלי כיול אישי — החלון המקצועי בלבד.
 export function makeWindowResolver(beans: Bean[], bags: Bag[]): WindowResolver {
   const beanMap = new Map(beans.map((b) => [b.id, b]));
   const bagMap = new Map(bags.map((b) => [b.id, b]));
@@ -111,6 +120,54 @@ export function makeWindowResolver(beans: Bean[], bags: Bag[]): WindowResolver {
     return computeTargetWindow({
       roastLevel: bean.roastLevel,
       roastAgeDays: roastAgeAt(bag?.roastDate ?? null, shot.createdAt),
+    });
+  };
+}
+
+// פותר חלון יעד *אישי* — זה שמדד "הדופק שלך" מודד מולו.
+//
+// למה אישי: מנוע ההמלצות מכייל את חלון היעד מהשוטים הטובים של אותם פולים
+// (computeTargetWindow עם beanShots), ולכן מדד שמודד מול החלון המקצועי בלבד
+// סותר את ההמלצה שהאפליקציה עצמה נותנת — הוא סימן 0% למי שעשה בדיוק את מה
+// שנכתב לו על מסך הבית. זה אותו חלון, מאותו חישוב, כדי שהמסכים לא יריבו.
+//
+// המעגליות מוכרת ולא מוסתרת: החלון נגזר מהשוטים הטובים שלך, ולכן אם הזמנים
+// שלך נודדים — החלון נודד איתם. מה שמחזיק את המדד הוא התנאי השני,
+// דירוג 8+: צריך גם לנחות בזמן המוכח וגם שהשוט ייצא טוב. שינוי סגנון מוריד
+// את המספר עד שהזמן החדש הופך למוכח, וזה בדיוק מה שהמדד אמור לתפוס.
+// בלי מינימום היסטוריה (MIN_PERSONAL_CALIBRATION_SHOTS) נופלים לחלון המקצועי.
+export function makePersonalWindowResolver(
+  beans: Bean[],
+  bags: Bag[],
+  shots: Shot[],
+): WindowResolver {
+  const beanMap = new Map(beans.map((b) => [b.id, b]));
+  const bagMap = new Map(bags.map((b) => [b.id, b]));
+  const byBean = new Map<string, Shot[]>();
+  for (const s of shots) {
+    if (s.rating <= 0 || s.brewTimeSec <= 0) continue;
+    const list = byBean.get(s.beanId);
+    if (list) list.push(s);
+    else byBean.set(s.beanId, [s]);
+  }
+  // החדשים ראשונים, כדי שהחיתוך ל-RECENT_CALIBRATION_SHOTS יהיה חיתוך זמן
+  for (const list of byBean.values()) list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  return (shot) => {
+    const bean = beanMap.get(shot.beanId);
+    if (!bean) return DEFAULT_TARGET_WINDOW;
+    const roastAgeDays = roastAgeAt(bagMap.get(shot.bagId)?.roastDate ?? null, shot.createdAt);
+    // רק שוטים עד לרגע השוט הנמדד: שבוע היסטורי נשפט לפי החלון שהיה תקף
+    // אז, ולא לפי הסגנון של היום. אחרת דפדוף אחורה מראה 0% על שבוע שבו
+    // דווקא היית עקבי, רק בזמן חליטה אחר.
+    const upToNow = (byBean.get(shot.beanId) ?? []).filter((s) => s.createdAt <= shot.createdAt);
+    if (upToNow.length < MIN_PERSONAL_CALIBRATION_SHOTS) {
+      return computeTargetWindow({ roastLevel: bean.roastLevel, roastAgeDays });
+    }
+    return computeTargetWindow({
+      roastLevel: bean.roastLevel,
+      roastAgeDays,
+      beanShots: upToNow.slice(0, RECENT_CALIBRATION_SHOTS),
     });
   };
 }

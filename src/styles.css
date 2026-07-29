@@ -34,7 +34,7 @@
      קודם — רק צפיפות. --card-veil הוא הידית היחידה: גבוה = כרטיס אטום
      יותר ופולים חלשים יותר. הפולים מצוירים ב-canvas באלפא 0.065–0.15,
      ולכן כל אחוז כאן נכפל בזה ומשפיע חזק. */
-  --card-veil: 60%;
+  --card-veil: 56%;
   --bg-card-gradient:
     linear-gradient(178deg, rgba(255, 190, 120, 0.05) 0%, transparent 30%),
     linear-gradient(180deg,
@@ -84,8 +84,8 @@
   --bg-elevated: #f7eede;
   --bg-card: #fdf8ee;
   /* בבהיר הפול חום כהה על רקע בהיר. נמדד: ב-72% הוא הזיז את הבהירות
-     ב-4% בלבד — מתחת לסף שבו העין תופסת אותו. 66% מכפיל את זה. */
-  --card-veil: 66%;
+     ב-4% בלבד — מתחת לסף שבו העין תופסת אותו. */
+  --card-veil: 62%;
   --bg-card-gradient:
     linear-gradient(178deg, rgba(230, 150, 70, 0.06) 0%, transparent 30%),
     linear-gradient(180deg,

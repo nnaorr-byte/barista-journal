@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 // Canvas קל (14 פולים), נעצר אוטומטית בטאב לא פעיל,
 // ומכבד "הפחתת תנועה" — אז לא מצויר כלל.
 
-const BEAN_COUNT = 14;
+const BEAN_COUNT = 21;
 
 interface Bean {
   x: number; // 0..1 יחסי לרוחב
@@ -102,7 +102,9 @@ export function BeansBackground() {
         ctx.save();
         ctx.translate(px, py);
         ctx.rotate(b.angle);
-        ctx.globalAlpha = (dark ? 0.15 : 0.13) * b.depth;
+        // האלפא נכפל בצפיפות הכרטיס (--card-veil) כשהפול עובר מאחוריו,
+        // ולכן חיזוק כאן הוא מה שמדגיש אותם מבעד לכרטיסים בלי לדלל אותם.
+        ctx.globalAlpha = (dark ? 0.19 : 0.16) * b.depth;
         // גוף הפול
         ctx.fillStyle = dark ? '#e8a960' : '#8a5a2c';
         ctx.beginPath();

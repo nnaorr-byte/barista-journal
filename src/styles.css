@@ -166,7 +166,9 @@ button:focus-visible {
 .app {
   max-width: 720px;
   margin: 0 auto;
-  padding: 0 16px 100px;
+  /* מרווח הסרגל התחתון תלוי ב-safe-area, ולכן גם הריפוד כאן. בקבוע 100px
+     הסוף של התוכן נחתך מתחת לסרגל במכשירים עם מחוון בית. */
+  padding: 0 16px calc(84px + env(safe-area-inset-bottom));
   position: relative;
   z-index: 1; /* מעל שכבת פולי הקפה */
 }
@@ -246,13 +248,21 @@ button:focus-visible {
   bottom: 0;
   right: 0;
   left: 0;
-  display: flex;
-  justify-content: space-around;
+  /* גריד של חמש עמודות שוות ולא space-around: תוויות הניווט באורכים שונים
+     ("בית" מול "נתונים"), ו-space-around מחלק את המרווח לפי רוחב הפריטים —
+     מה שדחף את ה-FAB המרכזי 7px לכיוון הצד הצר. עמודות שוות מציבות את
+     העמודה השלישית בדיוק על אמצע המסך, ללא תלות באורך הטקסט. */
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  justify-items: center;
+  align-items: center;
   background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-top: 1px solid var(--hairline);
-  padding: 7px 4px calc(7px + env(safe-area-inset-bottom));
+  /* ה-safe-area *הוא* אזור מחוון הבית — אין צורך להוסיף לו ריפוד משלנו.
+     max() שומר על מרווח סימטרי במכשירים בלי notch, שבהם ה-inset הוא 0. */
+  padding: 5px 4px max(5px, env(safe-area-inset-bottom));
   z-index: 20;
 }
 .bottom-nav button {
@@ -266,7 +276,7 @@ button:focus-visible {
   align-items: center;
   gap: 3px;
   cursor: pointer;
-  padding: 6px 11px;
+  padding: 5px 11px;
   border-radius: 12px;
   font-family: inherit;
   transition: color var(--speed), background var(--speed), transform var(--speed) var(--spring);
@@ -321,10 +331,15 @@ button:focus-visible {
 /* ---- כרטיסים ---- */
 .card {
   background: var(--bg-card-gradient);
-  /* הטשטוש הוא מה שהופך "פולים דרך הכרטיס" ל"פולים מבעד לזכוכית":
-     הצורה נשארת מזוהה, הקצוות מתרככים, והטקסט לא מתחרה בפרטים חדים. */
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  /* אין כאן backdrop-filter, בכוונה. הכרטיס שקוף-למחצה והפולים נראים
+     מבעדו דרך --card-veil בלבד.
+     טשטוש-רקע נוסף כאן ב-2026-07-28 והוסר ב-2026-07-30: הוא נראה טוב,
+     אבל הוא הופיע על *כל* כרטיס. במסך הנתונים הצטברו 2.51 שטחי-מסך של
+     משטח מטושטש, כל אחד דוגם מחדש את מה שמאחוריו בכל פריים — מעל canvas
+     קבוע שמצייר 21 פולים ב-60fps. iOS הפסיק לצייר מחדש את הסרגל התחתון
+     והכותרת הדביקה תוך כדי גלילה, והם נראו נסחפים ומתנתקים מהקצוות.
+     טשטוש-רקע נשאר רק על שני משטחי ה-chrome (הכותרת והסרגל) — שניים
+     קבועים, לא עשרים משתנים. */
   border: 1px solid var(--border-soft);
   border-top-color: var(--hairline); /* "קרמה" — פס אור עדין בקצה העליון */
   border-radius: var(--radius);
@@ -1012,7 +1027,7 @@ table.data th { color: var(--text-muted); font-weight: 700; font-size: 0.75rem; 
 /* ---- טוסט ביטול מחיקה ---- */
 .undo-toast {
   position: fixed;
-  bottom: calc(84px + env(safe-area-inset-bottom));
+  bottom: calc(78px + env(safe-area-inset-bottom));
   right: 16px;
   left: 16px;
   max-width: 420px;

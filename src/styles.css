@@ -881,6 +881,42 @@ button.shot-item {
 .dial-in-track li.done { background: color-mix(in srgb, var(--accent) 50%, transparent); }
 .dial-in-track li.now { background: var(--accent-strong); }
 
+/* מסלול הכיול: שורה לשוט. מה הוזן משמאל, לאן המוח שלח מימין.
+   מספרים ב-tabular-nums כדי שהעמודות לא ירקדו בין שורות. */
+.dial-in-ladder {
+  list-style: none;
+  margin: 0 0 9px;
+  padding: 0;
+  font-variant-numeric: tabular-nums;
+}
+.dial-in-ladder li {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 5px 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--hairline);
+}
+.dial-in-ladder li:last-child { border-bottom: 0; padding-bottom: 0; }
+.dial-in-ladder li.now { color: var(--text); font-weight: 600; }
+.ladder-n {
+  flex: none;
+  min-width: 1.35em;
+  font-weight: 800;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.dial-in-ladder li.now .ladder-n { color: var(--accent-strong); }
+.ladder-in { flex: 1; }
+.ladder-next {
+  flex: none;
+  font-weight: 700;
+  color: var(--accent-strong);
+  white-space: nowrap;
+}
+.dial-in-ladder-more { margin: 0 0 4px; font-size: 0.74rem; }
+
 .dial-in-close { margin-top: 14px; }
 
 /* תעודת סיום שקית — פאנל בתוך השקית, לא כרטיס.

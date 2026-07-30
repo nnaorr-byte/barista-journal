@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type {
-  UserProfile, Machine, Grinder, Bean, Bag, Shot, DialInSession, MaintenanceEvent,
+  UserProfile, Machine, Grinder, Bean, Bag, Shot, DialInSession, MaintenanceEvent, DataSnapshot,
 } from '../domain/types';
 
 // שכבת האחסון המקומית (IndexedDB). כל הגישה לנתונים עוברת דרך
@@ -15,6 +15,7 @@ export class BaristaDB extends Dexie {
   shots!: EntityTable<Shot, 'id'>;
   dialInSessions!: EntityTable<DialInSession, 'id'>;
   maintenanceEvents!: EntityTable<MaintenanceEvent, 'id'>;
+  snapshots!: EntityTable<DataSnapshot, 'id'>;
 
   constructor() {
     super('barista-journal');
@@ -27,6 +28,11 @@ export class BaristaDB extends Dexie {
       shots: 'id, userId, beanId, bagId, grinderId, machineId, dialInSessionId, createdAt, rating',
       dialInSessions: 'id, userId, bagId, status',
       maintenanceEvents: 'id, userId, kind, equipmentId, performedAt',
+    });
+    // גרסה 2: תמונות מצב אוטומטיות. Dexie ממזג עם סכמת הגרסה הקודמת,
+    // ולכן מספיק להצהיר על הטבלה החדשה — הקיימות נשארות כפי שהן.
+    this.version(2).stores({
+      snapshots: 'id, createdAt',
     });
   }
 }

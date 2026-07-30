@@ -70,7 +70,7 @@ export async function exportExcel(shots: Shot[], beans: Bean[]): Promise<void> {
   );
 }
 
-interface BackupFile {
+export interface BackupFile {
   app: 'barista-journal';
   version: 1;
   exportedAt: string;
@@ -118,18 +118,43 @@ export function computeBackupStatus(shots: Shot[]): BackupStatus {
   return { lastBackupAt: last, daysSinceBackup, shotsSinceBackup, needsBackup, urgent };
 }
 
-async function buildBackupBlob(): Promise<Blob> {
+// טבלאות שאינן חלק מהגיבוי. תמונות המצב הן עותקים של הנתונים — הכללה
+// שלהן הייתה מקננת גיבוי בתוך גיבוי ומכפילה את הקובץ בכל סבב. הן גם
+// מקומיות למכשיר במהותן: אין טעם לשחזר לטלפון אחר את רשת הביטחון שלו.
+const NON_BACKUP_TABLES = new Set(['snapshots']);
+export const backupTables = () => db.tables.filter((t) => !NON_BACKUP_TABLES.has(t.name));
+
+export async function buildBackupObject(): Promise<BackupFile> {
   const tables: Record<string, unknown[]> = {};
-  for (const table of db.tables) {
+  for (const table of backupTables()) {
     tables[table.name] = await table.toArray();
   }
-  const backup: BackupFile = {
+  return {
     app: 'barista-journal',
     version: 1,
     exportedAt: new Date().toISOString(),
     tables,
   };
-  return new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+}
+
+// דריסה מלאה: מנקים כל טבלה — גם כזו שהגיבוי לא כולל — כדי שלא יישארו
+// רשומות ישנות שמתערבבות עם הנתונים המשוחזרים. תמונות המצב שורדות,
+// כי הן רשת הביטחון של השחזור הזה עצמו.
+export async function applyBackup(backup: BackupFile): Promise<void> {
+  const tables = backupTables();
+  await db.transaction('rw', tables, async () => {
+    for (const table of tables) {
+      await table.clear();
+      const rows = backup.tables[table.name];
+      if (Array.isArray(rows)) await table.bulkAdd(rows as never[]);
+    }
+  });
+}
+
+async function buildBackupBlob(): Promise<Blob> {
+  return new Blob([JSON.stringify(await buildBackupObject(), null, 2)], {
+    type: 'application/json',
+  });
 }
 
 // שיתוף גיבוי דרך חלון השיתוף של המכשיר (וואטסאפ/מייל בטלפון).
@@ -169,15 +194,16 @@ export async function restoreBackup(file: File): Promise<{ ok: boolean; error?: 
         error: `גרסת גיבוי לא נתמכת (${backup.version ?? 'לא ידועה'}). הקובץ נוצר בגרסה אחרת של האפליקציה.`,
       };
     }
-    await db.transaction('rw', db.tables, async () => {
-      // שחזור הוא דריסה מלאה: מנקים כל טבלה — גם כזו שהגיבוי לא כולל —
-      // כדי שלא יישארו רשומות ישנות שמתערבבות עם הנתונים המשוחזרים.
-      for (const table of db.tables) {
-        await table.clear();
-        const rows = backup.tables[table.name];
-        if (Array.isArray(rows)) await table.bulkAdd(rows as never[]);
-      }
-    });
+    // תמונת מצב לפני הדריסה: שחזור מקובץ שגוי הוא בדיוק התרחיש שרשת
+    // הביטחון נועדה לו. ייבוא דינמי כדי לא ליצור ייבוא מעגלי (snapshots
+    // מייבא את applyBackup מכאן).
+    const { createSnapshot } = await import('./snapshots');
+    try {
+      if ((await db.shots.count()) > 0) await createSnapshot();
+    } catch {
+      // תמונה שנכשלה לא חוסמת שחזור שהמשתמש ביקש במפורש
+    }
+    await applyBackup(backup);
     return { ok: true };
   } catch (e) {
     return { ok: false, error: `שגיאה בשחזור: ${e instanceof Error ? e.message : String(e)}` };

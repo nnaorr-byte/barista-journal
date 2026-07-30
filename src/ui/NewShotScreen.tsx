@@ -9,7 +9,7 @@ import { computeTargetWindow } from '../services/targetWindow';
 import type {
   Bag, DialInSession, MachineTempSetting, QualityLevel, Shot, ShotRecommendation, TasteTag,
 } from '../domain/types';
-import { Chips, Field, RatingPicker, StatTile } from './components';
+import { Chips, DialInLadder, Field, RatingPicker, StatTile } from './components';
 import { QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS } from './labels';
 import { BoltIcon, BrainIcon, BulbIcon, CheckIcon, ChevronDownIcon, ClipboardIcon, CupIcon, PlusIcon, SaveIcon, StarIcon, TargetIcon, TimerIcon, TrophyIcon, WarnIcon } from './icons';
 import { Celebration } from './Celebration';
@@ -151,6 +151,8 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   // סשן הכיול הפעיל של השוט שנשמר — נסגר רק בלחיצה של המשתמש
   const [dialInSession, setDialInSession] = useState<DialInSession | null>(null);
   const [dialInClosed, setDialInClosed] = useState<'done' | 'stopped' | null>(null);
+  // שוטי הסשן מהישן לחדש — מזינים את מסלול הכיול בכרטיס ההמלצה
+  const [dialInShots, setDialInShots] = useState<Shot[]>([]);
   // רגעי delight ב-Coach: הבזק "חשיבה", חגיגת שוט מושלם, שיא אישי לפולים
   const [thinking, setThinking] = useState(false);
   const [analyzed, setAnalyzed] = useState(0);
@@ -428,6 +430,11 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       setMultiVarWarning(session ? await checkOneVariable(shot, session.id) : null);
       setDialInSession(session ?? null);
       const openSession = session;
+      // שוטי הסשן מהישן לחדש, כולל זה שזה עתה נשמר
+      const sessionShots = openSession
+        ? [...shots.filter((s) => s.dialInSessionId === openSession.id), shot]
+            .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+        : [];
 
       // מוח ה-AI: היסטוריית הפולים על המטחנה הנוכחית בלבד (דרגות טחינה
       // אינן ברות-השוואה בין מטחנות) + השוט שזה עתה נשמר
@@ -459,20 +466,13 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           beanShots: beanHistory,
         }),
         // עותק const: session הוא let שמתעדכן בהמשך, ו-TS לא מצמצם אותו בתוך callback
-        dialIn: openSession
-          ? {
-              session: openSession,
-              // שוטי הסשן מהישן לחדש, כולל זה שזה עתה נשמר
-              sessionShots: [
-                ...shots.filter((s) => s.dialInSessionId === openSession.id),
-                shot,
-              ].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-            }
-          : undefined,
+        dialIn: openSession ? { session: openSession, sessionShots } : undefined,
       });
       // ההמלצה נשמרת עם השוט — תופיע גם ביומן לצד פרטי השוט
       await shotRepo.put({ ...shot, aiAdvice: newAdvice });
       setAdvice(newAdvice);
+      // המסלול מציג את ההמלצה שניתנה על כל שוט — כולל זו שזה עתה חושבה
+      setDialInShots(sessionShots.map((s) => (s.id === shot.id ? { ...s, aiAdvice: newAdvice } : s)));
 
       // מצב הכיול מתקדם יחד עם ההמלצה — מקור אחד, בלי עותק שני שיכול להיפרד
       if (session && newAdvice.dialIn) {
@@ -1008,6 +1008,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                   />
                 ))}
               </ol>
+              <DialInLadder shots={dialInShots} />
               <p className="muted small" style={{ margin: 0 }}>
                 המנה קפואה על {advice.dialIn.lockedDoseGrams} גרם לכל אורך הכיול — זו נקודת
                 הייחוס שכל שאר השינויים נמדדים מולה.

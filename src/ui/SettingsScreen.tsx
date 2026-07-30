@@ -6,30 +6,35 @@ import type { Grinder, GrinderType, Machine } from '../domain/types';
 import { seedIfEmpty } from '../db/database';
 import { MAINTENANCE_RULES, computeMaintenanceStatus } from '../services/maintenance';
 import { exportBackup, exportCsv, exportExcel, getLastBackupAt, restoreBackup, shareBackup } from '../services/importExport';
+import { createSnapshot, formatSize, listSnapshots, restoreSnapshot } from '../services/snapshots';
 import { ConfirmButton, Field } from './components';
-import { formatDate } from './labels';
-import { ChartIcon, CheckIcon, ClipboardIcon, EditIcon, PackageIcon, PlusIcon, SaveIcon, SoapIcon, ToolsIcon, TrashIcon, UserIcon, WarnIcon } from './icons';
+import { formatDate, formatDateTime } from './labels';
+import { ChartIcon, CheckIcon, ClipboardIcon, EditIcon, PackageIcon, PlusIcon, SaveIcon, SoapIcon, TimerIcon, ToolsIcon, TrashIcon, UserIcon, WarnIcon } from './icons';
 
 export function SettingsScreen() {
   const data = useLiveQuery(async () => {
-    const [user, machines, grinders, events, shots, beans] = await Promise.all([
+    const [user, machines, grinders, events, shots, beans, snapshots] = await Promise.all([
       db.users.toArray().then((u) => u[0]),
       db.machines.toArray(),
       db.grinders.toArray(),
       db.maintenanceEvents.toArray(),
       db.shots.orderBy('createdAt').reverse().toArray(),
       db.beans.toArray(),
+      // רק המטא-דאטה — ה-payload הוא מגה-בייטים ואין לו מה לעשות ב-UI
+      listSnapshots(),
     ]);
-    return { user, machines, grinders, events, shots, beans };
+    return { user, machines, grinders, events, shots, beans, snapshots };
   });
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState('');
   // קובץ גיבוי שנבחר וממתין לאישור שחזור (מחליף את confirm() הנטיבי)
   const [pendingRestore, setPendingRestore] = useState<File | null>(null);
+  // תמונת מצב שנבחרה לשחזור — אותו דפוס אישור
+  const [pendingSnapshot, setPendingSnapshot] = useState<string | null>(null);
 
   if (!data?.user) return null;
-  const { user, machines, grinders, events, shots, beans } = data;
+  const { user, machines, grinders, events, shots, beans, snapshots } = data;
   const maintenance = computeMaintenanceStatus(events);
 
   return (
@@ -161,10 +166,74 @@ export function SettingsScreen() {
         {message && <p className="small" style={{ marginTop: 8 }} role="status">{message}</p>}
       </div>
 
+      {/* תמונות מצב אוטומטיות */}
+      <div className="card">
+        <h2><TimerIcon size={20} /> תמונות מצב אוטומטיות</h2>
+        <p className="muted small" style={{ marginTop: 0 }}>
+          האפליקציה שומרת לעצמה עותק מלא כל 3 ימים, ומחזיקה את חמשת האחרונים. בלי מגע.
+          <br />
+          <b>מה זה מציל:</b> מחיקה בטעות, שחזור מגיבוי שגוי, לחיצה על "מחיקת כל ההיסטוריה".
+          <br />
+          <b>מה זה לא מציל:</b> "נקה נתוני אתר", מחיקת האפליקציה או איפוס הטלפון — הם מוחקים
+          גם את התמונות. מפני אלה מגן רק הגיבוי החיצוני שלמעלה.
+        </p>
+        {snapshots.length === 0 ? (
+          <p className="muted small">עוד אין תמונות מצב. הראשונה תיווצר אחרי השוט הבא.</p>
+        ) : (
+          snapshots.map((s) => (
+            <div key={s.id} className="shot-item" style={{ cursor: 'default' }}>
+              <div style={{ flex: 1 }}>
+                <div>{formatDateTime(s.createdAt)}</div>
+                <div className="muted small">
+                  {s.shotCount} שוטים · {formatSize(s.sizeBytes)}
+                </div>
+              </div>
+              <button className="btn small secondary" onClick={() => setPendingSnapshot(s.id)}>
+                שחזר
+              </button>
+            </div>
+          ))
+        )}
+        {pendingSnapshot && (
+          <div className="one-var-banner" role="alertdialog" aria-label="אישור שחזור מתמונת מצב">
+            שחזור יחליף את כל הנתונים הנוכחיים. לפני הדריסה תישמר תמונת מצב של המצב הנוכחי,
+            כדי שגם מהצעד הזה תהיה דרך חזרה.
+            <div className="btn-row">
+              <button
+                className="btn small danger"
+                onClick={async () => {
+                  const result = await restoreSnapshot(pendingSnapshot);
+                  setMessage(result.ok ? 'הנתונים שוחזרו מתמונת המצב.' : (result.error ?? 'השחזור נכשל'));
+                  setPendingSnapshot(null);
+                }}
+              >
+                <SaveIcon size={17} /> שחזר והחלף הכל
+              </button>
+              <button className="btn small secondary" onClick={() => setPendingSnapshot(null)}>
+                ביטול
+              </button>
+            </div>
+          </div>
+        )}
+        <button
+          className="btn secondary block"
+          style={{ marginTop: 10 }}
+          onClick={async () => {
+            const snap = await createSnapshot();
+            setMessage(`תמונת מצב נשמרה — ${snap.shotCount} שוטים, ${formatSize(snap.sizeBytes)}.`);
+          }}
+        >
+          <PlusIcon size={17} /> צלם עכשיו
+        </button>
+      </div>
+
       {/* אזור מסוכן */}
       <div className="card warn">
         <h2><WarnIcon size={20} /> אזור מסוכן</h2>
-        <p className="muted small">מחיקת כל ההיסטוריה — כל השוטים, הפולים והתיעודים. מומלץ לגבות קודם.</p>
+        <p className="muted small">
+          מחיקת כל ההיסטוריה — כל השוטים, הפולים והתיעודים. תמונת מצב תישמר אוטומטית לפני
+          המחיקה, ותוכל לשחזר ממנה.
+        </p>
         <ConfirmButton
           className="btn danger"
           label={<><TrashIcon size={17} /> מחיקת כל ההיסטוריה</>}

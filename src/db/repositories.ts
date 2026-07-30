@@ -201,7 +201,24 @@ export const maintenanceRepo = {
   },
 };
 
+// "מחק את כל הנתונים" מצלם קודם. זו בדיוק הלחיצה שאין ממנה דרך חזרה,
+// ולכן היא המקום שבו רשת הביטחון שווה הכי הרבה. תמונות המצב עצמן
+// שורדות את המחיקה — אחרת המחיקה הייתה מוחקת גם את הדרך לבטל אותה.
 export async function wipeAllData(): Promise<void> {
+  const { createSnapshot } = await import('../services/snapshots');
+  try {
+    if ((await db.shots.count()) > 0) await createSnapshot();
+  } catch {
+    // תמונה שנכשלה לא חוסמת מחיקה שהמשתמש ביקש במפורש
+  }
+  const tables = db.tables.filter((t) => t.name !== 'snapshots');
+  await db.transaction('rw', tables, async () => {
+    for (const table of tables) await table.clear();
+  });
+}
+
+// מחיקה מלאה כולל רשת הביטחון — לשימוש רק כשהמשתמש מבקש לנקות הכול
+export async function wipeEverythingIncludingSnapshots(): Promise<void> {
   await db.transaction('rw', db.tables, async () => {
     for (const table of db.tables) await table.clear();
   });

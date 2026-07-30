@@ -1,5 +1,41 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import type { Shot } from '../domain/types';
+import { dialInStepLine } from './labels';
+
+// מסלול הכיול — כיול הוא רצף, ומסך שמראה פריים אחד ממנו מסתיר את ההיגיון.
+// כל שורה: מה הוזן, ולאן המוח שלח אחריו. השורה האחרונה מודגשת.
+// limit חותך לשורות האחרונות (מסך הבית צר) ומכריז כמה הושמטו.
+export function DialInLadder({ shots, limit }: { shots: Shot[]; limit?: number }) {
+  if (shots.length === 0) return null;
+  const hidden = limit && shots.length > limit ? shots.length - limit : 0;
+  const rows = hidden ? shots.slice(-limit!) : shots;
+  return (
+    <>
+      {hidden > 0 && (
+        <p className="muted small dial-in-ladder-more">
+          {hidden === 1 ? 'שוט קודם אחד' : `${hidden} שוטים קודמים`} לפני אלה
+        </p>
+      )}
+      <ol className="dial-in-ladder">
+        {rows.map((s, i) => {
+          const line = dialInStepLine(s);
+          const n = (hidden || 0) + i + 1;
+          const isLast = i === rows.length - 1;
+          return (
+            <li key={s.id} className={isLast ? 'now' : undefined} aria-current={isLast ? 'step' : undefined}>
+              <span className="ladder-n">{n}</span>
+              <span className="ladder-in">{line.input}</span>
+              <span className="ladder-next" aria-label={`ההמלצה שניתנה: ${line.next}`}>
+                <span aria-hidden="true">← </span>{line.next}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </>
+  );
+}
 
 export function StatTile({ value, label }: { value: ReactNode; label: string }) {
   return (

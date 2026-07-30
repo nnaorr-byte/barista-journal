@@ -1,4 +1,4 @@
-import type { MachineTempSetting, QualityLevel, RoastLevel, TasteTag } from '../domain/types';
+import type { MachineTempSetting, QualityLevel, RoastLevel, Shot, TasteTag } from '../domain/types';
 
 export const TASTE_LABELS: Record<TasteTag, string> = {
   sour: 'חמוץ',
@@ -45,6 +45,27 @@ export function formatDateTime(iso: string): string {
 
 export function ratingClass(rating: number): string {
   return rating >= 7 ? 'good' : rating >= 5 ? 'mid' : 'bad';
+}
+
+// שורה אחת במסלול הכיול: מה הוזן בשוט, ולאן המוח שלח אחריו.
+// ה"לאן" נגזר מהיעדים שנשמרו עם השוט ולא מ-changeLabel — כי המספר עצמו
+// ("טחינה 18") הוא מה שמעניין במבט לאחור, לא שם הפעולה.
+export function dialInStepLine(shot: Shot): { input: string; next: string } {
+  const taste = shot.tasteTags.map((t) => TASTE_LABELS[t]).filter(Boolean).join(', ');
+  const input =
+    `${shot.brewTimeSec || '—'}ש · טחינה ${shot.grindSetting} · ${shot.yieldGrams}ג · ` +
+    `${taste || 'לא תויג'} ${shot.rating}/10`;
+
+  const t = shot.aiAdvice?.targets;
+  if (!t) return { input, next: '—' };
+  const moves: string[] = [];
+  if (Math.abs(t.grindSetting - shot.grindSetting) >= 0.01) moves.push(`טחינה ${t.grindSetting}`);
+  if (Math.abs(t.yieldGrams - shot.yieldGrams) >= 0.5) moves.push(`Yield ${t.yieldGrams}`);
+  if (Math.abs(t.doseGrams - shot.doseGrams) >= 0.1) moves.push(`מנה ${t.doseGrams}`);
+  if (moves.length === 0) {
+    return { input, next: shot.aiAdvice?.changeKind === 'prep' ? 'הכנה' : 'ללא שינוי' };
+  }
+  return { input, next: moves.join(' · ') };
 }
 
 // תצוגת משקלים אחידה: "16←36 גרם" + ציון העצירה בפועל אם תועדה

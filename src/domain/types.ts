@@ -195,6 +195,18 @@ export interface DialInState {
   sweetSpotBestShotId: ID | null;
 }
 
+// --- תמונות מצב אוטומטיות ---
+// עותק מלא של כל הטבלאות, נשמר בתוך ה-IndexedDB עצמו. מגן מפני מחיקה
+// בטעות, שחזור כושל או באג — לא מפני "נקה נתוני אתר" או איפוס מכשיר.
+// להגנה מהאלה יש רק גיבוי חיצוני, ולכן שתי השכבות חיות זו לצד זו.
+export interface DataSnapshot {
+  id: ID;
+  createdAt: string;
+  shotCount: number;
+  sizeBytes: number;
+  payload: string; // JSON של קובץ הגיבוי — מחרוזת, לא אובייקט מקונן
+}
+
 // --- תחזוקה ---
 
 export type MaintenanceKind = 'machine-backflush' | 'machine-descale' | 'grinder-clean';

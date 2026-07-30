@@ -9,7 +9,7 @@ import { computeFreshness, computeWinningWindow } from '../services/freshness';
 import { computeBagUsage, ratingTrend, weeklySummary } from '../services/stats';
 import { makePersonalWindowResolver } from '../services/targetWindow';
 import { shotRatio, type RoastLevel } from '../domain/types';
-import { CountUp, StatTile, EmptyState } from './components';
+import { CountUp, DialInLadder, StatTile, EmptyState } from './components';
 import { formatDateTime, ratingClass, shotWeights } from './labels';
 import { BeanIcon, ChevronDownIcon, CupIcon, LeafIcon, SaveIcon, SoapIcon, TargetIcon, TrendDownIcon, TrendIcon, TrophyIcon, WarnIcon } from './icons';
 import type { Screen } from '../App';
@@ -107,6 +107,10 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const dialInBean = activeDialIn
     ? beanMap.get(bags.find((b) => b.id === activeDialIn.bagId)?.beanId ?? '') ?? null
     : null;
+  // מהישן לחדש — shots מגיעים מהחדש לישן
+  const dialInShots = activeDialIn
+    ? shots.filter((s) => s.dialInSessionId === activeDialIn.id).slice().reverse()
+    : [];
 
   const recommendation = (() => {
     if (!baseRecommendation || !dialInState || !dialInAdvice) return baseRecommendation;
@@ -398,7 +402,8 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
                     />
                   ))}
                 </ol>
-                <p className="small" style={{ margin: 0 }}>{dialInState.phaseLabel}</p>
+                <p className="small" style={{ margin: '0 0 8px' }}>{dialInState.phaseLabel}</p>
+                <DialInLadder shots={dialInShots} limit={3} />
               </div>
             )}
 

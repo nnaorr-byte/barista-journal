@@ -28,10 +28,13 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'],
       workbox: {
-        // כולל את קובצי הפונט במטמון — כדי שהעיצוב יעבוד גם אופליין
-        globPatterns: ['**/*.{js,css,html,svg,woff2}'],
+        // כולל את קובצי הפונט והאייקונים במטמון — כדי שהעיצוב יעבוד גם אופליין
+        globPatterns: ['**/*.{js,css,html,png,woff2}'],
+        // אייקוני ה-512 נקראים רק ברגע ההתקנה, על ידי מערכת ההפעלה, מהרשת.
+        // הכללתם במטמון המקדים הוסיפה 239KB להורדה של כל משתמש בלי תועלת.
+        globIgnores: ['**/icon-512.png', '**/icon-maskable-512.png'],
       },
       manifest: {
         name: 'יומן בריסטה חכם',
@@ -42,9 +45,12 @@ export default defineConfig({
         display: 'standalone',
         dir: 'rtl',
         lang: 'he',
+        // maskable נפרד: אנדרואיד חותך עד ~80% מהשטח לפי צורת המסך, ולכן
+        // באותו קובץ האיור מוקטן ל-80% על רקע כהה. 'any' נשאר במסגרת מלאה.
         icons: [
-          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml' },
-          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
     }),

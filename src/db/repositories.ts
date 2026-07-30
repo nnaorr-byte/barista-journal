@@ -157,16 +157,36 @@ export const dialInRepo = {
     const sessions = await db.dialInSessions.where('bagId').equals(bagId).toArray();
     return sessions.find((s) => s.status === 'active');
   },
+  async active(): Promise<DialInSession | undefined> {
+    const sessions = await db.dialInSessions.toArray();
+    return sessions.find((s) => s.status === 'active');
+  },
   get: (id: string): Promise<DialInSession | undefined> => db.dialInSessions.get(id),
-  async start(userId: string, bagId: string): Promise<DialInSession> {
+  async start(
+    userId: string,
+    bagId: string,
+    seed: Pick<DialInSession, 'kind' | 'targetYieldGrams' | 'lockedDoseGrams'>,
+  ): Promise<DialInSession> {
     const session: DialInSession = {
       id: newId(), userId, bagId, status: 'active',
       startedAt: new Date().toISOString(), completedAt: null, bestShotId: null,
+      phase: 'window', sweetSpotBestShotId: null, ...seed,
     };
     await db.dialInSessions.add(session);
     return session;
   },
   put: (s: DialInSession): Promise<unknown> => db.dialInSessions.put(s),
+  // סגירת הכיול היא החלטה של המשתמש בלבד — המנוע ממליץ, לא סוגר.
+  async complete(session: DialInSession, bestShotId: string): Promise<void> {
+    await db.dialInSessions.put({
+      ...session, status: 'dialed-in', completedAt: new Date().toISOString(), bestShotId,
+    });
+  },
+  async abandon(session: DialInSession): Promise<void> {
+    await db.dialInSessions.put({
+      ...session, status: 'abandoned', completedAt: new Date().toISOString(),
+    });
+  },
 };
 
 export const maintenanceRepo = {

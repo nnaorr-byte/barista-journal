@@ -76,6 +76,7 @@ export type TasteTag =
   | 'sweet' // מתוק
   | 'dry' // יבש
   | 'watery' // מימי
+  | 'flat' // חסר מתיקות — שטוח, בלי המתיקות שמאזנת (DIAL IN v2.0)
   | 'other';
 
 // גלגל טעמים בהשראת SCA — שכבה נוספת מעל תגיות הטעם הבסיסיות
@@ -143,11 +144,25 @@ export interface AiAdvice {
   warnings: string[];
   recipeNote: string | null;
   reminder: string; // 6. תזכורת
+  dialIn?: DialInState | null; // מלא רק כשההמלצה ניתנה בתוך תהליך כיול
 }
 
 // --- Dial-In Session ---
 
 export type DialInStatus = 'active' | 'dialed-in' | 'abandoned';
+
+// full    — פולים שלא הכרנו: התהליך המלא של DIAL IN v2.0.
+// recheck — שקית נוספת של פולים שכבר כוילו: אותם שלבים, אבל נזרעים
+//           מהמתכון השמור. רק תאריך הקלייה השתנה, לא הפולים.
+export type DialInKind = 'full' | 'recheck';
+
+// שלבי המדריך. שלב 2 ("הערכת הטעם") הוא פעולה של המשתמש ולא של המנוע,
+// ולכן אינו מצב במכונה — הוא מה שקורה בין 'window' ל-'taste'.
+export type DialInPhase =
+  | 'window' // שלב 1 — טחינה בלבד עד כניסה לחלון הזמן
+  | 'taste' // שלב 3 — כוונון עדין, בעיקר Yield
+  | 'sweet-spot' // שלב 4 — פתיחת טחינה עד שהאיכות יורדת
+  | 'confirm'; // ממתין לאישור המתכון
 
 export interface DialInSession {
   id: ID;
@@ -157,6 +172,27 @@ export interface DialInSession {
   startedAt: string;
   completedAt: string | null;
   bestShotId: ID | null;
+  // שדות הכיול המונחה. אופציונליים בכוונה: סשנים שנוצרו לפני DIAL IN v2.0
+  // כבר יושבים ב-IndexedDB בלי השדות האלה, ונופלים לברירות המחדל.
+  kind?: DialInKind;
+  phase?: DialInPhase;
+  targetYieldGrams?: number; // ה-Yield שאליו חוזרים כשמשנים טחינה
+  lockedDoseGrams?: number; // Dose קפוא עד סוף הכיול (עיקרון הזהב 3)
+  sweetSpotBestShotId?: ID | null; // הטוב ביותר עד כה בשלב הציד
+}
+
+// מצב הכיול אחרי השוט הזה. נשמר בתוך ההמלצה של כל שוט, ומשמש גם
+// כמקור לעדכון ה-DialInSession — כך אין שני מקומות שמחזיקים את אותו מצב.
+export interface DialInState {
+  kind: DialInKind;
+  phase: DialInPhase;
+  phaseStep: 1 | 3 | 4; // מספר השלב במדריך (2 הוא פעולת המשתמש)
+  phaseLabel: string;
+  shotIndex: number; // כמה שוטים נעשו בסשן הזה, כולל הנוכחי
+  readyToConfirm: boolean; // יש שוט טוב מספיק — אפשר לאשר את המתכון
+  targetYieldGrams: number;
+  lockedDoseGrams: number;
+  sweetSpotBestShotId: ID | null;
 }
 
 // --- תחזוקה ---

@@ -42,19 +42,20 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const [backupDismissed, setBackupDismissed] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const data = useLiveQuery(async () => {
-    const [user, shots, beans, bags, events, grinders] = await Promise.all([
+    const [user, shots, beans, bags, events, grinders, dialInSessions] = await Promise.all([
       db.users.toArray().then((u) => u[0]),
       db.shots.orderBy('createdAt').reverse().toArray(),
       db.beans.toArray(),
       db.bags.toArray(),
       db.maintenanceEvents.toArray(),
       db.grinders.toArray(),
+      db.dialInSessions.toArray(),
     ]);
-    return { user, shots, beans, bags, events, grinders };
+    return { user, shots, beans, bags, events, grinders, dialInSessions };
   });
 
   if (!data) return null;
-  const { user, shots, beans, bags, events, grinders } = data;
+  const { user, shots, beans, bags, events, grinders, dialInSessions } = data;
 
   const greeting = timeGreeting(user?.name);
 
@@ -78,7 +79,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const lastBean = lastBag ? beanMap.get(lastBag.beanId) : null;
   const defaultGrinder = grinders.find((g) => g.isDefault) ?? grinders[0];
 
-  const recommendation =
+  const baseRecommendation =
     lastBean && lastBag && user
       ? recommendShot({
           user,
@@ -92,6 +93,41 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
           lastGrinderShot: shots.find((s) => s.grinderId === (lastShot?.grinderId ?? defaultGrinder?.id)),
         })
       : null;
+
+  // ---- כיול פעיל (DIAL IN) ----
+  // כשיש כיול רץ, המספרים על מסך הבית הם יעד הכיול ולא ממוצע ההיסטוריה.
+  // שני מקורות מספרים על אותו מסך זו סתירה — המקור כאן הוא ההמלצה שהמנוע
+  // נתן אחרי השוט האחרון בסשן, בדיוק זו שמופיעה במסך השוט.
+  const activeDialIn = dialInSessions.find((s) => s.status === 'active') ?? null;
+  // shots ממוינים מהחדש לישן, ולכן [0] הוא השוט האחרון בסשן
+  const dialInAdvice = activeDialIn
+    ? shots.find((s) => s.dialInSessionId === activeDialIn.id)?.aiAdvice ?? null
+    : null;
+  const dialInState = dialInAdvice?.dialIn ?? null;
+  const dialInBean = activeDialIn
+    ? beanMap.get(bags.find((b) => b.id === activeDialIn.bagId)?.beanId ?? '') ?? null
+    : null;
+
+  const recommendation = (() => {
+    if (!baseRecommendation || !dialInState || !dialInAdvice) return baseRecommendation;
+    const t = dialInAdvice.targets;
+    // הטפטוף שנמדד נשמר — רק היעד שהוא נגזר ממנו מתחלף
+    const drip = baseRecommendation.stopAtGrams !== null
+      ? baseRecommendation.yieldGrams - baseRecommendation.stopAtGrams
+      : null;
+    return {
+      ...baseRecommendation,
+      doseGrams: t.doseGrams,
+      yieldGrams: t.yieldGrams,
+      grindSetting: t.grindSetting,
+      stopAtGrams: drip !== null ? Math.round((t.yieldGrams - drip) * 10) / 10 : null,
+      ratio: t.doseGrams > 0 ? t.yieldGrams / t.doseGrams : baseRecommendation.ratio,
+      reasons: [
+        `${dialInState.phaseLabel}: המספרים כאן הם יעד הכיול, לא ממוצע ההיסטוריה. ${dialInAdvice.instruction}`,
+        ...baseRecommendation.reasons,
+      ],
+    };
+  })();
 
   // פולים אחרונים בשימוש
   const recentBeanIds: string[] = [];
@@ -339,6 +375,32 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
             <div className="muted small" style={{ marginBottom: 7 }}>
               {lastBean.name} · {lastBean.roastery}
             </div>
+
+            {/* כיול פעיל — התהליך המיוחד מוצג במקום שבו מסתכלים לפני שוט */}
+            {dialInState && (
+              <div className="dial-in-strip">
+                <div className="dial-in-head">
+                  <TargetIcon size={17} />
+                  <span>
+                    {dialInState.kind === 'recheck' ? 'בדיקה חוזרת' : 'כיול'}
+                    {dialInBean ? ` · ${dialInBean.name}` : ''}
+                  </span>
+                  <span className="dial-in-count">שוט {dialInState.shotIndex}</span>
+                </div>
+                <ol className="dial-in-track" aria-label={`שלב ${dialInState.phaseStep} מתוך 4`}>
+                  {[1, 2, 3, 4].map((n) => (
+                    <li
+                      key={n}
+                      className={
+                        n < dialInState.phaseStep ? 'done' : n === dialInState.phaseStep ? 'now' : ''
+                      }
+                      aria-current={n === dialInState.phaseStep ? 'step' : undefined}
+                    />
+                  ))}
+                </ol>
+                <p className="small" style={{ margin: 0 }}>{dialInState.phaseLabel}</p>
+              </div>
+            )}
 
             {/* פס חלון הטריות: המסילה היא כל אורך החיים, המלבן הירוק הוא הטווח, הסמן הוא היום */}
             {bagAge !== null && (() => {

@@ -4,9 +4,10 @@ import { db } from '../db/database';
 import { bagRepo, dialInRepo, shotRepo } from '../db/repositories';
 import { recommendShot, confidenceLabel } from '../services/recommendation';
 import { aiRecommend, type AiAdvice } from '../services/aiEngine';
+import { DIAL_IN_DEFAULT_YIELD } from '../services/dialInEngine';
 import { computeTargetWindow } from '../services/targetWindow';
 import type {
-  Bag, MachineTempSetting, QualityLevel, Shot, ShotRecommendation, TasteTag,
+  Bag, DialInSession, MachineTempSetting, QualityLevel, Shot, ShotRecommendation, TasteTag,
 } from '../domain/types';
 import { Chips, Field, RatingPicker, StatTile } from './components';
 import { QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS } from './labels';
@@ -147,6 +148,9 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedShotId, setSavedShotId] = useState<string | null>(null);
   const [markedFavorite, setMarkedFavorite] = useState(false);
+  // סשן הכיול הפעיל של השוט שנשמר — נסגר רק בלחיצה של המשתמש
+  const [dialInSession, setDialInSession] = useState<DialInSession | null>(null);
+  const [dialInClosed, setDialInClosed] = useState<'done' | 'stopped' | null>(null);
   // רגעי delight ב-Coach: הבזק "חשיבה", חגיגת שוט מושלם, שיא אישי לפולים
   const [thinking, setThinking] = useState(false);
   const [analyzed, setAnalyzed] = useState(0);
@@ -371,11 +375,27 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     setSaveError(null);
     try {
 
-      // Dial-In Session: שקית חדשה בלי שוטים פותחת סשן כיול אוטומטית
+      // ---- תהליך ה-DIAL IN ----
+      // שקית חדשה בלי שוטים פותחת סשן כיול. פולים שכבר כוילו בעבר מקבלים
+      // "recheck": אותם שלבים, אבל נזרעים מהמתכון השמור — רק תאריך הקלייה
+      // השתנה, לא הפולים. הסשן נסגר רק באישור המשתמש (ראו confirmDialIn).
       const bagShots = shots.filter((s) => s.bagId === selectedBag.id);
       let session = await dialInRepo.activeForBag(selectedBag.id);
       if (!session && bagShots.length === 0) {
-        session = await dialInRepo.start(user.id, selectedBag.id);
+        const priorBeanShots = shots.filter(
+          (s) => s.beanId === selectedBean.id && s.bagId !== selectedBag.id,
+        );
+        const savedRecipe =
+          priorBeanShots.find((s) => s.favorite) ??
+          priorBeanShots.filter((s) => s.rating >= 8).sort((a, b) => b.rating - a.rating)[0] ??
+          null;
+        session = await dialInRepo.start(user.id, selectedBag.id, {
+          kind: savedRecipe ? 'recheck' : 'full',
+          targetYieldGrams: savedRecipe?.yieldGrams ?? DIAL_IN_DEFAULT_YIELD,
+          // ה-Dose קפוא על מה שנמדד בפועל בשוט הראשון — זו נקודת הייחוס
+          // || ולא ?? — parseFloat על שדה ריק מחזיר NaN, לא null
+          lockedDoseGrams: savedRecipe?.doseGrams || parseFloat(dose) || user.defaultDoseGrams || 16,
+        });
       }
 
       const shot = await shotRepo.create({
@@ -406,16 +426,8 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
       // בדיקת "משתנה אחד בלבד" מול השוט הקודם באותו סשן
       setMultiVarWarning(session ? await checkOneVariable(shot, session.id) : null);
-
-      // סשן כיול מסתיים כשמגיעים לשוט מאוזן בדירוג 8+
-      if (session && rating >= 8 && (tasteTags.includes('balanced') || tasteTags.includes('sweet'))) {
-        await dialInRepo.put({
-          ...session,
-          status: 'dialed-in',
-          completedAt: new Date().toISOString(),
-          bestShotId: shot.id,
-        });
-      }
+      setDialInSession(session ?? null);
+      const openSession = session;
 
       // מוח ה-AI: היסטוריית הפולים על המטחנה הנוכחית בלבד (דרגות טחינה
       // אינן ברות-השוואה בין מטחנות) + השוט שזה עתה נשמר
@@ -446,10 +458,36 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           roastAgeDays,
           beanShots: beanHistory,
         }),
+        // עותק const: session הוא let שמתעדכן בהמשך, ו-TS לא מצמצם אותו בתוך callback
+        dialIn: openSession
+          ? {
+              session: openSession,
+              // שוטי הסשן מהישן לחדש, כולל זה שזה עתה נשמר
+              sessionShots: [
+                ...shots.filter((s) => s.dialInSessionId === openSession.id),
+                shot,
+              ].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+            }
+          : undefined,
       });
       // ההמלצה נשמרת עם השוט — תופיע גם ביומן לצד פרטי השוט
       await shotRepo.put({ ...shot, aiAdvice: newAdvice });
       setAdvice(newAdvice);
+
+      // מצב הכיול מתקדם יחד עם ההמלצה — מקור אחד, בלי עותק שני שיכול להיפרד
+      if (session && newAdvice.dialIn) {
+        const d = newAdvice.dialIn;
+        session = {
+          ...session,
+          kind: d.kind,
+          phase: d.phase,
+          targetYieldGrams: d.targetYieldGrams,
+          lockedDoseGrams: d.lockedDoseGrams,
+          sweetSpotBestShotId: d.sweetSpotBestShotId,
+        };
+        await dialInRepo.put(session);
+        setDialInSession(session);
+      }
 
       // שיא אישי לפולים האלה? (יש לפחות שוט קודם אחד, והדירוג עוקף את כולם)
       const prevBest = beanAll.reduce((m, s) => Math.max(m, s.rating), 0);
@@ -471,6 +509,31 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     } finally {
       setSaving(false);
     }
+  }
+
+  // ---- סגירת הכיול: החלטה של המשתמש, לא של המנוע ----
+  // המתכון שנשמר הוא נקודת ה-Sweet Spot אם הציד רץ, אחרת השוט הטוב בסשן —
+  // ולא בהכרח השוט האחרון שהוזן.
+  async function confirmDialIn() {
+    if (!dialInSession) return;
+    const sessionShots = await shotRepo.forSession(dialInSession.id);
+    const chosen =
+      sessionShots.find((s) => s.id === dialInSession.sweetSpotBestShotId) ??
+      [...sessionShots].sort((a, b) => b.rating - a.rating)[0];
+    if (!chosen) return;
+    // מתכון אחד לכל פולים — מסירים סימון קודם
+    const prev = shots.filter((s) => s.beanId === chosen.beanId && s.favorite);
+    for (const p of prev) await shotRepo.put({ ...p, favorite: false });
+    await shotRepo.put({ ...chosen, favorite: true });
+    await dialInRepo.complete(dialInSession, chosen.id);
+    setDialInClosed('done');
+    setMarkedFavorite(true);
+  }
+
+  async function stopDialIn() {
+    if (!dialInSession) return;
+    await dialInRepo.abandon(dialInSession);
+    setDialInClosed('stopped');
   }
 
   // מחיקת טיוטה משוחזרת והתחלה מאפס
@@ -892,7 +955,10 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
         <div key="coach" className={stepAnim}>
           {celebrate && <Celebration onDone={stopCelebrate} />}
           <div className="card accent">
-            <h2><BrainIcon size={20} /> מוח ה-AI</h2>
+            <h2>
+              <BrainIcon size={20} />
+              {dialInSession ? ' כיול הפולים' : ' מוח ה-AI'}
+            </h2>
             {/* אזור חי לקורא מסך — קיים בשני מצבי ה-coach, הטקסט מוכרז כשמשתנה */}
             <p className="sr-only" role="status">מנתח את השוט…</p>
             <div className="ai-thinking">
@@ -912,10 +978,42 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       <div key="coach" className={stepAnim}>
         {celebrate && <Celebration onDone={stopCelebrate} />}
         <div className="card accent">
-          <h2><BrainIcon size={20} /> מוח ה-AI — ההמלצה לשוט הבא</h2>
+          <h2>
+            <BrainIcon size={20} />
+            {advice.dialIn ? ' כיול הפולים — ההמלצה לשוט הבא' : ' מוח ה-AI — ההמלצה לשוט הבא'}
+          </h2>
           <p className="sr-only" role="status">
             הניתוח מוכן: {advice.changeKind === 'none' ? 'שמור על המתכון' : `השינוי הבא — ${advice.changeLabel}`}
           </p>
+          {advice.dialIn && (
+            <div className="dial-in-strip">
+              <div className="dial-in-head">
+                <TargetIcon size={17} />
+                <span>{advice.dialIn.phaseLabel}</span>
+                <span className="dial-in-count">
+                  שוט {advice.dialIn.shotIndex}
+                  {advice.dialIn.kind === 'recheck' ? ' · בדיקה חוזרת' : ''}
+                </span>
+              </div>
+              <ol className="dial-in-track" aria-label={`שלב ${advice.dialIn.phaseStep} מתוך 4`}>
+                {[1, 2, 3, 4].map((n) => (
+                  <li
+                    key={n}
+                    className={
+                      n < advice.dialIn!.phaseStep ? 'done'
+                      : n === advice.dialIn!.phaseStep ? 'now'
+                      : ''
+                    }
+                    aria-current={n === advice.dialIn!.phaseStep ? 'step' : undefined}
+                  />
+                ))}
+              </ol>
+              <p className="muted small" style={{ margin: 0 }}>
+                המנה קפואה על {advice.dialIn.lockedDoseGrams} גרם לכל אורך הכיול — זו נקודת
+                הייחוס שכל שאר השינויים נמדדים מולה.
+              </p>
+            </div>
+          )}
           {beanRecord && (
             <div className="record-banner">
               <TrophyIcon size={20} /> שיא אישי לפולים האלה! עברת את השיא הקודם ({beanRecord.prevBest}/10).
@@ -970,7 +1068,37 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
             <BulbIcon size={18} /> <span>{advice.reminder}</span>
           </div>
 
-          {savedShotId && (
+          {/* סיום הכיול — רק בלחיצה שלך. המנוע ממליץ, לא סוגר. */}
+          {advice.dialIn && dialInSession && !dialInClosed && (
+            <div className="dial-in-close">
+              <button
+                className={`btn block ${advice.dialIn.readyToConfirm ? '' : 'secondary'}`}
+                onClick={confirmDialIn}
+              >
+                <StarIcon size={18} /> זה המתכון — סיים את הכיול
+              </button>
+              <p className="muted small" style={{ margin: '6px 0 0' }}>
+                {advice.dialIn.readyToConfirm
+                  ? 'יש בסשן שוט טוב מספיק. אישור ישמור אותו כמתכון של הפולים האלה ויסגור את הכיול.'
+                  : 'אפשר לסגור בכל רגע — הכיול נועד לך, לא להפך. השוט הטוב ביותר בסשן יישמר כמתכון.'}
+              </p>
+              <button className="btn secondary block" style={{ marginTop: 8 }} onClick={stopDialIn}>
+                עצור את הכיול בלי לשמור מתכון
+              </button>
+            </div>
+          )}
+          {dialInClosed && (
+            <div className="one-var-banner" style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <CheckIcon size={18} />
+              <span>
+                {dialInClosed === 'done'
+                  ? 'הכיול נסגר והמתכון נשמר. מכאן המוח חוזר למצב היומיומי על הפולים האלה.'
+                  : 'הכיול נעצר. השוטים נשמרו כרגיל, ולא נקבע מתכון.'}
+              </span>
+            </div>
+          )}
+
+          {savedShotId && !advice.dialIn && (
             <button
               className={`btn block ${markedFavorite ? 'secondary' : ''}`}
               style={{ marginTop: 12 }}
@@ -1000,6 +1128,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 setNotes(''); setRating(0); setQuick(false); setShowTasteDetail(false); setShowEquipment(false);
                 setAdvice(null); setMultiVarWarning(null); setSavedShotId(null); setMarkedFavorite(false);
                 setBeanRecord(null); setThinking(false); setCelebrate(false);
+                setDialInSession(null); setDialInClosed(null);
                 computeRecommendation();
               }}
             >

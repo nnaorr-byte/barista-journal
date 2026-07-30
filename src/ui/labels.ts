@@ -7,6 +7,7 @@ export const TASTE_LABELS: Record<TasteTag, string> = {
   sweet: 'מתוק',
   dry: 'יבש',
   watery: 'מימי',
+  flat: 'חסר מתיקות',
   other: 'אחר',
 };
 

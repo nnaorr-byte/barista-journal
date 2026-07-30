@@ -1,5 +1,8 @@
-import type { AiAdvice, AiTargets, Grinder, MachineTempSetting, Shot, TasteTag } from '../domain/types';
+import type {
+  AiAdvice, AiTargets, DialInSession, DialInState, Grinder, MachineTempSetting, Shot, TasteTag,
+} from '../domain/types';
 import { auditAdviceHistory } from './adviceAudit';
+import { dialInDecide } from './dialInEngine';
 import { DEFAULT_TARGET_WINDOW, diagnosisBounds, type TargetWindow } from './targetWindow';
 
 // ============================================================
@@ -9,6 +12,10 @@ import { DEFAULT_TARGET_WINDOW, diagnosisBounds, type TargetWindow } from './tar
 //   הטעם הוא המדד העליון, זמן החליטה כלי אבחון · עדיפות למתכון מוצלח.
 // רץ כולו במכשיר — אפס שירותים חיצוניים, אפס עלות.
 // הטיפוסים AiAdvice/AiTargets מוגדרים ב-domain/types.ts (נשמרים עם כל שוט).
+//
+// מוח אחד, שני מצבים: כשיש סשן כיול פעיל (params.dialIn), ההחלטה עוברת
+// ל-dialInEngine.ts שמממש את docs/DIAL_IN_ENGINE.md. כשאין — הנתיב זהה
+// למה שהיה כאן תמיד. האזהרות, נקודת העצירה ורמת הביטחון משותפות לשניהם.
 // ============================================================
 
 export type { AiAdvice, AiTargets };
@@ -31,13 +38,17 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 // ---- סיווג טעם (לפי קטגוריות המדריך) ----
 type TasteClass =
   | { kind: 'positive' } // מתוק / מאוזן
-  | { kind: 'negative'; taste: 'sour' | 'bitter' | 'dry' | 'watery' }
+  | { kind: 'negative'; taste: 'sour' | 'bitter' | 'dry' | 'watery' | 'flat' }
   | { kind: 'conflict' } // חמוץ + מר יחד — חשד לתיעול
   | { kind: 'neutral' }; // לא תויג טעם רלוונטי
 
-const NEG_ORDER = ['sour', 'bitter', 'dry', 'watery'] as const;
+// 'flat' (חסר מתיקות) אחרון בכוונה: הוא התלונה העדינה ביותר, ונכנס
+// לתמונה רק כשאין תלונה חדה יותר. כשהוא מופיע *יחד* עם מרירות הוא
+// מטופל כמאפיין של המרירות (צעד Yield קטן) ולא כתלונה נפרדת.
+const NEG_ORDER = ['sour', 'bitter', 'dry', 'watery', 'flat'] as const;
 const TASTE_HE: Record<string, string> = {
-  sour: 'חמוץ', bitter: 'מר', dry: 'יבש', watery: 'מימי', sweet: 'מתוק', balanced: 'מאוזן',
+  sour: 'חמוץ', bitter: 'מר', dry: 'יבש', watery: 'מימי', flat: 'חסר מתיקות',
+  sweet: 'מתוק', balanced: 'מאוזן',
 };
 
 function classifyTaste(shot: Shot): TasteClass {
@@ -200,6 +211,9 @@ export function aiRecommend(params: {
   agingGapDays?: number | null; // ימים שעברו מאז השוט הקודם על הפולים האלה
   roastAgeDays?: number | null; // גיל הקלייה בימים בזמן השוט המתוכנן
   targetWindow?: TargetWindow; // חלון היעד של הפולים האלה — מקור האמת לזמן החליטה
+  // כשיש סשן כיול פעיל, ההחלטה עוברת ל-DIAL IN v2.0 (dialInEngine.ts).
+  // כל השאר — אזהרות, נקודת עצירה, רמת ביטחון — נשאר משותף.
+  dialIn?: { session: DialInSession; sessionShots: Shot[] };
 }): AiAdvice {
   const { lastShot: last, beanShots, grinder, grinderChanged } = params;
   const history = beanShots;
@@ -261,6 +275,8 @@ export function aiRecommend(params: {
   let expectedResult = '';
   let tone: AiAdvice['tone'] = 'info';
   let recipeNote: string | null = null;
+  let dialInState: DialInState | null = null;
+  let reminderOverride: string | null = null;
 
   // תמיד ביחס לדרגה האחרונה שהוזנה על המטחנה הזו, ובגבולות הסקאלה שלה
   const clampGrind = (v: number): number => {
@@ -328,9 +344,36 @@ export function aiRecommend(params: {
   // ---- מודל ביטחון: האם ההכנה עצמה יציבה מספיק כדי לכייל? ----
   const instability = brewTimeInstability(history);
 
-  // ---- עדיפות למתכון מוצלח (עיקרון 4) ----
+  // ---- ענף הכיול: DIAL IN v2.0 גובר על עץ ההחלטה היומיומי ----
+  // ראשון בשרשרת בכוונה. בכיול אין "חזרה למתכון" — אין עדיין מתכון,
+  // ובשקית חוזרת המתכון הוא נקודת ההתחלה של התהליך ולא חלופה לו.
+  // שכבות ההגנה (תיעול, הכנה לא יציבה) מיושמות בתוך dialInDecide.
   const recipe = findRecipe(history, last);
-  if (recipe && last.rating <= recipe.rating - 2 && deviatesFromRecipe(last, recipe, grindStep)) {
+  if (params.dialIn) {
+    const d = dialInDecide({
+      session: params.dialIn.session,
+      lastShot: last,
+      sessionShots: params.dialIn.sessionShots,
+      window,
+      grindStep,
+      grinderName: grinder?.name,
+      clampGrind,
+    });
+    targets.doseGrams = d.targets.doseGrams;
+    targets.yieldGrams = d.targets.yieldGrams;
+    targets.grindSetting = d.targets.grindSetting;
+    targets.machineTemp = d.targets.machineTemp;
+    changeKind = d.changeKind;
+    changeLabel = d.changeLabel;
+    diagnosis = d.diagnosis;
+    instruction = d.instruction;
+    expectedResult = d.expectedResult;
+    tone = d.tone;
+    reminderOverride = d.reminder;
+    dialInState = d.state;
+  }
+  // ---- עדיפות למתכון מוצלח (עיקרון 4) ----
+  else if (recipe && last.rating <= recipe.rating - 2 && deviatesFromRecipe(last, recipe, grindStep)) {
     targets.doseGrams = recipe.doseGrams;
     targets.yieldGrams = recipe.yieldGrams;
     targets.grindSetting = recipe.grindSetting;
@@ -436,6 +479,18 @@ export function aiRecommend(params: {
             break;
           }
           case 'bitter': {
+            // "חסר מתיקות" יחד עם מרירות = חילוץ שעבר במעט את נקודת המתיקות.
+            // המדריך קורא שם לצעד קטן (גרם אחד), לא לצעד מלא.
+            if (last.tasteTags.includes('flat')) {
+              targets.yieldGrams = round1(Math.max(last.doseGrams, last.yieldGrams - 1));
+              changeKind = 'yield';
+              changeLabel = 'Yield — הקטנה קטנה';
+              diagnosis = `חסרה מתיקות ויש גם מעט מרירות (${t} שניות) — החילוץ עבר במעט את נקודת המתיקות, ולכן הצעד קטן מהרגיל.`;
+              instruction = `הקטן את ה-Yield בגרם אחד: יעד סופי של ${targets.yieldGrams} גרם בכוס (במקום ${last.yieldGrams}). טחינה ומנה נשארות זהות.`;
+              expectedResult = 'עצירה גרם אחד מוקדם יותר — בדיוק לפני שהמרירות מכסה על המתיקות.';
+              tone = 'warn';
+              break;
+            }
             const tried = remediesTried(negativeStreak(history, last, 'bitter'));
             if (tried.yieldChanged && tried.grindChanged) {
               diagnosis = 'עדיין מר אחרי שגם ה-Yield וגם הטחינה כבר נוסו — מיצינו את שני הכלים הראשונים. הכלי הבא הוא טמפרטורה.';
@@ -454,15 +509,27 @@ export function aiRecommend(params: {
             break;
           }
           case 'dry':
-            if (alreadyAdjustedYield(prev, last, 'up', 'dry')) {
-              diagnosis = `עדיין יבש למרות הגדלת ה-Yield — עוברים לטחינה גסה יותר להפחתת העפיצות.`;
+            // עפיצות היא חילוץ יתר של טאנינים, והם מגיעים בסוף החילוץ —
+            // ולכן עוצרים מוקדם יותר. (DIAL IN v2.0; קודם לכן היה כאן Yield↑.)
+            if (alreadyAdjustedYield(prev, last, 'down', 'dry')) {
+              diagnosis = `עדיין יבש למרות הקטנת ה-Yield — עוברים לטחינה גסה יותר להפחתת העפיצות.`;
               grindCoarser();
               expectedResult = 'פחות טאנינים בכוס — סיום נקי יותר.';
             } else {
-              diagnosis = `יובש/עפיצות בזמן תקין — סימן לחילוץ יתר נקודתי. מתחילים בהגדלת Yield.`;
-              yieldUp();
-              expectedResult = 'דילול העפיצות והחזרת הרכות למשקה.';
+              diagnosis = `יובש/עפיצות בזמן תקין — החילוץ נמשך אל הטאנינים. מתחילים בהקטנת Yield.`;
+              yieldDown();
+              expectedResult = 'סיום רך יותר, בלי התחושה המחוספסת בפה.';
             }
+            tone = 'warn';
+            break;
+
+          case 'flat':
+            // חסרה מתיקות בלי מרירות: לא חילוץ יתר. לפי המדריך — טחינה
+            // דקה יותר אינה בהכרח טובה יותר; דווקא מעט גסה נותנת זרימה
+            // אחידה ומתיקות גבוהה יותר.
+            diagnosis = `חסרה מתיקות בלי מרירות (${t} שניות) — זה לא חילוץ יתר, ולכן הקטנת Yield לא תעזור. טחינה מעט גסה יותר נותנת זרימה אחידה ומתיקות שמגיעה מעצמה.`;
+            grindCoarser();
+            expectedResult = 'זרימה אחידה יותר מהפאק ומתיקות מורגשת בלגימה האמצעית.';
             tone = 'warn';
             break;
           case 'watery':
@@ -535,6 +602,7 @@ export function aiRecommend(params: {
     confidenceReasons: reasons,
     warnings,
     recipeNote,
-    reminder: reminderFor(finalKind),
+    reminder: reminderOverride ?? reminderFor(finalKind),
+    dialIn: dialInState,
   };
 }

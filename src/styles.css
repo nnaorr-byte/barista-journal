@@ -838,6 +838,51 @@ button.shot-item {
   margin-top: 12px;
 }
 
+/* ===== רצועת הכיול (DIAL IN) =====
+   מופיעה רק בתוך תהליך כיול, בראש כרטיס ההמלצה. משטח אטום ומלא
+   (--bg-elevated) כי יש עליה טקסט — פולי הרקע לא עוברים מתחת למילים. */
+.dial-in-strip {
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-elevated));
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 11px 12px;
+  margin-bottom: 12px;
+}
+.dial-in-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--accent-strong);
+  margin-bottom: 9px;
+}
+.dial-in-count {
+  margin-inline-start: auto;
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+/* ארבעת שלבי המדריך. השלב הנוכחי הוא הבהיר ביותר — שם העין נחה. */
+.dial-in-track {
+  display: flex;
+  gap: 4px;
+  list-style: none;
+  margin: 0 0 9px;
+  padding: 0;
+}
+.dial-in-track li {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--hairline);
+}
+.dial-in-track li.done { background: color-mix(in srgb, var(--accent) 50%, transparent); }
+.dial-in-track li.now { background: var(--accent-strong); }
+
+.dial-in-close { margin-top: 14px; }
+
 /* תעודת סיום שקית — פאנל בתוך השקית, לא כרטיס.
    בלי box-shadow ובלי radius מלא: הגבהה מקוננת היא מה שגורם לכרטיס-בתוך-כרטיס
    להיראות שגוי. ההיררכיה נבנית מהגבול המודגש ומהרווח, בשפה של .one-var-banner. */

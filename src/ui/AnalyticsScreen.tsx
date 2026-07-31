@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import {
   shotRatio, shotFlowRate,
-  type Bag, type Bean, type DialInSession, type Shot,
+  type Bag, type Bean, type DialInSession, type Grinder, type Shot,
 } from '../domain/types';
 import { BarChart, LineChart, ScatterChart, Histogram, type Point, type ScatterPoint } from './charts';
 import { CountUp, StatTile, EmptyState } from './components';
@@ -625,8 +625,9 @@ function RecurringProblemsCard({ shots, beans, bags }: { shots: Shot[]; beans: B
 }
 
 // ===== מדד אמינות המוח: כמה מההמלצות שיושמו באמת עבדו =====
-function AdviceReliabilityCard({ shots }: { shots: Shot[] }) {
-  const outcomes = auditAllAdvice(shots);
+function AdviceReliabilityCard({ shots, grinders }: { shots: Shot[]; grinders: Grinder[] }) {
+  // grinders נדרש כדי לפסול המלצות שחושבו מול סקאלת מטחנה שהשתנתה מאז
+  const outcomes = auditAllAdvice(shots, grinders);
   const followed = outcomes.filter((o) => o.followed);
   const notFollowed = outcomes.length - followed.length;
   if (followed.length < 3) return null; // אין מספיק מדגם לשיפוט הוגן
@@ -817,7 +818,7 @@ export function AnalyticsScreen() {
       {/* מדד אמינות המוח: המוח בודק את עצמו */}
       {show('quality') && <RecurringProblemsCard shots={shots} beans={beans} bags={bags} />}
 
-      {show('consistency') && <AdviceReliabilityCard shots={shots} />}
+      {show('consistency') && <AdviceReliabilityCard shots={shots} grinders={grinders} />}
 
       {/* דירוג לאורך זמן */}
       {show('quality') && (

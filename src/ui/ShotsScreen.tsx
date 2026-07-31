@@ -4,7 +4,7 @@ import { db } from '../db/database';
 import { shotRepo } from '../db/repositories';
 import { aiRecommend } from '../services/aiEngine';
 import { makeWindowResolver, type WindowResolver } from '../services/targetWindow';
-import { adviceOutcomeForShot } from '../services/adviceAudit';
+import { adviceOutcomeForShot, isAdviceCurrent } from '../services/adviceAudit';
 import {
   shotRatio, shotFlowRate,
   type AiAdvice, type Grinder, type MachineTempSetting,
@@ -353,8 +353,14 @@ function reconstructAdvice(
 function ShotAdviceBlock({ shot, shots, grinders, resolveWindow }: {
   shot: Shot; shots: Shot[]; grinders: Grinder[]; resolveWindow: WindowResolver;
 }) {
+  const grinder = grinders.find((g) => g.id === shot.grinderId);
+  // המלצה שנשמרה מול סקאלת מטחנה שהשתנתה מאז אינה תקפה — לא הטקסט
+  // ("הגעת לקצה הגס, 6") ולא היעד המספרי. במקרה כזה משחזרים מהנתונים
+  // הנוכחיים במקום להציג מספר שכבר לא קיים על המטחנה.
   const stored = shot.aiAdvice ?? null;
-  const advice = stored ?? reconstructAdvice(shot, shots, grinders, resolveWindow);
+  const advice = stored && isAdviceCurrent(stored, grinder)
+    ? stored
+    : reconstructAdvice(shot, shots, grinders, resolveWindow);
   if (!advice) return null;
 
   // מה קרה להמלצה בשוט הבא — המוח בודק את עצמו

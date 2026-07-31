@@ -145,6 +145,11 @@ export interface AiAdvice {
   recipeNote: string | null;
   reminder: string; // 6. תזכורת
   dialIn?: DialInState | null; // מלא רק כשההמלצה ניתנה בתוך תהליך כיול
+  // סקאלת המטחנה שמולה חושבה ההמלצה. יעדי הטחינה מוצמדים לגבולות שלה,
+  // ולכן המלצה שנשמרה מול סקאלה שהשתנתה מאז אינה תקפה — לא הטקסט
+  // ("הגעת לקצה") ולא היעד המספרי. חסר = המלצה שנשמרה לפני שהחותם נוסף,
+  // ונחשבת לא-תקפה כדי שתשוחזר מהנתונים הנוכחיים.
+  grinderScale?: { min: number; max: number; step: number } | null;
 }
 
 // --- Dial-In Session ---

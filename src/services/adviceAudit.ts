@@ -1,4 +1,16 @@
-import type { AiAdvice, Shot } from '../domain/types';
+import type { AiAdvice, Grinder, Shot } from '../domain/types';
+
+// ---- תקפות המלצה שנשמרה מול הסקאלה הנוכחית של המטחנה ----
+// יעדי הטחינה מוצמדים לגבולות הסקאלה. אם הסקאלה הוגדרה לא נכון ותוקנה
+// אחר כך, ההמלצות שנשמרו בינתיים שגויות פעמיים: גם בטקסט ("הגעת לקצה
+// הגס, 6") וגם ביעד המספרי — וגם הביקורת כאן הייתה שופטת מולו.
+// המלצה בלי חותם נשמרה לפני שהחותם נוסף, ולכן גם היא אינה תקפה.
+export function isAdviceCurrent(advice: AiAdvice, grinder?: Grinder): boolean {
+  if (!advice.grinderScale) return false;
+  if (!grinder) return true; // אין מול מה להשוות — לא מכריזים על שגיאה
+  const s = advice.grinderScale;
+  return s.min === grinder.scaleMin && s.max === grinder.scaleMax && s.step === grinder.scaleStep;
+}
 
 // ===== ביקורת המלצות: המוח בודק את עצמו =====
 // כל שוט נושא את ההמלצה שניתנה עליו (aiAdvice). השוט הבא באותם
@@ -43,11 +55,13 @@ export function isAdviceFollowed(advice: AiAdvice, next: Shot): boolean {
 }
 
 // ביקורת על היסטוריה אחת (אותם פולים+מטחנה), ממוינת מהישן לחדש
-export function auditAdviceHistory(history: Shot[]): AdviceOutcome[] {
+export function auditAdviceHistory(history: Shot[], grinder?: Grinder): AdviceOutcome[] {
   const out: AdviceOutcome[] = [];
   for (let i = 0; i < history.length - 1; i++) {
     const advice = history[i].aiAdvice;
     if (!advice || !MEASURABLE.includes(advice.changeKind)) continue;
+    // המלצה שחושבה מול סקאלה אחרת — יעד הטחינה שלה כבר לא אומר כלום
+    if (!isAdviceCurrent(advice, grinder)) continue;
     const next = history[i + 1];
     if (!history[i].rating || !next.rating) continue;
     const followed = isAdviceFollowed(advice, next);
@@ -68,8 +82,10 @@ export function auditAdviceHistory(history: Shot[]): AdviceOutcome[] {
   return out;
 }
 
-// ביקורת גלובלית: מקבץ לפי פולים+מטחנה
-export function auditAllAdvice(shots: Shot[]): AdviceOutcome[] {
+// ביקורת גלובלית: מקבץ לפי פולים+מטחנה.
+// grinders נדרש כדי לפסול המלצות שחושבו מול סקאלה שהשתנתה מאז.
+export function auditAllAdvice(shots: Shot[], grinders: Grinder[] = []): AdviceOutcome[] {
+  const byId = new Map(grinders.map((g) => [g.id, g]));
   const groups = new Map<string, Shot[]>();
   for (const s of shots) {
     const k = `${s.beanId}|${s.grinderId}`;
@@ -79,7 +95,7 @@ export function auditAllAdvice(shots: Shot[]): AdviceOutcome[] {
   const out: AdviceOutcome[] = [];
   for (const g of groups.values()) {
     g.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    out.push(...auditAdviceHistory(g));
+    out.push(...auditAdviceHistory(g, byId.get(g[0].grinderId)));
   }
   return out;
 }

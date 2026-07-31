@@ -283,23 +283,30 @@ export function aiRecommend(params: {
     if (!grinder) return round1(v);
     return round1(Math.min(grinder.scaleMax, Math.max(grinder.scaleMin, v)));
   };
+  // כשההצמדה לגבולות הסקאלה מחזירה את אותה דרגה, אין שינוי — וההמלצה
+  // לא מתחזה לכזה. קודם הכותרת אמרה "דרגת טחינה — גס יותר" בזמן שהגוף
+  // אמר "אי אפשר לעלות עוד", וגם ביקורת ההמלצות שפטה מול יעד שלא זז.
   const grindFiner = () => {
     targets.grindSetting = clampGrind(last.grindSetting - grindStep);
-    changeKind = 'grind';
-    changeLabel = 'דרגת טחינה — דק יותר';
     if (targets.grindSetting === last.grindSetting) {
-      instruction = `הטחינה כבר בקצה הדק של הסקאלה (${last.grindSetting}${grinder ? `, ${grinder.name}` : ''}) — אי אפשר לרדת עוד. אם הבעיה נמשכת, בדוק את הגדרות הסקאלה של המטחנה.`;
+      changeKind = 'none';
+      changeLabel = 'הטחינה בקצה הדק של הסקאלה';
+      instruction = `הטחינה כבר בקצה הדק של הסקאלה (${last.grindSetting}${grinder ? `, ${grinder.name}` : ''}) — אי אפשר לרדת עוד. בדוק בהגדרות שטווח הסקאלה של המטחנה מוגדר נכון; אם הוא נכון, הכלי הזה מוצה והשינוי הבא צריך לבוא מ-Yield או מטמפרטורה.`;
     } else {
+      changeKind = 'grind';
+      changeLabel = 'דרגת טחינה — דק יותר';
       instruction = `טחן דק יותר: עבור מדרגה ${last.grindSetting} לדרגה ${targets.grindSetting}${grinder ? ` (${grinder.name})` : ''}. מנה ו-Yield נשארים זהים.`;
     }
   };
   const grindCoarser = () => {
     targets.grindSetting = clampGrind(last.grindSetting + grindStep);
-    changeKind = 'grind';
-    changeLabel = 'דרגת טחינה — גס יותר';
     if (targets.grindSetting === last.grindSetting) {
-      instruction = `הטחינה כבר בקצה הגס של הסקאלה (${last.grindSetting}${grinder ? `, ${grinder.name}` : ''}) — אי אפשר לעלות עוד. אם הבעיה נמשכת, בדוק את הגדרות הסקאלה של המטחנה.`;
+      changeKind = 'none';
+      changeLabel = 'הטחינה בקצה הגס של הסקאלה';
+      instruction = `הטחינה כבר בקצה הגס של הסקאלה (${last.grindSetting}${grinder ? `, ${grinder.name}` : ''}) — אי אפשר לעלות עוד. בדוק בהגדרות שטווח הסקאלה של המטחנה מוגדר נכון; אם הוא נכון, הכלי הזה מוצה והשינוי הבא צריך לבוא מ-Yield או מטמפרטורה.`;
     } else {
+      changeKind = 'grind';
+      changeLabel = 'דרגת טחינה — גס יותר';
       instruction = `טחן גס יותר: עבור מדרגה ${last.grindSetting} לדרגה ${targets.grindSetting}${grinder ? ` (${grinder.name})` : ''}. מנה ו-Yield נשארים זהים.`;
     }
   };
@@ -320,11 +327,13 @@ export function aiRecommend(params: {
     const i = TEMP_ORDER.indexOf(last.machineTemp);
     const next = TEMP_ORDER[Math.min(TEMP_ORDER.length - 1, i + 1)];
     targets.machineTemp = next;
-    changeKind = 'temp';
-    changeLabel = 'טמפרטורה — העלאה';
     if (next === last.machineTemp) {
+      changeKind = 'none';
+      changeLabel = 'הטמפרטורה בשיא — אין כלי נוסף';
       instruction = `הטמפרטורה כבר בשיא (${TEMP_HE[last.machineTemp]}) — מיצית את כל כלי הכיול לחמיצות. אם היא נמשכת, ייתכן שהפולים חמוצים באופיים או טריים מדי (Degassing).`;
     } else {
+      changeKind = 'temp';
+      changeLabel = 'טמפרטורה — העלאה';
       instruction = `העלה את טמפרטורת המכונה מ${TEMP_HE[last.machineTemp]} ל${TEMP_HE[next]}. טחינה, Yield ומנה נשארים זהים — מים חמים יותר מעמיקים את החילוץ.`;
     }
   };
@@ -332,11 +341,13 @@ export function aiRecommend(params: {
     const i = TEMP_ORDER.indexOf(last.machineTemp);
     const next = TEMP_ORDER[Math.max(0, i - 1)];
     targets.machineTemp = next;
-    changeKind = 'temp';
-    changeLabel = 'טמפרטורה — הורדה';
     if (next === last.machineTemp) {
+      changeKind = 'none';
+      changeLabel = 'הטמפרטורה במינימום — אין כלי נוסף';
       instruction = `הטמפרטורה כבר במינימום (${TEMP_HE[last.machineTemp]}) — מיצית את כל כלי הכיול למרירות. אם היא נמשכת, ייתכן שהפולים קלויים כהה מאוד או ישנים.`;
     } else {
+      changeKind = 'temp';
+      changeLabel = 'טמפרטורה — הורדה';
       instruction = `הורד את טמפרטורת המכונה מ${TEMP_HE[last.machineTemp]} ל${TEMP_HE[next]}. טחינה, Yield ומנה נשארים זהים — מים קרירים יותר ממתנים את החילוץ ומפחיתים מרירות.`;
     }
   };
@@ -577,7 +588,7 @@ export function aiRecommend(params: {
   // (cast: TS לא עוקב אחרי השמות שקורות בתוך ה-closures של grindFiner וכו')
   const finalKind = changeKind as AiAdvice['changeKind'];
   if (finalKind === 'grind' || finalKind === 'yield' || finalKind === 'dose' || finalKind === 'temp') {
-    const sameKindFollowed = auditAdviceHistory(history)
+    const sameKindFollowed = auditAdviceHistory(history, grinder)
       .filter((o) => o.changeKind === finalKind && o.followed);
     if (sameKindFollowed.length > 0 && sameKindFollowed.every((o) => !o.improved)) {
       warnings.push(
@@ -604,5 +615,8 @@ export function aiRecommend(params: {
     recipeNote,
     reminder: reminderOverride ?? reminderFor(finalKind),
     dialIn: dialInState,
+    grinderScale: grinder
+      ? { min: grinder.scaleMin, max: grinder.scaleMax, step: grinder.scaleStep }
+      : null,
   };
 }

@@ -60,8 +60,12 @@ export function auditAdviceHistory(history: Shot[], grinder?: Grinder): AdviceOu
   for (let i = 0; i < history.length - 1; i++) {
     const advice = history[i].aiAdvice;
     if (!advice || !MEASURABLE.includes(advice.changeKind)) continue;
-    // המלצה שחושבה מול סקאלה אחרת — יעד הטחינה שלה כבר לא אומר כלום
-    if (!isAdviceCurrent(advice, grinder)) continue;
+    // פסילה מול סקאלה שהשתנתה — אבל רק להמלצות שתלויות בה.
+    // יעד הטחינה הוצמד לגבולות הסקאלה, ולכן הוא חסר משמעות אחרי שינוי
+    // (וגם 'none', שנמדדת בהשוואת דרגת הטחינה). המלצת Yield, מנה או
+    // טמפרטורה לא הושפעה מהסקאלה כלל, ואין סיבה לזרוק אותה.
+    const scaleDependent = advice.changeKind === 'grind' || advice.changeKind === 'none';
+    if (scaleDependent && !isAdviceCurrent(advice, grinder)) continue;
     const next = history[i + 1];
     if (!history[i].rating || !next.rating) continue;
     const followed = isAdviceFollowed(advice, next);

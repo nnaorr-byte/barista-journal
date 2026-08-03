@@ -628,27 +628,45 @@ function RecurringProblemsCard({ shots, beans, bags }: { shots: Shot[]; beans: B
 function AdviceReliabilityCard({ shots, grinders }: { shots: Shot[]; grinders: Grinder[] }) {
   // grinders נדרש כדי לפסול המלצות שחושבו מול סקאלת מטחנה שהשתנתה מאז
   const outcomes = auditAllAdvice(shots, grinders);
-  const followed = outcomes.filter((o) => o.followed);
-  const notFollowed = outcomes.length - followed.length;
-  if (followed.length < 3) return null; // אין מספיק מדגם לשיפוט הוגן
+  // הפרדה קריטית: "אל תשנה דבר" מול שינוי פרמטר ממשי.
+  // עד אוגוסט 2026 שתיהן נספרו יחד, ובנתונים אמיתיים 17 מתוך 23 ההמלצות
+  // שיושמו היו "אל תשנה" — קלות לקיים, ו"הצלחה" בהן היא רק שהדירוג לא
+  // ירד. המדד היה מנופח ורובו מדד כלום. רק שינויים ממשיים מעידים על
+  // איכות ההמלצות, ולכן רק הם נספרים.
+  const realChanges = outcomes.filter((o) => o.changeKind !== 'none');
+  const keeps = outcomes.filter((o) => o.changeKind === 'none' && o.followed);
+  const followed = realChanges.filter((o) => o.followed);
+  const notFollowed = realChanges.length - followed.length;
+  if (followed.length < 5) return null; // מתחת לזה אחוז הוא רעש, לא רקורד
 
   const succeeded = followed.filter((o) => o.improved).length;
   const pct = Math.round((succeeded / followed.length) * 100);
+  const thin = followed.length < 10;
 
   return (
     <div className="card">
       <h2><BrainIcon size={20} /> מדד אמינות המוח</h2>
       <div className="stat-grid">
-        <StatTile value={<CountUp value={followed.length} />} label="המלצות שיישמת" />
-        <StatTile value={<CountUp value={succeeded} />} label="שיפרו / שמרו רמה" />
+        <StatTile value={<CountUp value={followed.length} />} label="שינויים שיישמת" />
+        <StatTile value={<CountUp value={succeeded} />} label="מהם שיפרו" />
         <StatTile value={<CountUp value={pct} suffix="%" />} label="אחוז הצלחה" />
       </div>
       <p className="muted small" style={{ marginTop: 10 }}>
-        המוח בודק את עצמו: על כל המלצה שיישמת, הוא משווה את דירוג השוט הבא לקודם.
-        {pct >= 70 && ' רקורד חזק — ההמלצות עובדות בשבילך.'}
-        {pct < 50 && ' רקורד חלש מהרצוי — ייתכן שהטעמים לא תמיד מתויגים מדויק, או שהפאק לא אחיד (תיעול מטשטש כל כיול).'}
-        {notFollowed > 0 && ` (${notFollowed} המלצות נוספות לא יושמו — הן לא נספרות במדד.)`}
+        המוח בודק את עצמו על <b>שינויי פרמטר בלבד</b> — טחינה, Yield, מנה או טמפרטורה.
+        המלצות "אל תשנה דבר" אינן נספרות: קל לקיים אותן, והן לא מעידות על איכות ההמלצות.
+        {keeps.length > 0 && ` (${keeps.length} פעמים המוח אמר לשמור על המתכון ושמרת.)`}
+        {notFollowed > 0 && ` ${notFollowed} שינויים שהומלצו לא יושמו.`}
       </p>
+      {thin ? (
+        <p className="muted small" style={{ marginTop: 6 }}>
+          המדגם עדיין קטן ({followed.length} שינויים) — האחוז יתייצב עם עוד שוטים.
+        </p>
+      ) : (
+        <p className="muted small" style={{ marginTop: 6 }}>
+          {pct >= 70 && 'רקורד חזק — ההמלצות עובדות בשבילך.'}
+          {pct < 50 && 'רקורד חלש מהרצוי — ייתכן שהטעמים לא תמיד מתויגים מדויק, או שהפאק לא אחיד (תיעול מטשטש כל כיול).'}
+        </p>
+      )}
     </div>
   );
 }

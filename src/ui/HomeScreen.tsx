@@ -7,7 +7,7 @@ import { computeMaintenanceStatus } from '../services/maintenance';
 import { computeBackupStatus, shareBackup } from '../services/importExport';
 import { computeFreshness, computeWinningWindow } from '../services/freshness';
 import { computeBagUsage, ratingTrend, weeklySummary } from '../services/stats';
-import { computeAgingSlope, computeRepeatability } from '../services/aging';
+import { computeAgingSlope, computePrepTightness, computeRepeatability, prepTightnessTrend } from '../services/aging';
 import { makePersonalWindowResolver } from '../services/targetWindow';
 import type { RoastLevel } from '../domain/types';
 import { CountUp, DialInLadder, StatTile, EmptyState } from './components';
@@ -167,6 +167,14 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
     : null;
   const repeatability = activeBagForAge
     ? computeRepeatability(activeBagShots, [activeBagForAge], agingSlope)
+    : null;
+  // רמת ההידוק הכללית ומגמתה. הפער של קבוצה אחת רגיש לחריג בודד;
+  // סטיית התקן על כל הקבוצות היא המספר שאמור לרדת כשהפאק משתפר.
+  const tightness = activeBagForAge
+    ? computePrepTightness(activeBagShots, [activeBagForAge], agingSlope)
+    : null;
+  const tightnessTrend = activeBagForAge
+    ? prepTightnessTrend(activeBagShots, [activeBagForAge])
     : null;
 
   // התראת טריות: איפה השקית הפעילה ביחס לחלון הטריות.
@@ -536,16 +544,29 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
         <div className="stat-grid cols-3">
           <StatTile value={<CountUp value={insights.shotCount} />} label="שוטים סה״כ" />
           <StatTile
-            value={insights.shotCount ? <CountUp value={insights.avgRating} decimals={1} /> : '—'}
-            label="דירוג ממוצע"
+            value={tightness ? `±${tightness.stdevSec}` : '—'}
+            label="פיזור ההכנה (שנ׳)"
           />
           <StatTile
-            value={repeatability ? `${repeatability.spreadSec}` : '—'}
-            label="פער שניות באותן הגדרות"
+            value={
+              tightnessTrend
+                ? `${tightnessTrend.deltaSec > 0 ? '+' : ''}${tightnessTrend.deltaSec}`
+                : '—'
+            }
+            label={tightnessTrend && tightnessTrend.deltaSec < 0 ? 'מתהדק' : 'שינוי בפיזור'}
           />
         </div>
-        {repeatability && (
+        {tightnessTrend && (
           <p className="small" style={{ marginTop: 10 }}>
+            {tightnessTrend.deltaSec < -0.2
+              ? `ההכנה שלך מתהדקת: הפיזור ירד מ-±${tightnessTrend.previous} ל-±${tightnessTrend.recent} שניות.`
+              : tightnessTrend.deltaSec > 0.2
+                ? `הפיזור גדל מ-±${tightnessTrend.previous} ל-±${tightnessTrend.recent} שניות — שווה לחזור לבסיסי הפאק.`
+                : `הפיזור יציב סביב ±${tightnessTrend.recent} שניות.`}
+          </p>
+        )}
+        {repeatability && (
+          <p className="small" style={{ marginTop: 6 }}>
             <b>{repeatability.shots} שוטים</b> על טחינה {repeatability.grindSetting} ומנה{' '}
             {repeatability.doseGrams} גרם — אותן הגדרות בדיוק — נפרשו על{' '}
             <b>{repeatability.spreadSec} שניות</b>

@@ -197,6 +197,61 @@ export function computeRepeatability(
   return best;
 }
 
+// ---- הידוק ההכנה ----
+// פער מקסימום-מינימום של קבוצה אחת רגיש לחריג בודד. למדד מצב כללי עדיף
+// סטיית התקן המשוקללת של *כל* השאריות: כמה כל שוט סוטה מממוצע קבוצת
+// ההגדרות שלו, על פני כל הקבוצות. זה המספר שאמור לרדת ככל שהפאק משתפר.
+export interface PrepTightness {
+  stdevSec: number;
+  shots: number;
+  groups: number;
+}
+
+function residuals(shots: Shot[], bags: Bag[], slope: AgingSlope | null): number[] {
+  const adjust = slope?.meaningful ? slope.secPerDay : 0;
+  const out: number[] = [];
+  for (const g of groupBySettings(shots, bags)) {
+    if (g.shots.length < MIN_GROUP) continue;
+    const ma = mean(g.ages);
+    const adj = g.times.map((t, i) => t - adjust * (g.ages[i] - ma));
+    const m = mean(adj);
+    for (const x of adj) out.push(x - m);
+  }
+  return out;
+}
+
+export function computePrepTightness(
+  shots: Shot[], bags: Bag[], slope: AgingSlope | null,
+): PrepTightness | null {
+  const res = residuals(shots, bags, slope);
+  if (res.length < 6) return null;
+  const groups = groupBySettings(shots, bags).filter((g) => g.shots.length >= MIN_GROUP).length;
+  return {
+    stdevSec: Math.round(Math.sqrt(mean(res.map((x) => x * x))) * 10) / 10,
+    shots: res.length,
+    groups,
+  };
+}
+
+// האם ההכנה מתהדקת? חצי ראשון מול חצי שני של ההיסטוריה.
+// דורש 6 שאריות בכל חצי — מתחת לזה ההפרש הוא רעש ולא מגמה.
+export function prepTightnessTrend(
+  shots: Shot[], bags: Bag[],
+): { recent: number; previous: number; deltaSec: number } | null {
+  const sorted = [...shots].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const mid = Math.floor(sorted.length / 2);
+  const older = sorted.slice(0, mid);
+  const newer = sorted.slice(mid);
+  const a = computePrepTightness(older, bags, computeAgingSlope(older, bags));
+  const b = computePrepTightness(newer, bags, computeAgingSlope(newer, bags));
+  if (!a || !b) return null;
+  return {
+    recent: b.stdevSec,
+    previous: a.stdevSec,
+    deltaSec: Math.round((b.stdevSec - a.stdevSec) * 10) / 10,
+  };
+}
+
 // אי-יציבות הכנה: הגדרות זהות שנתנו זמנים רחוקים, אחרי נטרול גיל.
 // מחליף את המודל הישן שמדד פיזור על חמשת השוטים האחרונים בלי קשר
 // להגדרות — מודל שספר את השינויים המכוונים שלנו כאילו היו רעש.

@@ -68,10 +68,26 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  // ניווט קדימה — דוחף רשומת היסטוריה (לחיצה חוזרת על אותו מסך לא נרשמת)
+  // ניווט קדימה — דוחף רשומת היסטוריה (לחיצה חוזרת על אותו מסך לא נרשמת).
+  //
+  // גלילה לראש העמוד בשני המקרים, מסיבות שונות:
+  //   · אותו מסך — זו הפעולה עצמה. דפוס מוכר מסרגלי טאבים: הקשה על
+  //     הפריט הפעיל מחזירה לראש. חלקה, כי המשתמש רואה את המסע.
+  //   · מסך אחר — מסך חדש צריך להתחיל מלמעלה. בלי זה, מעבר מיומן גלול
+  //     לבית נחת באמצע העמוד. מיידית, כי אין מה להראות בדרך.
+  const scrollToTop = (smooth: boolean) => {
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: 0, behavior: smooth && !reduce ? 'smooth' : 'auto' });
+  };
+
   const setScreen = (s: Screen) => {
-    if (s !== screen) history.pushState({ screen: s }, '');
+    if (s === screen) {
+      scrollToTop(true);
+      return;
+    }
+    history.pushState({ screen: s }, '');
     setScreenState(s);
+    scrollToTop(false);
   };
 
   // "זכוכית מתעוררת": הכותרת שקופה בראש העמוד ומקבלת רקע זכוכית בגלילה

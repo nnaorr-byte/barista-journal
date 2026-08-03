@@ -109,6 +109,9 @@ export interface Shot {
   aftertaste: QualityLevel | null;
   notes: string;
   rating: number; // 1-10
+  // הדירוג המוחלט דחוס: 45 שוטים ראשונים נעו כולם בין 7 ל-10, ו-9 אחד
+  // לא נבדל מ-9 אחר. ההשוואה לשוט הקודם תופסת הפרשים שהמספר מחמיץ.
+  vsPrevious?: 'better' | 'same' | 'worse' | null;
   favorite?: boolean; // ⭐ מסומן כמתכון שמור
   aiAdvice?: AiAdvice | null; // ההמלצה שהמוח נתן על השוט הזה, כפי שנשמרה בזמן אמת
 }

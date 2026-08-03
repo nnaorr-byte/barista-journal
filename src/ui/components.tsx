@@ -37,6 +37,40 @@ export function DialInLadder({ shots, limit }: { shots: Shot[]; limit?: number }
   );
 }
 
+// השוואה לשוט הקודם. הדירוג המוחלט דחוס בקצה העליון — 9 אחד לא נבדל
+// מ-9 אחר — וההשוואה תופסת את ההפרש שהמספר מחמיץ. אופציונלי בכוונה:
+// שדה חובה נוסף בטופס היה מאט את התיעוד.
+const VS_OPTIONS = [
+  { value: 'worse' as const, label: 'פחות טוב' },
+  { value: 'same' as const, label: 'זהה' },
+  { value: 'better' as const, label: 'טוב יותר' },
+];
+
+export function VsPreviousPicker({ value, onChange }: {
+  value: 'better' | 'same' | 'worse' | null;
+  onChange: (v: 'better' | 'same' | 'worse' | null) => void;
+}) {
+  return (
+    <div className="vs-prev">
+      <span className="vs-prev-label">לעומת השוט הקודם</span>
+      <div className="chips" role="group" aria-label="השוואה לשוט הקודם">
+        {VS_OPTIONS.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            className={`chip ${value === o.value ? 'selected' : ''}`}
+            aria-pressed={value === o.value}
+            // לחיצה חוזרת מבטלת — השדה אופציונלי ואי אפשר להיתקע עם בחירה
+            onClick={() => onChange(value === o.value ? null : o.value)}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function StatTile({ value, label }: { value: ReactNode; label: string }) {
   return (
     <div className="stat-tile">

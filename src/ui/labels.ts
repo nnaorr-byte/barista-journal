@@ -11,6 +11,12 @@ export const TASTE_LABELS: Record<TasteTag, string> = {
   other: 'אחר',
 };
 
+export const VS_PREVIOUS_LABELS: Record<'better' | 'same' | 'worse', string> = {
+  better: 'טוב יותר',
+  same: 'זהה',
+  worse: 'פחות טוב',
+};
+
 export const QUALITY_LABELS: Record<QualityLevel, string> = {
   poor: 'חלש',
   ok: 'סביר',

@@ -1,6 +1,7 @@
 import type {
   AiAdvice, AiTargets, DialInKind, DialInPhase, DialInSession, DialInState, Shot,
 } from '../domain/types';
+import { PREP_NOISE_SEC, type Repeatability } from './aging';
 import type { TargetWindow } from './targetWindow';
 
 // ============================================================
@@ -76,33 +77,10 @@ export function dialInComplaint(shot: Shot): DialInComplaint {
   return 'untagged';
 }
 
-// ---- רעש הכנה, בגרסת הכיול ----
-// המודל הכללי של המוח (brewTimeInstability) מודד פיזור בזמני החליטה של
-// חמשת השוטים האחרונים. בכיול הוא מודד את עצמו: שלב 1 *נועד* להזיז את
-// הזמן בעשר שניות, ולכן המודל הכללי היה עוצר כל כיול באמצע בטענה
-// שההכנה לא יציבה. כאן נמדדים רק שוטים רצופים שבהם לא שינינו כלום
-// בכוונה — אותה טחינה, אותו Yield. רק אז פיזור הוא באמת רעש הכנה.
-const PREP_NOISE_RANGE_SEC = 6;
-function prepNoise(
-  sessionShots: Shot[],
-): { min: number; max: number; range: number; count: number } | null {
-  const last = sessionShots[sessionShots.length - 1];
-  if (!last) return null;
-  const same: Shot[] = [];
-  for (let i = sessionShots.length - 1; i >= 0; i--) {
-    const s = sessionShots[i];
-    const sameSetup =
-      Math.abs(s.grindSetting - last.grindSetting) < 0.01 &&
-      Math.abs(s.yieldGrams - last.yieldGrams) < 1;
-    if (sameSetup && s.brewTimeSec > 0) same.unshift(s);
-    else break;
-  }
-  if (same.length < 3) return null;
-  const times = same.map((s) => s.brewTimeSec);
-  const min = Math.min(...times);
-  const max = Math.max(...times);
-  return { min, max, range: max - min, count: same.length };
-}
+// רעש ההכנה נמדד ב-services/aging.ts ומועבר לכאן דרך aiEngine — פיזור
+// על הגדרות זהות בדיוק, מנוטרל שיפוע ההזדקנות של אותה שקית. קודם הייתה
+// כאן מדידה מקומית משלו (שוטים רצופים עם אותה טחינה ואותו Yield); היא
+// אוחדה כדי שלא יהיו שני מודלים לאותו דבר בתוך מוח אחד.
 
 // כמה כבר נוסה על אותה תלונה ברציפות — קובע אם Yield מוצה ועוברים לטחינה
 function remediesTried(
@@ -133,6 +111,7 @@ export interface DialInContext {
   grindStep: number;
   grinderName?: string;
   clampGrind: (v: number) => number; // אותה הצמדה לגבולות הסקאלה כמו במוח
+  prepSpread?: Repeatability | null;
 }
 
 export interface DialInDecision {
@@ -210,7 +189,7 @@ export function dialInDecide(ctx: DialInContext): DialInDecision {
 
   // ---- שכבת הגנה: תיעול. עוצר את הכיול, לא מכייל על פאק שבור ----
   const complaint = dialInComplaint(last);
-  const noise = prepNoise(sessionShots);
+  const noise = ctx.prepSpread && ctx.prepSpread.spreadSec >= PREP_NOISE_SEC ? ctx.prepSpread : null;
   if (complaint === 'conflict') {
     changeKind = 'prep';
     changeLabel = 'הכנת הפאק (לא הגדרות!)';
@@ -225,13 +204,15 @@ export function dialInDecide(ctx: DialInContext): DialInDecision {
     reminder = 'הכיול לא מתקדם על שוט מתועל. קודם פאק אחיד, אחר כך הגדרות.';
   }
   // ---- שכבת הגנה: אותם פרמטרים, זמנים רחוקים = ההכנה רועדת ----
-  else if (noise && noise.range >= PREP_NOISE_RANGE_SEC && complaint !== 'perfect') {
+  else if (noise && complaint !== 'perfect') {
     changeKind = 'prep';
     changeLabel = 'ייצוב ההכנה (לא הגדרות!)';
     diagnosis =
-      `${noise.count} השוטים האחרונים רצו על אותה טחינה ואותו Yield בדיוק, ובכל זאת יצאו ` +
-      `${noise.min}–${noise.max} שניות (פער ${noise.range}). את הפער הזה לא גרם שום שינוי שעשינו — ` +
-      'הוא בא מההכנה. כיול על רעש כזה לא ישוחזר מחר.';
+      `${noise.shots} שוטים רצו על טחינה ${noise.grindSetting} ומנה ${noise.doseGrams} גרם — אותן ` +
+      `הגדרות בדיוק — ובכל זאת נפרשו על ${noise.spreadSec} שניות` +
+      `${noise.ageAdjusted ? ' (אחרי נטרול הזדקנות הפולים)' : ''}. ` +
+      'את הפער הזה לא גרם שום שינוי שעשינו, והוא לא הפולים — הוא ההכנה. ' +
+      'כיול על רעש כזה לא ישוחזר מחר.';
     instruction =
       'חזור על אותם פרמטרים בדיוק, עם פיזור אחיד במחט, פילוס, טמפינג ישר ולחץ קבוע. ' +
       'כשהזמנים יתכנסו לפער של עד ~4 שניות — הכיול ממשיך.';

@@ -5,11 +5,12 @@ import { bagRepo, dialInRepo, shotRepo } from '../db/repositories';
 import { recommendShot, confidenceLabel } from '../services/recommendation';
 import { aiRecommend, type AiAdvice } from '../services/aiEngine';
 import { DIAL_IN_DEFAULT_YIELD } from '../services/dialInEngine';
+import { computeAgingSlope, computeRepeatability } from '../services/aging';
 import { computeTargetWindow } from '../services/targetWindow';
 import type {
   Bag, DialInSession, MachineTempSetting, QualityLevel, Shot, ShotRecommendation, TasteTag,
 } from '../domain/types';
-import { Chips, DialInLadder, Field, RatingPicker, StatTile } from './components';
+import { Chips, DialInLadder, Field, RatingPicker, StatTile, VsPreviousPicker } from './components';
 import { QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS } from './labels';
 import { BoltIcon, BrainIcon, BulbIcon, CheckIcon, ChevronDownIcon, ClipboardIcon, CupIcon, PlusIcon, SaveIcon, StarIcon, TargetIcon, TimerIcon, TrophyIcon, WarnIcon } from './icons';
 import { Celebration } from './Celebration';
@@ -97,6 +98,8 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const [aftertaste, setAftertaste] = useState<QualityLevel | null>(null);
   const [notes, setNotes] = useState('');
   const [rating, setRating] = useState(0);
+  // הדירוג המוחלט דחוס בקצה העליון; ההשוואה לקודם תופסת הפרשים שהוא מחמיץ
+  const [vsPrevious, setVsPrevious] = useState<'better' | 'same' | 'worse' | null>(null);
   // מגירת פירוט טעם — משאירה את שלב התוצאות רזה כברירת מחדל.
   // נפתחת אוטומטית אם כבר יש נתוני עומק (טיוטה משוחזרת), וניתנת לסגירה חופשית.
   const [showTasteDetail, setShowTasteDetail] = useState(false);
@@ -181,6 +184,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           setTasteTags(d.tasteTags ?? []); setTasteOther(d.tasteOther ?? '');
           setBody(d.body ?? null); setCrema(d.crema ?? null);
           setAftertaste(d.aftertaste ?? null); setNotes(d.notes ?? ''); setRating(d.rating ?? 0);
+          setVsPrevious(d.vsPrevious ?? null);
           // טיוטה עם נתוני עומק — פותחים את מגירת הפירוט כדי שלא "ייעלמו"
           if (d.body || d.crema || d.aftertaste) setShowTasteDetail(true);
           // ציוד ששונה מברירת המחדל — פותחים את מגירת הציוד כדי שהשינוי לא "ייעלם"
@@ -208,7 +212,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     localStorage.setItem(DRAFT_KEY, JSON.stringify({
       savedAt: Date.now(), step, beanId, bagId, grinderId, dose, recommendation,
       yieldStop, yieldGrams, brewTime, quick, grindSetting, temp, basketType,
-      portafilterType, tasteTags, tasteOther, body, crema, aftertaste, notes, rating,
+      portafilterType, tasteTags, tasteOther, body, crema, aftertaste, notes, rating, vsPrevious,
     }));
   });
 
@@ -422,6 +426,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
         aftertaste,
         notes,
         rating,
+        vsPrevious,
       });
       setSavedShotId(shot.id);
       setMarkedFavorite(false);
@@ -449,6 +454,16 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
       const agingGapDays = prevShot
         ? Math.floor((new Date(shot.createdAt).getTime() - new Date(prevShot.createdAt).getTime()) / 86400000)
         : null;
+      // פיזור על הגדרות זהות בשקית הזו, מנוטרל שיפוע ההזדקנות שלה.
+      // מחושב כאן ולא במנוע כי כאן יושבות השקיות — ואותו מספר מוצג
+      // גם כמדד החזרתיות במסך הבית.
+      const bagHistory = [...shots.filter((s) => s.bagId === selectedBag.id), shot];
+      const bagAgeNow = selectedBag.roastDate
+        ? Math.floor((new Date(shot.createdAt).getTime() - new Date(selectedBag.roastDate).getTime()) / 86400000)
+        : null;
+      const agingSlope = computeAgingSlope(bagHistory, [selectedBag], bagAgeNow);
+      const prepSpread = computeRepeatability(bagHistory, [selectedBag], agingSlope);
+
       const roastAgeDays = selectedBag.roastDate
         ? Math.floor((new Date(shot.createdAt).getTime() - new Date(selectedBag.roastDate).getTime()) / 86400000)
         : null;
@@ -467,6 +482,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
         }),
         // עותק const: session הוא let שמתעדכן בהמשך, ו-TS לא מצמצם אותו בתוך callback
         dialIn: openSession ? { session: openSession, sessionShots } : undefined,
+        prepSpread,
       });
       // ההמלצה נשמרת עם השוט — תופיע גם ביומן לצד פרטי השוט
       await shotRepo.put({ ...shot, aiAdvice: newAdvice });
@@ -543,7 +559,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     setYieldStop(''); setYieldGrams(''); setBrewTime(''); setQuick(false);
     setGrindSetting(''); setTemp('medium'); setBasketType('IMS/מקצועית'); setPortafilterType('Bottomless');
     setTasteTags([]); setTasteOther(''); setBody(null); setCrema(null); setAftertaste(null);
-    setNotes(''); setRating(0); setShowTasteDetail(false); setShowEquipment(false); setDraftRestored(false); setSaveError(null); setRestoreWarning(null);
+    setNotes(''); setRating(0); setVsPrevious(null); setShowTasteDetail(false); setShowEquipment(false); setDraftRestored(false); setSaveError(null); setRestoreWarning(null);
     stepDirRef.current = 'back';
     setStep('setup');
     history.replaceState({ screen: 'new-shot', step: 'setup' }, '');
@@ -740,6 +756,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 קורה לכולם — עכשיו נראה מה לכוונן בשוט הבא.
               </p>
             )}
+            <VsPreviousPicker value={vsPrevious} onChange={setVsPrevious} />
             {saveError && (
               <div className="one-var-banner" role="alert" style={{ borderColor: 'var(--bad)', marginTop: 10 }}>
                 {saveError}
@@ -923,6 +940,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
               קורה לכולם — עכשיו נראה מה לכוונן בשוט הבא.
             </p>
           )}
+          <VsPreviousPicker value={vsPrevious} onChange={setVsPrevious} />
 
           {saveError && (
             <div className="one-var-banner" role="alert" style={{ borderColor: 'var(--bad)', marginTop: 10 }}>
@@ -1126,7 +1144,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 // שוט נוסף עם אותם פולים — איפוס תוצאות בלבד
                 setYieldStop(''); setYieldGrams(''); setBrewTime(''); setTasteTags([]); setTasteOther('');
                 setBody(null); setCrema(null); setAftertaste(null);
-                setNotes(''); setRating(0); setQuick(false); setShowTasteDetail(false); setShowEquipment(false);
+                setNotes(''); setRating(0); setVsPrevious(null); setQuick(false); setShowTasteDetail(false); setShowEquipment(false);
                 setAdvice(null); setMultiVarWarning(null); setSavedShotId(null); setMarkedFavorite(false);
                 setBeanRecord(null); setThinking(false); setCelebrate(false);
                 setDialInSession(null); setDialInClosed(null);

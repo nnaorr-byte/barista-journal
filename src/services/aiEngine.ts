@@ -2,6 +2,7 @@ import type {
   AiAdvice, AiTargets, DialInSession, DialInState, Grinder, MachineTempSetting, Shot, TasteTag,
 } from '../domain/types';
 import { auditAdviceHistory } from './adviceAudit';
+import { PREP_NOISE_SEC, type Repeatability } from './aging';
 import { dialInDecide } from './dialInEngine';
 import { DEFAULT_TARGET_WINDOW, diagnosisBounds, type TargetWindow } from './targetWindow';
 
@@ -94,22 +95,15 @@ function negativeStreak(history: Shot[], last: Shot, taste: TasteTag): Shot[] {
   return streak;
 }
 
-// ---- מודל ביטחון מבוסס-שונות: לזהות הכנה לא עקבית לפני שמכיילים ----
-// מסתכל על עד 5 השוטים האחרונים על המטחנה הזו (דורש לפחות 4 עם זמן חליטה).
-// פער גדול בזמני החליטה = ההכנה עצמה רועדת (WDT/טמפינג/לחץ), וכל שינוי
-// הגדרות עכשיו יכייל על רעש ולא על הפולים. סף "מאוזן": פער ≥8 שניות.
-const INSTABILITY_RANGE_SEC = 8;
-function brewTimeInstability(
-  history: Shot[],
-): { unstable: boolean; count: number; min: number; max: number; range: number } | null {
-  const recent = history.filter((s) => s.brewTimeSec > 0).slice(-5);
-  if (recent.length < 4) return null;
-  const times = recent.map((s) => s.brewTimeSec);
-  const min = Math.min(...times);
-  const max = Math.max(...times);
-  const range = max - min;
-  return { unstable: range >= INSTABILITY_RANGE_SEC, count: recent.length, min, max, range };
-}
+// ---- הכנה לא עקבית ----
+// עד יולי 2026 נמדד כאן פיזור זמני החליטה ב-5 השוטים האחרונים, בלי קשר
+// להגדרות. זה היה שגוי בשני כיוונים: הוא ספר שינויי טחינה מכוונים כאילו
+// היו רעש, והוא ספר דריפט של Degassing כאילו הוא טמפינג רועד. שניהם
+// גורמים לזמן לזוז מסיבות שאינן הבריסטה.
+//
+// המדידה עברה ל-services/aging.ts: פיזור על *הגדרות זהות בדיוק*, אחרי
+// נטרול שיפוע ההזדקנות שנמדד לאותה שקית. הקורא מחשב ומעביר לכאן, כדי
+// שהמנוע יישאר טהור ושאותו מספר ישמש גם את מדד החזרתיות במסכים.
 
 // מה כבר שונה לאורך הרצף (בין שוטים עוקבים)
 function remediesTried(streak: Shot[]): { yieldChanged: boolean; grindChanged: boolean } {
@@ -214,6 +208,10 @@ export function aiRecommend(params: {
   // כשיש סשן כיול פעיל, ההחלטה עוברת ל-DIAL IN v2.0 (dialInEngine.ts).
   // כל השאר — אזהרות, נקודת עצירה, רמת ביטחון — נשאר משותף.
   dialIn?: { session: DialInSession; sessionShots: Shot[] };
+  // פיזור זמני החליטה על הגדרות זהות, מנוטרל הזדקנות (services/aging.ts).
+  // מחושב בקורא כי הוא זה שמחזיק את השקיות, ומשמש גם את מדד החזרתיות
+  // במסכים — מדידה אחת, לא שתיים שיכולות להיפרד.
+  prepSpread?: Repeatability | null;
 }): AiAdvice {
   const { lastShot: last, beanShots, grinder, grinderChanged } = params;
   const history = beanShots;
@@ -352,8 +350,9 @@ export function aiRecommend(params: {
     }
   };
 
-  // ---- מודל ביטחון: האם ההכנה עצמה יציבה מספיק כדי לכייל? ----
-  const instability = brewTimeInstability(history);
+  // ---- הכנה לא עקבית: מחושב בקורא (services/aging.ts) ומועבר לכאן ----
+  const prepSpread = params.prepSpread ?? null;
+  const prepUnstable = !!prepSpread && prepSpread.spreadSec >= PREP_NOISE_SEC;
 
   // ---- ענף הכיול: DIAL IN v2.0 גובר על עץ ההחלטה היומיומי ----
   // ראשון בשרשרת בכוונה. בכיול אין "חזרה למתכון" — אין עדיין מתכון,
@@ -369,6 +368,7 @@ export function aiRecommend(params: {
       grindStep,
       grinderName: grinder?.name,
       clampGrind,
+      prepSpread,
     });
     targets.doseGrams = d.targets.doseGrams;
     targets.yieldGrams = d.targets.yieldGrams;
@@ -408,16 +408,18 @@ export function aiRecommend(params: {
   // ---- מודל ביטחון: הכנה לא עקבית — מייצבים לפני שמכיילים ----
   // כשזמני החליטה האחרונים מפוזרים מאוד, טעם שלילי בשוט בודד הוא כנראה
   // רעש של הכנה ולא בעיית הגדרות. לא רודפים אחרי הרעש — קודם מייצבים.
-  else if (instability?.unstable && cls.kind === 'negative') {
+  else if (prepUnstable && prepSpread && cls.kind === 'negative') {
     changeKind = 'prep';
     changeLabel = 'ייצוב ההכנה (לא הגדרות!)';
     diagnosis =
-      `זמני החליטה ב-${instability.count} השוטים האחרונים מפוזרים מאוד ` +
-      `(${instability.min}–${instability.max} שניות, פער ${instability.range}). ` +
-      'כשההכנה לא עקבית, שינוי הגדרות עכשיו מכייל על רעש ולא על הפולים.';
+      `${prepSpread.shots} שוטים רצו על טחינה ${prepSpread.grindSetting} ומנה ${prepSpread.doseGrams} גרם — ` +
+      `אותן הגדרות בדיוק — ובכל זאת נפרשו על ${prepSpread.spreadSec} שניות` +
+      `${prepSpread.ageAdjusted ? ' (אחרי נטרול הזדקנות הפולים)' : ''}. ` +
+      'את הפער הזה לא גרם שום שינוי שעשית, והוא לא הפולים — הוא ההכנה. ' +
+      'שינוי הגדרות עכשיו מכייל על רעש.';
     instruction =
       'לפני שמכיילים — יַצֵּב את ההכנה: חזור על אותם פרמטרים בדיוק, עם פיזור אחיד במחט (WDT), ' +
-      'פילוס, טמפינג ישר ולחץ קבוע. כשהזמנים יתכנסו (פער של עד ~4 שניות) — נדע שהשינוי הבא באמת ישקף את הפולים.';
+      'פילוס, טמפינג ישר ולחץ קבוע. כשהפער יירד מתחת ל-4 שניות — נדע שהשינוי הבא באמת ישקף את הפולים.';
     expectedResult = 'זמני חליטה צמודים זה לזה — בסיס אמין לכיול הבא.';
     tone = 'warn';
   }

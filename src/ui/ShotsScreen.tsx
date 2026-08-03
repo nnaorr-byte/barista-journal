@@ -5,13 +5,14 @@ import { shotRepo } from '../db/repositories';
 import { aiRecommend } from '../services/aiEngine';
 import { makeWindowResolver, type WindowResolver } from '../services/targetWindow';
 import { adviceOutcomeForShot, isAdviceCurrent } from '../services/adviceAudit';
+import { computeAgingSlope, computeRepeatability } from '../services/aging';
 import {
   shotRatio, shotFlowRate,
-  type AiAdvice, type Grinder, type MachineTempSetting,
+  type AiAdvice, type Bag, type Grinder, type MachineTempSetting,
   type QualityLevel, type Shot, type TasteTag,
 } from '../domain/types';
 import { Chips, EmptyState, Field, RatingPicker } from './components';
-import { QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
+import { QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS, VS_PREVIOUS_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
 import { BrainIcon, ChevronDownIcon, EditIcon, JournalIcon, SaveIcon, ScaleIcon, SearchIcon, StarIcon, TrashIcon, TrophyIcon, UndoIcon } from './icons';
 
 const TASTE_OPTIONS = (Object.entries(TASTE_LABELS) as [TasteTag, string][]).map(([value, label]) => ({ value, label }));
@@ -200,8 +201,19 @@ export function ShotsScreen() {
                     {s.tasteOther && ` (${s.tasteOther})`}
                   </p>
                 )}
+                {s.vsPrevious && (
+                  <p className="small" style={{ margin: '4px 0' }}>
+                    לעומת השוט הקודם:{' '}
+                    <b style={{
+                      color: s.vsPrevious === 'better' ? 'var(--good)'
+                        : s.vsPrevious === 'worse' ? 'var(--warn)' : 'var(--text-muted)',
+                    }}>
+                      {VS_PREVIOUS_LABELS[s.vsPrevious]}
+                    </b>
+                  </p>
+                )}
                 {s.notes && <p className="small muted" style={{ margin: '4px 0' }}>"{s.notes}"</p>}
-                <ShotAdviceBlock shot={s} shots={data.shots} grinders={data.grinders} resolveWindow={resolveWindow} />
+                <ShotAdviceBlock shot={s} shots={data.shots} grinders={data.grinders} resolveWindow={resolveWindow} bags={data.bags} />
                 <div className="btn-row">
                   <button
                     className="btn small secondary"
@@ -327,7 +339,7 @@ function ShotCompare({
 // ההמלצה שמוח ה-AI נתן על השוט: מהתיעוד שנשמר איתו, או שחזור
 // מהנתונים ההיסטוריים עבור שוטים שנשמרו לפני שהמוח נוסף.
 function reconstructAdvice(
-  shot: Shot, shots: Shot[], grinders: Grinder[], resolveWindow: WindowResolver,
+  shot: Shot, shots: Shot[], grinders: Grinder[], resolveWindow: WindowResolver, bags: Bag[],
 ): AiAdvice | null {
   try {
     const history = shots
@@ -344,14 +356,21 @@ function reconstructAdvice(
       grinderChanged: !!prevBeanShot && prevBeanShot.grinderId !== shot.grinderId,
       // חלון היעד שהיה תקף לשוט הזה — לפי הקלייה וגיל הקלייה שלו
       targetWindow: resolveWindow(shot),
+      // אותו מודל רעש-הכנה כמו במסך השוט — מדידה אחת, לא שתיים
+      prepSpread: (() => {
+        const bag = bags.find((b) => b.id === shot.bagId);
+        if (!bag) return null;
+        const bagShots = shots.filter((x) => x.bagId === shot.bagId && x.createdAt <= shot.createdAt);
+        return computeRepeatability(bagShots, [bag], computeAgingSlope(bagShots, [bag]));
+      })(),
     });
   } catch {
     return null;
   }
 }
 
-function ShotAdviceBlock({ shot, shots, grinders, resolveWindow }: {
-  shot: Shot; shots: Shot[]; grinders: Grinder[]; resolveWindow: WindowResolver;
+function ShotAdviceBlock({ shot, shots, grinders, resolveWindow, bags }: {
+  shot: Shot; shots: Shot[]; grinders: Grinder[]; resolveWindow: WindowResolver; bags: Bag[];
 }) {
   const grinder = grinders.find((g) => g.id === shot.grinderId);
   // המלצה שנשמרה מול סקאלת מטחנה שהשתנתה מאז אינה תקפה — לא הטקסט
@@ -360,7 +379,7 @@ function ShotAdviceBlock({ shot, shots, grinders, resolveWindow }: {
   const stored = shot.aiAdvice ?? null;
   const advice = stored && isAdviceCurrent(stored, grinder)
     ? stored
-    : reconstructAdvice(shot, shots, grinders, resolveWindow);
+    : reconstructAdvice(shot, shots, grinders, resolveWindow, bags);
   if (!advice) return null;
 
   // מה קרה להמלצה בשוט הבא — המוח בודק את עצמו

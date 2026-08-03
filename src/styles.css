@@ -1375,3 +1375,21 @@ button.alert-toggle {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* השוואה לשוט הקודם — שורה שקטה מתחת לדירוג, לא כותרת משלה.
+   הדירוג המוחלט הוא המדד הראשי; זו רק רזולוציה נוספת עליו. */
+.vs-prev {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hairline);
+}
+.vs-prev-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.vs-prev .chips { margin: 0; }

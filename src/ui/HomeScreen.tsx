@@ -7,11 +7,12 @@ import { computeMaintenanceStatus } from '../services/maintenance';
 import { computeBackupStatus, shareBackup } from '../services/importExport';
 import { computeFreshness, computeWinningWindow } from '../services/freshness';
 import { computeBagUsage, ratingTrend, weeklySummary } from '../services/stats';
+import { computeAgingSlope, computeRepeatability } from '../services/aging';
 import { makePersonalWindowResolver } from '../services/targetWindow';
-import { shotRatio, type RoastLevel } from '../domain/types';
+import type { RoastLevel } from '../domain/types';
 import { CountUp, DialInLadder, StatTile, EmptyState } from './components';
-import { formatDateTime, ratingClass, shotWeights } from './labels';
-import { BeanIcon, ChevronDownIcon, CupIcon, LeafIcon, SaveIcon, SoapIcon, TargetIcon, TrendDownIcon, TrendIcon, TrophyIcon, WarnIcon } from './icons';
+import { ratingClass } from './labels';
+import { BeanIcon, ChevronDownIcon, CupIcon, LeafIcon, SaveIcon, SoapIcon, TargetIcon, TrendDownIcon, TrendIcon, WarnIcon } from './icons';
 import type { Screen } from '../App';
 
 // ===== שכבת ההתראות =====
@@ -152,6 +153,22 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
   // שם הפולים של השקית הפעילה — מופיע בהתראת המלאי, כדי שברור על איזו שקית מדובר
   const activeBagBean = activeBag ? beanMap.get(activeBag.beanId) : null;
 
+  // ---- הזדקנות וחזרתיות לשקית הפעילה ----
+  // שני מדדים מאותה מדידה: כמה הזמן נודד בגלל הפולים, וכמה הוא נודד
+  // כשהם לא. השני הוא היחיד שבשליטתך, ולכן הוא שמחליף את "השוט הטוב
+  // ביותר" — מדד פסגה שלא אומר כלום על כמה בקרים יצאו כמו שרצית.
+  const activeBagForAge = lastBag && !lastBag.finished ? lastBag : null;
+  const activeBagShots = activeBagForAge
+    ? shots.filter((s) => s.bagId === activeBagForAge.id)
+    : [];
+  const activeBagAge = activeBagForAge ? daysSince(activeBagForAge.roastDate) : null;
+  const agingSlope = activeBagForAge
+    ? computeAgingSlope(activeBagShots, [activeBagForAge], activeBagAge)
+    : null;
+  const repeatability = activeBagForAge
+    ? computeRepeatability(activeBagShots, [activeBagForAge], agingSlope)
+    : null;
+
   // התראת טריות: איפה השקית הפעילה ביחס לחלון הטריות.
   // עדיפות לחלון האישי (מההיסטוריה) — אך רק אם הוא סביר (מתחיל עד יום 30).
   // חלון "מנצח" שמתחיל ביום 30+ הוא כמעט תמיד הטיה — הטכניקה השתפרה
@@ -177,7 +194,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       }
     } else {
       // אין חלון אישי אמין — הערכת הטריות המקצועית (5–30 יום אידיאלי, דד-ליין 60)
-      const fresh = computeFreshness(activeBag.roastDate);
+      const fresh = computeFreshness(activeBag.roastDate, activeBag.openDate);
       const stageText: Partial<Record<typeof fresh.stage, { sub: string; tone: 'good' | 'warn' }>> = {
         resting: { tone: 'warn', sub: 'עדיין משחרר גזים — הטווח מתחיל ביום 5' },
         peak: { tone: 'good', sub: 'בשיא הטריות' },
@@ -523,10 +540,28 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
             label="דירוג ממוצע"
           />
           <StatTile
-            value={insights.bestShot ? `${insights.bestShot.rating}/10` : '—'}
-            label="השוט הטוב ביותר"
+            value={repeatability ? `${repeatability.spreadSec}` : '—'}
+            label="פער שניות באותן הגדרות"
           />
         </div>
+        {repeatability && (
+          <p className="small" style={{ marginTop: 10 }}>
+            <b>{repeatability.shots} שוטים</b> על טחינה {repeatability.grindSetting} ומנה{' '}
+            {repeatability.doseGrams} גרם — אותן הגדרות בדיוק — נפרשו על{' '}
+            <b>{repeatability.spreadSec} שניות</b>
+            {repeatability.ageAdjusted ? ' (אחרי נטרול הזדקנות הפולים)' : ''}.{' '}
+            {repeatability.spreadSec >= 6
+              ? 'את הפער הזה לא גרמו ההגדרות ולא הפולים — הוא ההכנה.'
+              : 'זה הפיזור הטבעי שלך. כל שיפור מכאן מגיע מהפאק, לא מהמספרים.'}
+          </p>
+        )}
+        {agingSlope?.measured && (
+          <p className="muted small" style={{ marginTop: 6 }}>
+            {agingSlope.meaningful
+              ? `הפולים בשקית הזו מזיזים את הזמן ב-${Math.abs(agingSlope.secPerDay)} שניות ליום${agingSlope.secPerDay < 0 ? ' כלפי מטה' : ' כלפי מעלה'} סביב יום ${activeBagAge}. זה הגזים, לא אתה.`
+              : 'הזמן בשקית הזו לא נודד עם הגיל — הגזים כבר יצאו. כל שינוי בזמן הוא ההכנה.'}
+          </p>
+        )}
         {trend.direction !== 'insufficient' && (
           <p className="muted small" style={{ marginTop: 10, display: 'flex', gap: 7, alignItems: 'flex-start' }}>
             {trend.direction === 'up' && <><TrendIcon size={17} strokeWidth={2} /> <span>מגמת שיפור! הדירוג הממוצע עלה מ-{trend.previousAvg.toFixed(1)} ל-{trend.recentAvg.toFixed(1)} בשוטים האחרונים.</span></>}
@@ -535,27 +570,6 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
           </p>
         )}
       </div>
-
-      {/* השוט הטוב ביותר אי פעם */}
-      {insights.bestShot && (
-        <div className="card">
-          <h2><TrophyIcon size={20} /> השוט הטוב ביותר אי פעם</h2>
-          <div className="shot-item" style={{ cursor: 'default' }}>
-            <div className={`shot-rating ${ratingClass(insights.bestShot.rating)}`}>
-              {insights.bestShot.rating}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div>{beanMap.get(insights.bestShot.beanId)?.name ?? 'פולים שנמחקו'}</div>
-              <div className="muted small">
-                {shotWeights(insights.bestShot)} ·{' '}
-                {insights.bestShot.brewTimeSec} שניות · יחס 1:{shotRatio(insights.bestShot).toFixed(1)} · טחינה{' '}
-                {insights.bestShot.grindSetting}
-              </div>
-              <div className="muted small">{formatDateTime(insights.bestShot.createdAt)}</div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* פולים אחרונים */}
       {recentBeanIds.length > 0 && (

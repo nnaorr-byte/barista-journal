@@ -106,7 +106,7 @@ export function BeansScreen() {
 
             {beanBags.map((bag) => {
               const usage = computeBagUsage(bag, shots);
-              const fresh = computeFreshness(bag.roastDate);
+              const fresh = computeFreshness(bag.roastDate, bag.openDate);
               return (
                 <div key={bag.id} style={{ background: 'var(--bg-elevated)', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
                   <div className="small">

@@ -11,15 +11,36 @@ import { daysSince } from './recommendation';
 export const PEAK_DAYS = 14;
 export const FRESHNESS_DEADLINE_DAYS = 60;
 
+// ===== שני שעונים =====
+// המודל למעלה מניח שקנית פולים טריים ופתחת אותם מיד. כשקונים שקית
+// שנקלתה לפני חודשיים ומעלה זה נשבר: היא נפתחת ישר כ"פג תוקף", עם תגית
+// אדומה והתראה — על שקית שרק פתחת, בכוונה.
+//
+// זה לא באג בסף אלא בשעון. שני תהליכים שונים רצים כאן:
+//   · Degassing — שחרור CO₂. נגמר תוך 3–4 שבועות מהקלייה, ומשפיע על
+//     זמן החליטה. השעון שלו הוא תאריך הקלייה.
+//   · חמצון — איבוד ארומטים ושומנים. משפיע על הטעם, ומאיץ מאוד ברגע
+//     שהשקית נפתחת ושכבת ה-CO₂ המגנה נעלמת. השעון שלו הוא הפתיחה.
+//
+// בשקית טרייה שנפתחה מיד שני השעונים כמעט חופפים, ולכן ספירה מהקלייה
+// עבדה. בשקית שנקנתה מיושנת הם מתפצלים — והשעון הקובע הוא הפתיחה.
+export const AGED_PURCHASE_DAYS = 45; // קלייה עד פתיחה מעבר לזה = "נקנתה מיושנת"
+export const OPENED_PEAK_DAYS = 14;
+export const OPENED_DEADLINE_DAYS = 28;
+
 export type FreshnessStage = 'resting' | 'peak' | 'good' | 'fading' | 'expired' | 'unknown';
 
 export interface Freshness {
   stage: FreshnessStage;
   ageDays: number | null; // ימים מהקלייה
-  deadlineDate: string | null; // תאריך קלייה + 60 יום (ISO date)
+  deadlineDate: string | null; // תאריך היעד (ISO date)
   daysToDeadline: number | null; // כמה ימים נשארו עד הדד-ליין (שלילי = עבר)
   label: string; // תווית קצרה לתצוגה
   cls: 'good' | 'warn' | 'bad' | 'muted'; // מחלקת צבע לתגית
+  // 'roast' — שקית רגילה, נספרת מהקלייה.
+  // 'opened' — נקנתה מיושנת: הגזים כבר יצאו, והשעון שנותר הוא הפתיחה.
+  clock: 'roast' | 'opened' | 'unknown';
+  daysOpen: number | null;
 }
 
 function addDays(isoDate: string, days: number): string {
@@ -28,13 +49,38 @@ function addDays(isoDate: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function computeFreshness(roastDate: string | null): Freshness {
+export function computeFreshness(roastDate: string | null, openDate?: string | null): Freshness {
   const ageDays = daysSince(roastDate);
+  const daysOpen = daysSince(openDate ?? null);
   if (roastDate === null || ageDays === null) {
     return {
       stage: 'unknown', ageDays: null, deadlineDate: null, daysToDeadline: null,
-      label: 'תאריך קלייה לא ידוע', cls: 'muted',
+      label: 'תאריך קלייה לא ידוע', cls: 'muted', clock: 'unknown', daysOpen,
     };
+  }
+
+  // ---- שקית שנקנתה מיושנת: השעון הוא הפתיחה ----
+  const roastAgeAtOpen = openDate
+    ? Math.floor((new Date(openDate).getTime() - new Date(roastDate).getTime()) / 86_400_000)
+    : null;
+  if (openDate && daysOpen !== null && roastAgeAtOpen !== null && roastAgeAtOpen >= AGED_PURCHASE_DAYS) {
+    const left = OPENED_DEADLINE_DAYS - daysOpen;
+    const base = {
+      ageDays, daysOpen, clock: 'opened' as const,
+      deadlineDate: addDays(openDate, OPENED_DEADLINE_DAYS),
+      daysToDeadline: left,
+    };
+    if (daysOpen <= OPENED_PEAK_DAYS) {
+      return { ...base, stage: 'peak',
+        label: `נקנתה מיושנת (קלייה לפני ${ageDays} יום) · פתוחה ${daysOpen} ימים — הזמן יציב`,
+        cls: 'good' };
+    }
+    if (daysOpen < OPENED_DEADLINE_DAYS) {
+      return { ...base, stage: 'fading',
+        label: `פתוחה ${daysOpen} ימים · ${left} ימים עד שהטעם ידעך`, cls: 'warn' };
+    }
+    return { ...base, stage: 'expired',
+      label: `פתוחה ${daysOpen} ימים — הטעם כבר ירד`, cls: 'bad' };
   }
 
   const deadlineDate = addDays(roastDate, FRESHNESS_DEADLINE_DAYS);
@@ -66,7 +112,7 @@ export function computeFreshness(roastDate: string | null): Freshness {
     cls = 'bad';
   }
 
-  return { stage, ageDays, deadlineDate, daysToDeadline, label, cls };
+  return { stage, ageDays, deadlineDate, daysToDeadline, label, cls, clock: 'roast', daysOpen };
 }
 
 export function formatDeadline(iso: string | null): string {

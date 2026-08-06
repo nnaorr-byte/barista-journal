@@ -6,7 +6,7 @@ import {
   type Bag, type Bean, type DialInSession, type Grinder, type Shot,
 } from '../domain/types';
 import { BarChart, LineChart, ScatterChart, Histogram, type Point, type ScatterPoint } from './charts';
-import { CountUp, StatTile, EmptyState } from './components';
+import { CountUp, Field, StatTile, EmptyState } from './components';
 import { computeWinningWindow, shotAgeRatings } from '../services/freshness';
 import { auditAllAdvice } from '../services/adviceAudit';
 import { analyzeRecurringProblems } from '../services/recurringProblems';
@@ -18,6 +18,12 @@ import { BeanIcon, BrainIcon, BulbIcon, ChartIcon, CoinIcon, CupIcon, FlameIcon,
 // ניתוח ויזואלי של איכות ועקביות ההכנה, מהנתונים הקיימים בלבד.
 
 const GOOD_RATING = 8; // סף "שוט מצוין"
+
+// תג לכרטיס שמתעלם ממסנן הפולים בכוונה — הוא מודד אותך, לא את השקית.
+// מוצג רק כשהמסנן פעיל, אחרת אין לו מה להבחין ממנו.
+function AllTimeBadge({ on }: { on: boolean }) {
+  return on ? <span className="badge" style={{ marginInlineStart: 6 }}>כל הזמנים</span> : null;
+}
 
 // קטגוריות לסינון מסך הניתוח — מקבצות את הכרטיסים לפי כוונה.
 // "מבט על" (ה-Dashboard לשעבר) היא קטגוריה כאן — מסך נתונים אחד, לא שניים.
@@ -143,11 +149,12 @@ function GrindTimeHeatmap({ shots }: { shots: Shot[] }) {
 }
 
 // ===== היסטוריית סשני כיול =====
-function DialInHistory({ sessions, shots, bags, beans }: {
+function DialInHistory({ sessions, shots, bags, beans, allTime = false }: {
   sessions: DialInSession[];
   shots: Shot[];
   bags: Bag[];
   beans: Bean[];
+  allTime?: boolean;
 }) {
   if (sessions.length === 0) return null;
   const bagMap = new Map(bags.map((b) => [b.id, b]));
@@ -177,7 +184,7 @@ function DialInHistory({ sessions, shots, bags, beans }: {
 
   return (
     <div className="card">
-      <h2><SettingsIcon size={20} /> סשני הכיול שלי</h2>
+      <h2><SettingsIcon size={20} /> סשני הכיול שלי<AllTimeBadge on={allTime} /></h2>
       {speedInsight && <p className="small" style={{ color: 'var(--good)' }}>📈 {speedInsight}</p>}
       {sorted.slice(0, 8).map((s) => {
         const sessionShots = shots.filter((x) => x.dialInSessionId === s.id);
@@ -206,7 +213,9 @@ function DialInHistory({ sessions, shots, bags, beans }: {
 // ===== דשבורד עלויות =====
 const CAFE_ESPRESSO_PRICE = 12; // ₪ — הנחת מחיר אספרסו ממוצע בבית קפה
 
-function CostDashboard({ shots, bags, beans }: { shots: Shot[]; bags: Bag[]; beans: Bean[] }) {
+function CostDashboard({ shots, bags, beans, allTime = false }: {
+  shots: Shot[]; bags: Bag[]; beans: Bean[]; allTime?: boolean;
+}) {
   const bagMap = new Map(bags.map((b) => [b.id, b]));
   const beanMap = new Map(beans.map((b) => [b.id, b]));
   const pricedShots = shots.filter((s) => {
@@ -260,7 +269,7 @@ function CostDashboard({ shots, bags, beans }: { shots: Shot[]; bags: Bag[]; bea
 
   return (
     <div className="card">
-      <h2><CoinIcon size={20} /> עלויות הקפה שלי</h2>
+      <h2><CoinIcon size={20} /> עלויות הקפה שלי<AllTimeBadge on={allTime} /></h2>
       <div className="stat-grid">
         <StatTile value={<CountUp value={avgCost} decimals={1} prefix="₪" />} label="עלות לשוט" />
         <StatTile value={<CountUp value={totalConsumed} decimals={0} prefix="₪" />} label="קפה שנצרך" />
@@ -495,7 +504,9 @@ function buildInsights(shots: Shot[]): Insight[] {
 // ===== עקומת הטריות: דירוג מול גיל קלייה =====
 // כל שוט ממופה לגיל הפולים ביום ההכנה (לפי תאריך הקלייה של השקית).
 // חישוב הנקודות והחלון המנצח חי ב-services/freshness.ts — משותף עם מסך הבית.
-function FreshnessCurve({ shots, bags }: { shots: Shot[]; bags: Bag[] }) {
+function FreshnessCurve({ shots, bags, allTime = false }: {
+  shots: Shot[]; bags: Bag[]; allTime?: boolean;
+}) {
   const points: ScatterPoint[] = shotAgeRatings(shots, bags).map((p) => ({
     x: p.age,
     y: p.rating,
@@ -508,7 +519,7 @@ function FreshnessCurve({ shots, bags }: { shots: Shot[]; bags: Bag[] }) {
 
   return (
     <div className="card">
-      <h2><LeafIcon size={20} /> עקומת הטריות — דירוג מול גיל קלייה</h2>
+      <h2><LeafIcon size={20} /> עקומת הטריות — דירוג מול גיל קלייה<AllTimeBadge on={allTime} /></h2>
       <ScatterChart points={points} xLabel="ימים מהקלייה" yLabel="דירוג" />
       <p className="muted small">
         ● מלא = שוט מצוין ({GOOD_RATING}+) · ○ מתאר = שאר השוטים. איפה שהמלאים מתקבצים — שם הפולים שלך בשיא.
@@ -625,7 +636,9 @@ function RecurringProblemsCard({ shots, beans, bags }: { shots: Shot[]; beans: B
 }
 
 // ===== מדד אמינות המוח: כמה מההמלצות שיושמו באמת עבדו =====
-function AdviceReliabilityCard({ shots, grinders }: { shots: Shot[]; grinders: Grinder[] }) {
+function AdviceReliabilityCard({ shots, grinders, allTime = false }: {
+  shots: Shot[]; grinders: Grinder[]; allTime?: boolean;
+}) {
   // grinders נדרש כדי לפסול המלצות שחושבו מול סקאלת מטחנה שהשתנתה מאז
   const outcomes = auditAllAdvice(shots, grinders);
   // הפרדה קריטית: "אל תשנה דבר" מול שינוי פרמטר ממשי.
@@ -645,7 +658,7 @@ function AdviceReliabilityCard({ shots, grinders }: { shots: Shot[]; grinders: G
 
   return (
     <div className="card">
-      <h2><BrainIcon size={20} /> מדד אמינות המוח</h2>
+      <h2><BrainIcon size={20} /> מדד אמינות המוח<AllTimeBadge on={allTime} /></h2>
       <div className="stat-grid">
         <StatTile value={<CountUp value={followed.length} />} label="שינויים שיישמת" />
         <StatTile value={<CountUp value={succeeded} />} label="מהם שיפרו" />
@@ -685,6 +698,9 @@ export function AnalyticsScreen() {
   const [wrapped, setWrapped] = useState(false);
   // מסנן קטגוריות — במקום מפל של 15 כרטיסים, מציגים קבוצה אחת בכל פעם
   const [cat, setCat] = useState<AnalyticsCat>('overview');
+  // מסנן פולים. null = טרם נבחר, ולכן ברירת המחדל: הפולים שבשימוש עכשיו.
+  // '' = כל הפולים. אחרת מזהה פולים ספציפיים.
+  const [scope, setScope] = useState<string | null>(null);
 
   if (!data) return null;
   const { shots, grinders, beans, bags, sessions } = data;
@@ -709,13 +725,29 @@ export function AnalyticsScreen() {
     );
   }
 
-  const valid = shots.filter((s) => s.brewTimeSec > 0 && s.doseGrams > 0);
-  const last30 = shots.slice(-30);
+  // ---- היקף הניתוח ----
+  // דרגת טחינה, זמן חליטה ויחס תלויים בפולים: ערבוב שתי שקיות שונות בגרף
+  // אחד מייצר "סחיפה" שהיא בסך הכול החלפת פולים. לכן הכרטיסים האלה
+  // מסוננים, וברירת המחדל היא הפולים שבשימוש עכשיו. כרטיסים שמודדים
+  // *אותך* (עקביות, אמינות המוח, עקומת הטריות, עלות) נשארים גלובליים תמיד.
+  const beanMap = new Map(beans.map((b) => [b.id, b]));
+  const beanName = (id: string) => beanMap.get(id)?.name ?? 'פולים שנמחקו';
+  const activeBeanId = shots[shots.length - 1]?.beanId ?? '';
+  const scopeId = scope === null ? activeBeanId : scope;
+  const scoped = scopeId ? shots.filter((s) => s.beanId === scopeId) : shots;
+  const scopedEnough = scoped.length >= 2;
+  // רשימת הפולים לבחירה — לפי סדר השימוש האחרון
+  const beanOptions = [...new Map(
+    [...shots].reverse().map((s) => [s.beanId, beanName(s.beanId)]),
+  ).entries()];
+
+  const valid = scoped.filter((s) => s.brewTimeSec > 0 && s.doseGrams > 0);
+  const last30 = scoped.slice(-30);
   const dateLabel = (s: Shot) =>
     new Date(s.createdAt).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
 
   // KPI
-  const avgRating = mean(shots.map((s) => s.rating));
+  const avgRating = mean(scoped.map((s) => s.rating));
   const avgTime = mean(valid.map((s) => s.brewTimeSec));
   const avgRatio = mean(valid.map((s) => shotRatio(s)));
   const avgDose = mean(valid.map((s) => s.doseGrams));
@@ -735,10 +767,16 @@ export function AnalyticsScreen() {
   for (const s of shots) grinderCounts.set(s.grinderId, (grinderCounts.get(s.grinderId) ?? 0) + 1);
   const topGrinderId = [...grinderCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
   const topGrinder = grinders.find((g) => g.id === topGrinderId);
-  const grindPoints: Point[] = shots
+  const grindShots = scoped
     .filter((s) => s.grinderId === topGrinderId && s.grindSetting > 0)
-    .slice(-30)
-    .map((s) => ({ label: dateLabel(s), value: s.grindSetting }));
+    .slice(-30);
+  const grindPoints: Point[] = grindShots.map((s) => ({ label: dateLabel(s), value: s.grindSetting }));
+  // קווי הפרדה בכל החלפת פולים — כשמציגים הכול, הקפיצה היא פולים חדשים
+  const grindMarkers = grindShots
+    .map((s, i) => (i > 0 && s.beanId !== grindShots[i - 1].beanId
+      ? { index: i, label: beanName(s.beanId) }
+      : null))
+    .filter((m): m is { index: number; label: string } => m !== null);
 
   // פיזור Dose-Yield
   const scatterPoints = valid.slice(-60).map((s) => ({
@@ -749,24 +787,24 @@ export function AnalyticsScreen() {
   }));
 
   // התפלגות הצלחה
-  const excellent = shots.filter((s) => s.rating >= 8).length;
-  const good = shots.filter((s) => s.rating >= 6 && s.rating < 8).length;
-  const weak = shots.filter((s) => s.rating < 6).length;
-  const distTotal = shots.length;
+  const excellent = scoped.filter((s) => s.rating >= 8).length;
+  const good = scoped.filter((s) => s.rating >= 6 && s.rating < 8).length;
+  const weak = scoped.filter((s) => s.rating < 6).length;
+  const distTotal = scoped.length;
   const pct = (n: number) => Math.round((n / distTotal) * 100);
 
   // היסטוגרמת דירוגים
   const histBins: Point[] = Array.from({ length: 10 }, (_, i) => ({
     label: String(i + 1),
-    value: shots.filter((s) => s.rating === i + 1).length,
+    value: scoped.filter((s) => s.rating === i + 1).length,
   }));
 
-  // עקביות
+  // עקביות — גלובלית בכוונה: היד שלך לא מתאפסת עם שקית חדשה
   const newest = [...shots].reverse();
   const consistency = consistencyScore(newest.slice(0, 10));
   const prevConsistency = newest.length >= 14 ? consistencyScore(newest.slice(10, 20)) : null;
 
-  const insights = buildInsights(shots);
+  const insights = buildInsights(scoped);
   const show = (c: AnalyticsCat) => cat === 'all' || cat === c;
 
   return (
@@ -793,18 +831,47 @@ export function AnalyticsScreen() {
             </button>
           ))}
         </div>
+
+        {/* מסנן פולים — רלוונטי רק כשיש יותר מסוג אחד בהיסטוריה */}
+        {beanOptions.length > 1 && (
+          <div style={{ marginTop: 12 }}>
+            <Field label="הפולים בניתוח">
+              <select value={scopeId} onChange={(e) => setScope(e.target.value)}>
+                {beanOptions.map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}{id === activeBeanId ? ' — בשימוש עכשיו' : ''}
+                  </option>
+                ))}
+                <option value="">כל הפולים יחד</option>
+              </select>
+            </Field>
+            <p className="muted small" style={{ marginTop: -2 }}>
+              {scopeId
+                ? `${scoped.length} שוטים בפולים האלה. כרטיסים שמודדים אותך ולא את השקית — עקביות, אמינות המוח, עקומת הטריות, עלות — מסומנים "כל הזמנים" ולא מסוננים.`
+                : 'כל השוטים יחד. בגרף הטחינה יופיע קו מפריד בכל החלפת פולים — הקפיצה שם היא פולים חדשים, לא סחיפה.'}
+            </p>
+            {scopeId && !scopedEnough && (
+              <p className="small" style={{ color: 'var(--warn)', marginTop: 4 }}>
+                עדיין {scoped.length} שוטים בפולים האלה — הגרפים והממוצעים יתמלאו מהשוט השני.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* הקבוצה המסוננת — key={cat} מפעיל כניסה מדורגת בכל החלפת קטגוריה */}
       <div className="cat-swap" key={cat}>
 
-      {/* מבט על — ה-Dashboard המלא */}
+      {/* מבט על — ה-Dashboard המלא. גלובלי תמיד: זו התמונה הכוללת. */}
       {show('overview') && <DashboardScreen />}
 
       {/* ממוצעי הכנה */}
-      {show('quality') && (
+      {show('quality') && scopedEnough && (
         <div className="card">
-          <h2><ScaleIcon size={20} /> ממוצעי ההכנה שלי</h2>
+          <h2>
+            <ScaleIcon size={20} /> ממוצעי ההכנה
+            {scopeId ? ` — ${beanName(scopeId)}` : ' שלי'}
+          </h2>
           <div className="stat-grid">
             <StatTile value={<CountUp value={avgRating} decimals={1} />} label="דירוג ממוצע" />
             <StatTile value={<CountUp value={avgTime} decimals={0} suffix="s" />} label="זמן ממוצע" />
@@ -819,7 +886,7 @@ export function AnalyticsScreen() {
       {/* עקביות */}
       {show('consistency') && consistency !== null && (
         <div className="card">
-          <h2><TargetIcon size={20} /> מדד העקביות שלי</h2>
+          <h2><TargetIcon size={20} /> מדד העקביות שלי<AllTimeBadge on={!!scopeId} /></h2>
           <div className="stat-grid">
             <StatTile value={<CountUp value={consistency} />} label="ציון עקביות (10 אחרונים)" />
             {prevConsistency !== null && <StatTile value={<CountUp value={prevConsistency} />} label="10 הקודמים" />}
@@ -834,12 +901,12 @@ export function AnalyticsScreen() {
       )}
 
       {/* מדד אמינות המוח: המוח בודק את עצמו */}
-      {show('quality') && <RecurringProblemsCard shots={shots} beans={beans} bags={bags} />}
+      {show('quality') && <RecurringProblemsCard shots={scoped} beans={beans} bags={bags} />}
 
-      {show('consistency') && <AdviceReliabilityCard shots={shots} grinders={grinders} />}
+      {show('consistency') && <AdviceReliabilityCard shots={shots} grinders={grinders} allTime={!!scopeId} />}
 
       {/* דירוג לאורך זמן */}
-      {show('quality') && (
+      {show('quality') && scopedEnough && (
         <div className="card">
           <h2><StarIcon size={20} /> דירוג לאורך זמן</h2>
           <LineChart points={ratingPoints} overlay={ratingMA} overlayLabel="ממוצע נע (5 שוטים)" />
@@ -868,8 +935,11 @@ export function AnalyticsScreen() {
       {show('trends') && grindPoints.length >= 2 && topGrinder && (
         <div className="card">
           <h2><GearIcon size={20} /> דרגת טחינה לאורך זמן — {topGrinder.name}</h2>
-          <LineChart points={grindPoints} />
-          <p className="muted small">מסע הכיול שלך: שינויי הטחינה מספרים איך התאמת את עצמך לפולים ולטריות שלהם.</p>
+          <LineChart points={grindPoints} markers={grindMarkers} />
+          <p className="muted small">
+            מסע הכיול שלך: שינויי הטחינה מספרים איך התאמת את עצמך לפולים ולטריות שלהם.
+            {grindMarkers.length > 0 && ' הקו המקווקו האנכי = החלפת פולים. הקפיצה שאחריו היא כיול חדש, לא סחיפה.'}
+          </p>
         </div>
       )}
 
@@ -888,14 +958,14 @@ export function AnalyticsScreen() {
       {/* מפת חום: טחינה × זמן */}
       {show('quality') && <GrindTimeHeatmap shots={valid} />}
 
-      {/* עקומת הטריות: דירוג מול גיל קלייה */}
-      {show('trends') && <FreshnessCurve shots={shots} bags={bags} />}
+      {/* עקומת הטריות: דירוג מול גיל קלייה — גלובלית בכוונה, היא לומדת עליך */}
+      {show('trends') && <FreshnessCurve shots={shots} bags={bags} allTime={!!scopeId} />}
 
       {/* היסטוריית סשני כיול */}
-      {show('consistency') && <DialInHistory sessions={sessions} shots={shots} bags={bags} beans={beans} />}
+      {show('consistency') && <DialInHistory sessions={sessions} shots={shots} bags={bags} beans={beans} allTime={!!scopeId} />}
 
       {/* עלויות */}
-      {show('cost') && <CostDashboard shots={shots} bags={bags} beans={beans} />}
+      {show('cost') && <CostDashboard shots={shots} bags={bags} beans={beans} allTime={!!scopeId} />}
 
       {/* התפלגות הצלחה */}
       {show('quality') && (

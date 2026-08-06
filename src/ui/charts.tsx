@@ -30,14 +30,22 @@ function niceTicks(min: number, max: number, count = 4): number[] {
   return ticks;
 }
 
+// קו הפרדה אנכי בתוך הסדרה. נועד לסמן החלפת הקשר (פולים חדשים) בגרף
+// שנשאר גלובלי בכוונה: הקפיצה שאחריו אינה סחיפה אלא התחלה חדשה.
+export interface ChartMarker {
+  index: number; // הנקודה הראשונה בהקשר החדש
+  label?: string;
+}
+
 export function LineChart({
-  points, unit = '', band, overlay, overlayLabel,
+  points, unit = '', band, overlay, overlayLabel, markers,
 }: {
   points: Point[];
   unit?: string;
   band?: { from: number; to: number; label?: string }; // רצועת יעד ברקע
   overlay?: (number | null)[]; // סדרה נלווית (ממוצע נע) — קו מקווקו באותו גוון
   overlayLabel?: string;
+  markers?: ChartMarker[];
 }) {
   if (points.length < 2) {
     return <p className="muted small">צריך לפחות 2 שוטים כדי להציג מגמה.</p>;
@@ -101,6 +109,25 @@ export function LineChart({
             </text>
           </g>
         ))}
+        {/* קווי הפרדה — מצוירים לפני הסדרה כדי שלא יחצו את הקו עצמו */}
+        {(markers ?? [])
+          .filter((m) => m.index > 0 && m.index < points.length)
+          .map((m) => {
+            const mx = (x(m.index) + x(m.index - 1)) / 2;
+            return (
+              <g key={`mk${m.index}`}>
+                <line
+                  x1={mx} x2={mx} y1={M.top} y2={M.top + ih}
+                  stroke={INK_MUTED} strokeWidth="1" strokeDasharray="3 4" opacity="0.55"
+                />
+                {m.label && (
+                  <text x={mx + 3} y={M.top + 9} fontSize="9" fill={INK_MUTED}>
+                    {truncate(m.label, 12)}
+                  </text>
+                )}
+              </g>
+            );
+          })}
         <path d={path} fill="none" stroke={ACCENT} strokeWidth="2" strokeLinejoin="round" />
         {overlayPath && (
           <path d={overlayPath} fill="none" stroke={ACCENT} strokeWidth="2" strokeDasharray="6 5" opacity="0.65" strokeLinejoin="round" />

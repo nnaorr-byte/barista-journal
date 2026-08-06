@@ -788,6 +788,32 @@ button.shot-item {
   color: inherit;
   text-align: start;
 }
+/* ---- קיבוץ היומן לפי פולים ----
+   כל סוג פולים הוא הקשר נפרד: הטחינה, הזמן והמתכון שלו לא ברי-השוואה
+   לפולים אחרים. הקבוצה הפעילה פתוחה, השאר כפתורי מסגרת מקופלים. */
+.bean-group { margin-bottom: 8px; }
+.bean-group-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 12px;
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color var(--speed), background var(--speed);
+}
+.bean-group-btn:hover { border-color: var(--border); }
+.bean-group-btn.open {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.bean-group-btn .icon { display: flex; color: var(--accent-strong); }
+.bean-group-body { padding: 2px 4px 6px; }
+
 .shot-rating {
   min-width: 46px;
   height: 46px;

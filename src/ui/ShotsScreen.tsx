@@ -13,7 +13,7 @@ import {
 } from '../domain/types';
 import { Chips, EmptyState, Field, RatingPicker } from './components';
 import { QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS, VS_PREVIOUS_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
-import { BrainIcon, ChevronDownIcon, EditIcon, JournalIcon, SaveIcon, ScaleIcon, SearchIcon, StarIcon, TrashIcon, TrophyIcon, UndoIcon } from './icons';
+import { BeanIcon, BrainIcon, ChevronDownIcon, EditIcon, JournalIcon, SaveIcon, ScaleIcon, SearchIcon, StarIcon, TrashIcon, TrophyIcon, UndoIcon } from './icons';
 
 const TASTE_OPTIONS = (Object.entries(TASTE_LABELS) as [TasteTag, string][]).map(([value, label]) => ({ value, label }));
 const QUALITY_OPTIONS = (Object.entries(QUALITY_LABELS) as [QualityLevel, string][]).map(([value, label]) => ({ value, label }));
@@ -34,8 +34,12 @@ export function ShotsScreen() {
   const [tasteFilter, setTasteFilter] = useState<TasteTag | ''>('');
   const [editing, setEditing] = useState<Shot | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
-  // ברירת מחדל: 10 שוטים אחרונים. השאר מוסתרים מאחורי כפתור הרחבה.
-  const [showAll, setShowAll] = useState(false);
+  // היומן מקובץ לפי סוג פולים: הפולים שבשימוש עכשיו פתוחים, כל השאר
+  // מקופלים מאחורי כפתור מסגרת. שקית שנייה מאותם פולים נכנסת לאותה קבוצה —
+  // הפולים הם ההקשר, לא השקית. undefined = ברירת המחדל (הראשונה פתוחה).
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  // ברירת מחדל: 10 שוטים אחרונים בכל קבוצה. השאר מאחורי כפתור הרחבה.
+  const [showAllIn, setShowAllIn] = useState<Record<string, boolean>>({});
 
   // השוואת שוטים: עד שני שוטים נבחרים — טבלת "מה שונה" מעל היומן
   const [compareIds, setCompareIds] = useState<string[]>([]);
@@ -102,10 +106,22 @@ export function ShotsScreen() {
     return true;
   });
 
-  // כשמחפשים או מסננים — מציגים את כל התוצאות. אחרת רק 10 האחרונים.
+  // חיפוש וסינון חוצים את כל הקבוצות: רשימה שטוחה של כל התוצאות, בלי
+  // קיבוץ. הקיבוץ קיים כדי לענות על "מה קורה עכשיו", והחיפוש שואל אחרת.
   const isFiltering = query.trim() !== '' || minRating > 0 || tasteFilter !== '';
-  const visible = showAll || isFiltering ? filtered : filtered.slice(0, 10);
-  const hiddenCount = filtered.length - visible.length;
+
+  // קיבוץ לפי פולים, לפי סדר השימוש האחרון (filtered כבר מהחדש לישן)
+  const groups: { beanId: string; name: string; shots: Shot[] }[] = [];
+  const groupIdx = new Map<string, number>();
+  for (const s of filtered) {
+    let i = groupIdx.get(s.beanId);
+    if (i === undefined) {
+      i = groups.length;
+      groupIdx.set(s.beanId, i);
+      groups.push({ beanId: s.beanId, name: beanMap.get(s.beanId)?.name ?? 'פולים שנמחקו', shots: [] });
+    }
+    groups[i].shots.push(s);
+  }
 
   if (editing) {
     return <EditShotForm shot={editing} onClose={() => setEditing(null)} />;
@@ -160,7 +176,85 @@ export function ShotsScreen() {
         {filtered.length === 0 && (
           <EmptyState icon={<SearchIcon size={40} />} text="אין שוטים תואמים" hint="נסה לשנות את הסינון או להכין שוט חדש." />
         )}
-        {visible.map((s) => (
+        {renderList()}
+      </div>
+
+      {/* טוסט ביטול מחיקה — לא גונב פוקוס, מוכרז לקורא מסך */}
+      {deletedShot && (
+        <div className={`undo-toast ${toastClosing ? 'closing' : ''}`} role="status">
+          <span>השוט נמחק</span>
+          <button className="btn small" onClick={undoDelete}><UndoIcon size={17} /> ביטול</button>
+        </div>
+      )}
+    </div>
+  );
+
+  // ---- רשימת השוטים: מקובצת לפי פולים, או שטוחה כשמסננים ----
+  function renderList() {
+    if (isFiltering) {
+      return filtered.map((s) => renderShot(s));
+    }
+    return groups.map((g, gi) => {
+      const open = openGroups[g.beanId] ?? gi === 0;
+      const showAll = showAllIn[g.beanId] ?? false;
+      const visible = showAll ? g.shots : g.shots.slice(0, 10);
+      const hidden = g.shots.length - visible.length;
+      return (
+        <div key={g.beanId} className="bean-group">
+          <button
+            type="button"
+            className={`bean-group-btn ${open ? 'open' : ''}`}
+            onClick={() => setOpenGroups((p) => ({ ...p, [g.beanId]: !open }))}
+            aria-expanded={open}
+          >
+            <span className="icon" aria-hidden="true"><BeanIcon size={17} /></span>
+            <span style={{ flex: 1, textAlign: 'start' }}>
+              {g.name}
+              <span className="muted small" style={{ display: 'block' }}>
+                {gi === 0 ? 'בשימוש עכשיו · ' : ''}{g.shots.length} שוטים
+              </span>
+            </span>
+            <span
+              className="muted" aria-hidden="true"
+              style={{ display: 'flex', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.22s var(--spring)' }}
+            >
+              <ChevronDownIcon size={18} />
+            </span>
+          </button>
+          {open && (
+            <div className="bean-group-body">
+              {visible.map((s) => renderShot(s))}
+              {hidden > 0 && (
+                <button
+                  type="button"
+                  className="btn secondary block"
+                  style={{ marginTop: 8 }}
+                  onClick={() => setShowAllIn((p) => ({ ...p, [g.beanId]: true }))}
+                >
+                  <ChevronDownIcon size={17} /> הצג עוד {hidden} שוטים ישנים יותר
+                </button>
+              )}
+              {showAll && g.shots.length > 10 && (
+                <button
+                  type="button"
+                  className="btn secondary block"
+                  style={{ marginTop: 8 }}
+                  onClick={() => setShowAllIn((p) => ({ ...p, [g.beanId]: false }))}
+                >
+                  הצג פחות
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    });
+  }
+
+  function renderShot(s: Shot) {
+    // הפונקציה מוצהרת אחרי ה-return ולכן TS לא זוכר את הבדיקה שלמעלה
+    if (!data) return null;
+    return (
           <div key={s.id}>
             <button
               type="button"
@@ -244,34 +338,8 @@ export function ShotsScreen() {
               </div>
             )}
           </div>
-        ))}
-
-        {!isFiltering && filtered.length > 10 && (
-          <button
-            type="button"
-            className="btn secondary block"
-            style={{ marginTop: 8 }}
-            onClick={() => setShowAll((v) => !v)}
-            aria-expanded={showAll}
-          >
-            {showAll ? (
-              <>הצג פחות</>
-            ) : (
-              <><ChevronDownIcon size={17} /> הצג עוד {hiddenCount} שוטים ישנים יותר</>
-            )}
-          </button>
-        )}
-      </div>
-
-      {/* טוסט ביטול מחיקה — לא גונב פוקוס, מוכרז לקורא מסך */}
-      {deletedShot && (
-        <div className={`undo-toast ${toastClosing ? 'closing' : ''}`} role="status">
-          <span>השוט נמחק</span>
-          <button className="btn small" onClick={undoDelete}><UndoIcon size={17} /> ביטול</button>
-        </div>
-      )}
-    </div>
-  );
+    );
+  }
 }
 
 // ===== השוואת שני שוטים: טבלת "מה שונה" =====

@@ -259,6 +259,16 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const selectedGrinder = grinders.find((g) => g.id === grinderId);
   const lastShot = shots[0];
 
+  // ---- כיול צפוי ----
+  // הסשן עצמו נפתח בשמירת השוט הראשון, אבל ההודעה צריכה להגיע לפני:
+  // שקית חדשה = תהליך, לא עוד שוט. אותה חוקיות בדיוק כמו בשמירה.
+  const pendingDialIn = !!selectedBag && shots.every((s) => s.bagId !== selectedBag.id);
+  const pendingDialInKind =
+    pendingDialIn &&
+    shots.some((s) => s.beanId === beanId && s.bagId !== bagId && (s.favorite || s.rating >= 8))
+      ? 'recheck'
+      : 'full';
+
   // המתכון השמור (⭐) העדכני ביותר עבור הפולים שנבחרו
   const recipeShot = beanId
     ? shots.find((s) => s.beanId === beanId && s.favorite) ?? null
@@ -635,6 +645,18 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
           {beanId && beanBags.length === 0 && (
             <QuickBagForm beanId={beanId} onCreated={(bag) => setBagId(bag.id)} />
+          )}
+
+          {pendingDialIn && (
+            <div className="one-var-banner" style={{ marginBottom: 12 }} role="status">
+              <b>שקית חדשה — נכנסים לכיול.</b>{' '}
+              {pendingDialInKind === 'full'
+                ? 'פולים שעוד לא כוילו: שלב 1 טחינה עד חלון הזמן, שלב 3 כוונון טעם ב-Yield, שלב 4 ציד ה-Sweet Spot.'
+                : 'פולים מוכרים בשקית חדשה — בדיקה מחודשת. מתחילים מהמתכון השמור; רק תאריך הקלייה השתנה.'}
+              <span className="muted small" style={{ display: 'block', marginTop: 4 }}>
+                השוט נשמר ביומן כרגיל. הכיול נפתח עם השוט הראשון ונסגר רק באישור שלך.
+              </span>
+            </div>
           )}
 
           <div className="field-row">

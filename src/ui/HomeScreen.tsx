@@ -74,21 +74,34 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const maintenance = computeMaintenanceStatus(events);
   const trend = ratingTrend(shots);
 
-  // המלצת השוט הבא: לפי השקית האחרונה שבה השתמשת
+  // ---- השקית הפעילה ----
+  // השקית של השוט האחרון — אלא אם סומנה כנגמרה, ואז השקית הפתוחה
+  // החדשה ביותר. שקית שנגמרה לא מוזכרת, ולא נותנת המלצה.
   const lastShot = shots[0];
   const lastBag = lastShot ? bags.find((b) => b.id === lastShot.bagId) : null;
-  const lastBean = lastBag ? beanMap.get(lastBag.beanId) : null;
   const defaultGrinder = grinders.find((g) => g.isDefault) ?? grinders[0];
+  const openBags = bags.filter((b) => !b.finished);
+  const newestOpenBag = [...openBags]
+    .sort((a, b) => (b.openDate ?? b.createdAt).localeCompare(a.openDate ?? a.createdAt))[0] ?? null;
+  const activeBag = lastBag && !lastBag.finished ? lastBag : newestOpenBag;
+  // שם הפולים של השקית הפעילה — מופיע בהתראת המלאי, כדי שברור על איזו שקית מדובר
+  const activeBagBean = activeBag ? beanMap.get(activeBag.beanId) : null;
+  // שקית חדשה שעוד אין בה שוטים — ההמלצה כבר מתייחסת אליה
+  const switchedBag = !!activeBag && !!lastBag && activeBag.id !== lastBag.id;
 
+  // המלצת השוט הבא — תמיד לשקית הפעילה. ברגע שהישנה מסומנת כנגמרה,
+  // המספרים עוברים לפולים החדשים: היחס לפי הקלייה שלהם, הזמן לפי גיל
+  // הקלייה שלהם, וההיסטוריה מתאפסת. אחרת המסך היה סותר את עצמו —
+  // התראות הטריות והמלאי כבר מדברות על השקית החדשה.
   const baseRecommendation =
-    lastBean && lastBag && user
+    activeBagBean && activeBag && user
       ? recommendShot({
           user,
-          bean: lastBean,
-          bag: lastBag,
-          beanShots: shots.filter((s) => s.beanId === lastBean.id),
+          bean: activeBagBean,
+          bag: activeBag,
+          beanShots: shots.filter((s) => s.beanId === activeBagBean.id),
           grinderShots: shots.filter(
-            (s) => s.beanId === lastBean.id && s.grinderId === (lastShot?.grinderId ?? defaultGrinder?.id),
+            (s) => s.beanId === activeBagBean.id && s.grinderId === (lastShot?.grinderId ?? defaultGrinder?.id),
           ),
           grinder: grinders.find((g) => g.id === (lastShot?.grinderId ?? defaultGrinder?.id)),
           lastGrinderShot: shots.find((s) => s.grinderId === (lastShot?.grinderId ?? defaultGrinder?.id)),
@@ -114,22 +127,30 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
     : [];
 
   const recommendation = (() => {
-    if (!baseRecommendation || !dialInState || !dialInAdvice) return baseRecommendation;
+    // מעבר שקית — אומרים אותו במפורש. אחרת נראה כאילו המספרים "קפצו".
+    const base = baseRecommendation && switchedBag
+      ? {
+          ...baseRecommendation,
+          reasons: [
+            `עברת לשקית חדשה — ${activeBagBean?.name ?? 'הפולים החדשים'}. ההמלצה מתייחסת אליה בלבד; ההיסטוריה של הפולים הקודמים לא נכנסת לחישוב.`,
+            ...baseRecommendation.reasons,
+          ],
+        }
+      : baseRecommendation;
+    if (!base || !dialInState || !dialInAdvice) return base;
     const t = dialInAdvice.targets;
     // הטפטוף שנמדד נשמר — רק היעד שהוא נגזר ממנו מתחלף
-    const drip = baseRecommendation.stopAtGrams !== null
-      ? baseRecommendation.yieldGrams - baseRecommendation.stopAtGrams
-      : null;
+    const drip = base.stopAtGrams !== null ? base.yieldGrams - base.stopAtGrams : null;
     return {
-      ...baseRecommendation,
+      ...base,
       doseGrams: t.doseGrams,
       yieldGrams: t.yieldGrams,
       grindSetting: t.grindSetting,
       stopAtGrams: drip !== null ? Math.round((t.yieldGrams - drip) * 10) / 10 : null,
-      ratio: t.doseGrams > 0 ? t.yieldGrams / t.doseGrams : baseRecommendation.ratio,
+      ratio: t.doseGrams > 0 ? t.yieldGrams / t.doseGrams : base.ratio,
       reasons: [
         `${dialInState.phaseLabel}: המספרים כאן הם יעד הכיול, לא ממוצע ההיסטוריה. ${dialInAdvice.instruction}`,
-        ...baseRecommendation.reasons,
+        ...base.reasons,
       ],
     };
   })();
@@ -143,15 +164,6 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
   const overdueMaintenance = maintenance.filter((m) => m.overdue || m.lastPerformed === null);
   const backupStatus = computeBackupStatus(shots);
-
-  // השקית הפעילה להתראות: השקית של השוט האחרון — אלא אם סומנה כנגמרה,
-  // ואז עוברים לשקית הפתוחה החדשה ביותר (אם קיימת). שקית שנגמרה לא מוזכרת.
-  const openBags = bags.filter((b) => !b.finished);
-  const newestOpenBag = [...openBags]
-    .sort((a, b) => (b.openDate ?? b.createdAt).localeCompare(a.openDate ?? a.createdAt))[0] ?? null;
-  const activeBag = lastBag && !lastBag.finished ? lastBag : newestOpenBag;
-  // שם הפולים של השקית הפעילה — מופיע בהתראת המלאי, כדי שברור על איזו שקית מדובר
-  const activeBagBean = activeBag ? beanMap.get(activeBag.beanId) : null;
 
   // ---- הזדקנות וחזרתיות לשקית הפעילה ----
   // שני מדדים מאותה מדידה: כמה הזמן נודד בגלל הפולים, וכמה הוא נודד
@@ -399,10 +411,10 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       {/* המלצת השוט הבא — הכרטיס הראשי, מודגש מעל השאר */}
       <div className="card accent hero">
         <h2><TargetIcon size={20} /> המלצת השוט הבא</h2>
-        {recommendation && lastBean ? (
+        {recommendation && activeBagBean ? (
           <>
             <div className="muted small" style={{ marginBottom: 7 }}>
-              {lastBean.name} · {lastBean.roastery}
+              {activeBagBean.name} · {activeBagBean.roastery}
             </div>
 
             {/* כיול פעיל — התהליך המיוחד מוצג במקום שבו מסתכלים לפני שוט */}

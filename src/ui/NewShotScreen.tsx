@@ -651,7 +651,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
             <div className="one-var-banner" style={{ marginBottom: 12 }} role="status">
               <b>שקית חדשה — נכנסים לכיול.</b>{' '}
               {pendingDialInKind === 'full'
-                ? 'פולים שעוד לא כוילו: שלב 1 טחינה עד חלון הזמן, שלב 3 כוונון טעם ב-Yield, שלב 4 ציד ה-Sweet Spot.'
+                ? 'פולים שעוד לא כוילו. שלב 1 — טחינה בלבד עד שנכנסים לחלון הזמן. שלב 2 — אתה טועם ומתייג. שלב 3 — כוונון עדין ב-Yield לפי הטעם. שלב 4 — ציד ה-Sweet Spot.'
                 : 'פולים מוכרים בשקית חדשה — בדיקה מחודשת. מתחילים מהמתכון השמור; רק תאריך הקלייה השתנה.'}
               <span className="muted small" style={{ display: 'block', marginTop: 4 }}>
                 השוט נשמר ביומן כרגיל. הכיול נפתח עם השוט הראשון ונסגר רק באישור שלך.

@@ -3,8 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import { bagRepo, beanRepo } from '../db/repositories';
 import { computeBagUsage } from '../services/stats';
-import { computeFreshness, formatDeadline } from '../services/freshness';
-import type { Bag, RoastLevel, Shot } from '../domain/types';
+import { computeFreshness, formatDeadline, resolveRoastType } from '../services/freshness';
+import type { Bag, Bean, RoastLevel, RoastType, Shot } from '../domain/types';
 import { ConfirmButton, CountUp, EmptyState, Field, StatTile } from './components';
 import { ROAST_LEVELS, formatDate, ratingClass } from './labels';
 import { BeanIcon, CalendarIcon, PlusIcon, SaveIcon, TrashIcon, UndoIcon, WarnIcon } from './icons';
@@ -20,14 +20,29 @@ function bagSizeLabel(grams: number): string {
   return BAG_SIZES.find((s) => s.grams === grams)?.label ?? `${grams} גרם`;
 }
 
-// פס טריות: 0 עד 60 יום. הסמן זז לאורך הפס לפי גיל הקלייה.
-function FreshnessBar({ ageDays }: { ageDays: number }) {
-  const pct = Math.min(100, (ageDays / 60) * 100);
+// פס טריות: 0 עד 60 יום. הסמן זז לאורך הפס לפי גיל הטריות.
+//
+// שני שעונים, אותו רכיב. בקלייה טרייה יום 0 הוא הקלייה, והמדרג הוא זה
+// שהיה כאן תמיד (Degassing בהתחלה, שיא ~14, דעיכה מ-45). בקלייה ישנה
+// יום 0 הוא פתיחת השקית: אין שלב גזים, השימוש מיטבי עד 30 והדעיכה
+// מתחילה שם. אותו אורך פס (60 יום) — רק החלוקה הפנימית משתנה.
+const ROAST_GRADIENT =
+  'linear-gradient(90deg, var(--warn) 0%, var(--good) 12% 50%, var(--warn) 75%, var(--bad) 100%)';
+const OPENED_GRADIENT =
+  'linear-gradient(90deg, var(--good) 0%, var(--good) 50%, var(--warn) 60%, var(--bad) 100%)';
+
+function FreshnessBar({ ageDays, scaleDays, clock }: {
+  ageDays: number;
+  scaleDays: number;
+  clock: 'roast' | 'opened' | 'unknown';
+}) {
+  const opened = clock === 'opened';
+  const pct = Math.max(0, Math.min(100, (ageDays / scaleDays) * 100));
   return (
     <div style={{ margin: '6px 0' }} dir="ltr">
       <div style={{
         position: 'relative', height: 6, borderRadius: 999,
-        background: 'linear-gradient(90deg, var(--warn) 0%, var(--good) 12% 50%, var(--warn) 75%, var(--bad) 100%)',
+        background: opened ? OPENED_GRADIENT : ROAST_GRADIENT,
         opacity: 0.55,
       }}>
         <div style={{
@@ -38,7 +53,11 @@ function FreshnessBar({ ageDays }: { ageDays: number }) {
         }} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
-        <span>קלייה</span><span>שיא ~14י'</span><span>דד-ליין 60י'</span>
+        {opened ? (
+          <><span>פתיחה</span><span>מיטבי עד 30י'</span><span>דד-ליין 60י'</span></>
+        ) : (
+          <><span>קלייה</span><span>שיא ~14י'</span><span>דד-ליין 60י'</span></>
+        )}
       </div>
     </div>
   );
@@ -61,7 +80,26 @@ export function BeansScreen() {
 
   if (!data) return null;
   const { beans, bags, shots } = data;
-  const activeBeans = beans.filter((b) => !b.archived);
+
+  // סדר הרשימה: הפולים של השוט האחרון ראשונים. lastUsedAt נגזר מהשוטים
+  // ולא נשמר כשדה — שדה מקביל היה יכול להיפרד מהאמת (מחיקת שוט, ייבוא
+  // גיבוי, עריכת תאריך), וכאן הוא תמיד נכון. פולים בלי שוטים נופלים
+  // לסוף לפי סדר ההוספה, מהחדש לישן.
+  const lastUsed = new Map<string, string>();
+  for (const s of shots) {
+    const cur = lastUsed.get(s.beanId);
+    if (!cur || s.createdAt > cur) lastUsed.set(s.beanId, s.createdAt);
+  }
+  const activeBeans = beans
+    .filter((b) => !b.archived)
+    .sort((a, b) => {
+      const ua = lastUsed.get(a.id);
+      const ub = lastUsed.get(b.id);
+      if (ua && ub) return ub.localeCompare(ua);
+      if (ua) return -1;
+      if (ub) return 1;
+      return b.createdAt.localeCompare(a.createdAt);
+    });
 
   return (
     <div>
@@ -104,9 +142,12 @@ export function BeansScreen() {
             {bean.notes && <p className="small">{bean.notes}</p>}
             <p className="muted small">{beanShots.length} שוטים סה״כ מהפולים האלה</p>
 
+            {/* סוג הקלייה — קובע מאיזה תאריך נספרת הטריות */}
+            <RoastTypePicker bean={bean} />
+
             {beanBags.map((bag) => {
               const usage = computeBagUsage(bag, shots);
-              const fresh = computeFreshness(bag.roastDate, bag.openDate);
+              const fresh = computeFreshness(bag.roastDate, bag.openDate, bean.roastType);
               return (
                 <div key={bag.id} style={{ background: 'var(--bg-elevated)', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
                   <div className="small">
@@ -120,6 +161,14 @@ export function BeansScreen() {
                     נקלתה: {formatDate(bag.roastDate)} · נפתחה: {formatDate(bag.openDate)}
                     {bag.price !== null && ` · ₪${bag.price}`}
                   </div>
+                  {/* גיל הקלייה וגיל הטריות הם שני מספרים שונים בקלייה
+                      ישנה, ולכן שניהם מוצגים במפורש ולא נגזרים זה מזה */}
+                  {!bag.finished && fresh.clock === 'opened' && fresh.ageDays !== null && (
+                    <div className="muted small">
+                      גיל קלייה: {fresh.ageDays} ימים (מידע רקע)
+                      {fresh.freshnessAgeDays !== null && ` · גיל טריות: ${fresh.freshnessAgeDays} ימים מהפתיחה`}
+                    </div>
+                  )}
                   {!bag.finished && fresh.deadlineDate && (
                     <div className="small" style={{ margin: '4px 0', color: fresh.stage === 'expired' ? 'var(--bad)' : 'var(--crema)', display: 'flex', gap: 6, alignItems: 'center' }}>
                       {fresh.stage === 'expired' ? <WarnIcon size={16} /> : <CalendarIcon size={16} />}
@@ -127,9 +176,19 @@ export function BeansScreen() {
                       {fresh.daysToDeadline !== null && fresh.daysToDeadline > 0 && ` · עוד ${fresh.daysToDeadline} ימים`}</span>
                     </div>
                   )}
-                  {/* פס טריות ויזואלי — 0 עד 60 יום */}
-                  {!bag.finished && fresh.ageDays !== null && (
-                    <FreshnessBar ageDays={fresh.ageDays} />
+                  {/* פס טריות ויזואלי — 0 עד 60 יום, מנקודת ההתחלה של החלון */}
+                  {!bag.finished && fresh.freshnessAgeDays !== null && (
+                    <FreshnessBar
+                      ageDays={fresh.freshnessAgeDays}
+                      scaleDays={fresh.freshnessScaleDays}
+                      clock={fresh.clock}
+                    />
+                  )}
+                  {!bag.finished && fresh.clock === 'opened' && !bag.openDate && (
+                    <p className="small" style={{ color: 'var(--warn)', margin: '4px 0' }}>
+                      הפולים מסומנים כקלייה ישנה, וחלון הטריות נספר מפתיחת השקית — הוסף
+                      תאריך פתיחה כדי שהפס והדד-ליין יתחילו לספור.
+                    </p>
                   )}
                   <div className="muted small">
                     {usage.shotsCount} שוטים · נצרכו {usage.gramsUsed.toFixed(0)} גרם · נשארו ~{usage.gramsLeft.toFixed(0)} גרם
@@ -196,6 +255,44 @@ export function BeansScreen() {
   );
 }
 
+// ===== סוג הקלייה =====
+// שתי אפשרויות, ובחירה אחת קובעת מאיזה תאריך נספר חלון הטריות. לא נגזר
+// אוטומטית: פולים שנקלו לפני חודשיים ונפתחו מיד אינם אותו דבר כמו פולים
+// שנקנו כבר ישנים, ורק המשתמש יודע איזה מהם קרה. פולים ישנים שעדיין לא
+// נבחר להם סוג ממשיכים בזיהוי האוטומטי שהיה עד היום.
+function RoastTypePicker({ bean }: { bean: Bean }) {
+  const current = resolveRoastType(bean.roastType, null, null);
+  const explicit = bean.roastType !== undefined;
+  const set = (t: RoastType) => { void beanRepo.put({ ...bean, roastType: t }); };
+  return (
+    <div style={{ margin: '8px 0' }}>
+      <div className="chips" role="group" aria-label="סוג הקלייה">
+        {([
+          { v: 'fresh' as const, label: 'קלייה טרייה', hint: 'הטריות נספרת מתאריך הקלייה' },
+          { v: 'aged' as const, label: 'קלייה ישנה', hint: 'הטריות נספרת מפתיחת השקית' },
+        ]).map((o) => (
+          <button
+            key={o.v}
+            type="button"
+            className={`chip ${explicit && current === o.v ? 'selected' : ''}`}
+            aria-pressed={explicit && current === o.v}
+            onClick={() => set(o.v)}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+      <p className="muted small" style={{ marginTop: 4 }}>
+        {explicit
+          ? (current === 'aged'
+            ? 'חלון הטריות נספר מפתיחת השקית: 0–30 שימוש מיטבי, 30–60 ירידה, 60 דד-ליין.'
+            : 'חלון הטריות נספר מתאריך הקלייה.')
+          : 'לא נבחר סוג — הטריות נקבעת אוטומטית לפי הפער בין הקלייה לפתיחה, כמו עד היום.'}
+      </p>
+    </div>
+  );
+}
+
 // ===== "תעודת סיום" לשקית: סיכום קטן ברגע שהיא מסומנת כנגמרה =====
 // עוזר להחליט אם לקנות שוב את הפולים, ומקצר את הדרך לפתיחת שקית חדשה.
 function BagFarewell({
@@ -254,6 +351,7 @@ function NewBeanForm({ onClose }: { onClose: () => void }) {
   const [variety, setVariety] = useState('');
   const [process, setProcess] = useState('');
   const [roastLevel, setRoastLevel] = useState<RoastLevel>('medium');
+  const [roastType, setRoastType] = useState<RoastType>('fresh');
   const [notes, setNotes] = useState('');
 
   return (
@@ -282,6 +380,29 @@ function NewBeanForm({ onClose }: { onClose: () => void }) {
           {ROAST_LEVELS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
         </select>
       </Field>
+      <Field label="סוג הקלייה">
+        <div className="chips" role="group" aria-label="סוג הקלייה">
+          {([
+            { v: 'fresh' as const, label: 'קלייה טרייה' },
+            { v: 'aged' as const, label: 'קלייה ישנה' },
+          ]).map((o) => (
+            <button
+              key={o.v} type="button"
+              className={`chip ${roastType === o.v ? 'selected' : ''}`}
+              aria-pressed={roastType === o.v}
+              onClick={() => setRoastType(o.v)}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </Field>
+      <p className="muted small" style={{ marginTop: -4 }}>
+        {roastType === 'aged'
+          ? 'נקנו כשכבר היו ישנים — חלון הטריות ייספר מפתיחת השקית (0–30 מיטבי, 60 דד-ליין).'
+          : 'נקנו סמוך לקלייה — חלון הטריות נספר מתאריך הקלייה.'}
+      </p>
+
       <Field label="הערות">
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="תווי טעם מהאריזה, רשמים…" />
       </Field>
@@ -293,7 +414,7 @@ function NewBeanForm({ onClose }: { onClose: () => void }) {
             const user = (await db.users.toArray())[0];
             await beanRepo.create({
               userId: user.id, name: name.trim(), roastery, originCountry: origin,
-              variety, process, roastLevel, notes,
+              variety, process, roastLevel, roastType, notes,
             });
             onClose();
           }}
@@ -307,7 +428,10 @@ function NewBeanForm({ onClose }: { onClose: () => void }) {
 
 function NewBagForm({ beanId, onClose }: { beanId: string; onClose: () => void }) {
   const [roastDate, setRoastDate] = useState('');
-  const [openDate, setOpenDate] = useState('');
+  // ברירת מחדל היום: פותחים שקית ברגע שמוסיפים אותה. בקלייה ישנה זו
+  // נקודת האפס של חלון הטריות, ולכן חבל שתישאר ריקה בטעות. נשמר פעם
+  // אחת ביצירה ולא מתעדכן אחר כך.
+  const [openDate, setOpenDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [weight, setWeight] = useState(250);
   const [customWeight, setCustomWeight] = useState('');
   const [price, setPrice] = useState('');

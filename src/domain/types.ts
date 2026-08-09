@@ -42,6 +42,13 @@ export interface Grinder {
 
 export type RoastLevel = 'light' | 'light-medium' | 'medium' | 'medium-dark' | 'dark';
 
+// איך נמדדת הטריות של הפולים האלה.
+//   fresh — נקנו סמוך לקלייה. השעון הוא תאריך הקלייה, כמו תמיד.
+//   aged  — נקנו כשכבר היו ישנים (Mauru נקלו 95 יום לפני הפתיחה). הגזים
+//           כבר יצאו, ומה שנותר לשחוק הוא הארומטים — תהליך שמתחיל ברגע
+//           שהשקית נפתחת. השעון הוא תאריך הפתיחה.
+export type RoastType = 'fresh' | 'aged';
+
 export interface Bean {
   id: ID;
   userId: ID;
@@ -51,6 +58,9 @@ export interface Bean {
   variety: string; // זן
   process: string; // Washed / Natural / Honey...
   roastLevel: RoastLevel;
+  // חסר = פולים שנוצרו לפני שהשדה קיים. במקרה כזה הסוג נגזר אוטומטית
+  // מהפער בין הקלייה לפתיחה, בדיוק כמו שהתנהג עד היום.
+  roastType?: RoastType;
   notes: string;
   createdAt: string;
   archived: boolean;

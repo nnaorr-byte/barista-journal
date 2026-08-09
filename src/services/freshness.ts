@@ -1,4 +1,4 @@
-import type { Bag, Shot } from '../domain/types';
+import type { Bag, RoastType, Shot } from '../domain/types';
 import { daysSince } from './recommendation';
 import { analyzable } from './shotFilter';
 
@@ -26,22 +26,42 @@ export const FRESHNESS_DEADLINE_DAYS = 60;
 // בשקית טרייה שנפתחה מיד שני השעונים כמעט חופפים, ולכן ספירה מהקלייה
 // עבדה. בשקית שנקנתה מיושנת הם מתפצלים — והשעון הקובע הוא הפתיחה.
 export const AGED_PURCHASE_DAYS = 45; // קלייה עד פתיחה מעבר לזה = "נקנתה מיושנת"
-export const OPENED_PEAK_DAYS = 14;
-export const OPENED_DEADLINE_DAYS = 28;
+
+// חלון הטריות של קלייה ישנה, נספר מהפתיחה:
+//   0–30  שימוש מיטבי
+//   30–60 ירידה בטעם ובאיכות
+//   60    דד-ליין
+export const AGED_OPTIMAL_DAYS = 30;
+export const AGED_DEADLINE_DAYS = 60;
 
 export type FreshnessStage = 'resting' | 'peak' | 'good' | 'fading' | 'expired' | 'unknown';
 
 export interface Freshness {
   stage: FreshnessStage;
-  ageDays: number | null; // ימים מהקלייה
+  ageDays: number | null; // ימים מהקלייה — תמיד, בשני השעונים
+  // גיל הטריות: ימים מנקודת ההתחלה של החלון. בקלייה טרייה הוא זהה
+  // ל-ageDays; בקלייה ישנה הוא נספר מהפתיחה. זה המספר שהפס מציג.
+  freshnessAgeDays: number | null;
+  freshnessScaleDays: number; // אורך הפס בימים (60 בשני המצבים)
   deadlineDate: string | null; // תאריך היעד (ISO date)
   daysToDeadline: number | null; // כמה ימים נשארו עד הדד-ליין (שלילי = עבר)
   label: string; // תווית קצרה לתצוגה
   cls: 'good' | 'warn' | 'bad' | 'muted'; // מחלקת צבע לתגית
-  // 'roast' — שקית רגילה, נספרת מהקלייה.
-  // 'opened' — נקנתה מיושנת: הגזים כבר יצאו, והשעון שנותר הוא הפתיחה.
+  // 'roast' — קלייה טרייה, נספרת מהקלייה.
+  // 'opened' — קלייה ישנה: הגזים כבר יצאו, והשעון שנותר הוא הפתיחה.
   clock: 'roast' | 'opened' | 'unknown';
   daysOpen: number | null;
+}
+
+// סוג הקלייה בפועל. בחירה מפורשת גוברת; בלעדיה נשמרת ההתנהגות שהייתה
+// עד היום — זיהוי אוטומטי לפי הפער בין הקלייה לפתיחה.
+export function resolveRoastType(
+  roastType: RoastType | undefined, roastDate: string | null, openDate: string | null | undefined,
+): RoastType {
+  if (roastType) return roastType;
+  if (!roastDate || !openDate) return 'fresh';
+  const gap = Math.floor((new Date(openDate).getTime() - new Date(roastDate).getTime()) / 86_400_000);
+  return gap >= AGED_PURCHASE_DAYS ? 'aged' : 'fresh';
 }
 
 function addDays(isoDate: string, days: number): string {
@@ -50,38 +70,53 @@ function addDays(isoDate: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function computeFreshness(roastDate: string | null, openDate?: string | null): Freshness {
+export function computeFreshness(
+  roastDate: string | null, openDate?: string | null, roastType?: RoastType,
+): Freshness {
   const ageDays = daysSince(roastDate);
   const daysOpen = daysSince(openDate ?? null);
-  if (roastDate === null || ageDays === null) {
-    return {
-      stage: 'unknown', ageDays: null, deadlineDate: null, daysToDeadline: null,
-      label: 'תאריך קלייה לא ידוע', cls: 'muted', clock: 'unknown', daysOpen,
-    };
-  }
+  const type = resolveRoastType(roastType, roastDate, openDate);
 
-  // ---- שקית שנקנתה מיושנת: השעון הוא הפתיחה ----
-  const roastAgeAtOpen = openDate
-    ? Math.floor((new Date(openDate).getTime() - new Date(roastDate).getTime()) / 86_400_000)
-    : null;
-  if (openDate && daysOpen !== null && roastAgeAtOpen !== null && roastAgeAtOpen >= AGED_PURCHASE_DAYS) {
-    const left = OPENED_DEADLINE_DAYS - daysOpen;
+  // ---- קלייה ישנה: השעון הוא הפתיחה, ורק הוא ----
+  // נבדק לפני תאריך הקלייה בכוונה: בפולים כאלה הקלייה היא מידע רקע,
+  // והחלון כולו נגזר מהפתיחה. שקית שנפתחה היום היא יום 0, גם אם נקלתה
+  // לפני 95 יום.
+  if (type === 'aged') {
+    if (!openDate || daysOpen === null) {
+      return {
+        stage: 'unknown', ageDays, freshnessAgeDays: null, freshnessScaleDays: AGED_DEADLINE_DAYS,
+        deadlineDate: null, daysToDeadline: null,
+        label: 'קלייה ישנה — חסר תאריך פתיחת שקית', cls: 'muted', clock: 'opened', daysOpen: null,
+      };
+    }
+    const left = AGED_DEADLINE_DAYS - daysOpen;
     const base = {
       ageDays, daysOpen, clock: 'opened' as const,
-      deadlineDate: addDays(openDate, OPENED_DEADLINE_DAYS),
+      freshnessAgeDays: daysOpen,
+      freshnessScaleDays: AGED_DEADLINE_DAYS,
+      deadlineDate: addDays(openDate, AGED_DEADLINE_DAYS),
       daysToDeadline: left,
     };
-    if (daysOpen <= OPENED_PEAK_DAYS) {
+    if (daysOpen <= AGED_OPTIMAL_DAYS) {
       return { ...base, stage: 'peak',
-        label: `נקנתה מיושנת (קלייה לפני ${ageDays} יום) · פתוחה ${daysOpen} ימים — הזמן יציב`,
-        cls: 'good' };
+        label: `שימוש מיטבי · יום ${daysOpen} מהפתיחה`, cls: 'good' };
     }
-    if (daysOpen < OPENED_DEADLINE_DAYS) {
+    if (daysOpen < AGED_DEADLINE_DAYS) {
       return { ...base, stage: 'fading',
-        label: `פתוחה ${daysOpen} ימים · ${left} ימים עד שהטעם ידעך`, cls: 'warn' };
+        label: `ירידה בטעם · יום ${daysOpen} מהפתיחה · ${left} ימים לדד-ליין`, cls: 'warn' };
     }
     return { ...base, stage: 'expired',
-      label: `פתוחה ${daysOpen} ימים — הטעם כבר ירד`, cls: 'bad' };
+      label: `עברו ${daysOpen} ימים מהפתיחה — מעבר לדד-ליין`, cls: 'bad' };
+  }
+
+  // ---- קלייה טרייה: בדיוק כפי שהיה ----
+  if (roastDate === null || ageDays === null) {
+    return {
+      stage: 'unknown', ageDays: null, freshnessAgeDays: null,
+      freshnessScaleDays: FRESHNESS_DEADLINE_DAYS,
+      deadlineDate: null, daysToDeadline: null,
+      label: 'תאריך קלייה לא ידוע', cls: 'muted', clock: 'unknown', daysOpen,
+    };
   }
 
   const deadlineDate = addDays(roastDate, FRESHNESS_DEADLINE_DAYS);
@@ -113,7 +148,12 @@ export function computeFreshness(roastDate: string | null, openDate?: string | n
     cls = 'bad';
   }
 
-  return { stage, ageDays, deadlineDate, daysToDeadline, label, cls, clock: 'roast', daysOpen };
+  return {
+    stage, ageDays,
+    freshnessAgeDays: ageDays, // בקלייה טרייה שני הגילים חופפים
+    freshnessScaleDays: FRESHNESS_DEADLINE_DAYS,
+    deadlineDate, daysToDeadline, label, cls, clock: 'roast', daysOpen,
+  };
 }
 
 export function formatDeadline(iso: string | null): string {

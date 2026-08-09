@@ -252,14 +252,23 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       }
     } else {
       // אין חלון אישי אמין — הערכת הטריות המקצועית (5–30 יום אידיאלי, דד-ליין 60)
-      const fresh = computeFreshness(activeBag.roastDate, activeBag.openDate);
-      const stageText: Partial<Record<typeof fresh.stage, { sub: string; tone: 'good' | 'warn' }>> = {
-        resting: { tone: 'warn', sub: 'עדיין משחרר גזים — הטווח מתחיל ביום 5' },
-        peak: { tone: 'good', sub: 'בשיא הטריות' },
-        good: { tone: 'good', sub: 'עדיין בחלון טריות טוב' },
-        fading: { tone: 'warn', sub: 'הטריות יורדת — שווה לסיים בקרוב' },
-        expired: { tone: 'warn', sub: 'מעבר לדד-ליין 60 יום — עדיף לסיים מהר' },
-      };
+      const fresh = computeFreshness(activeBag.roastDate, activeBag.openDate, activeBagBean?.roastType);
+      // בקלייה ישנה השעון הוא הפתיחה, ולכן גם הניסוח: "בשיא הטריות" על
+      // פולים בני 95 יום היה נשמע כמו טעות, גם כשהחלון עצמו נכון.
+      const stageText: Partial<Record<typeof fresh.stage, { sub: string; tone: 'good' | 'warn' }>> =
+        fresh.clock === 'opened'
+          ? {
+            peak: { tone: 'good', sub: `שימוש מיטבי · יום ${fresh.freshnessAgeDays} מפתיחת השקית` },
+            fading: { tone: 'warn', sub: `${fresh.daysToDeadline} ימים לדד-ליין — שווה לסיים` },
+            expired: { tone: 'warn', sub: 'עברו 60 יום מהפתיחה — עדיף לסיים מהר' },
+          }
+          : {
+            resting: { tone: 'warn', sub: 'עדיין משחרר גזים — הטווח מתחיל ביום 5' },
+            peak: { tone: 'good', sub: 'בשיא הטריות' },
+            good: { tone: 'good', sub: 'עדיין בחלון טריות טוב' },
+            fading: { tone: 'warn', sub: 'הטריות יורדת — שווה לסיים בקרוב' },
+            expired: { tone: 'warn', sub: 'מעבר לדד-ליין 60 יום — עדיף לסיים מהר' },
+          };
       freshnessNudge = stageText[fresh.stage] ?? null;
     }
   }

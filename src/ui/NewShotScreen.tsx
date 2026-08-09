@@ -7,6 +7,7 @@ import { aiRecommend, type AiAdvice } from '../services/aiEngine';
 import { DIAL_IN_DEFAULT_YIELD } from '../services/dialInEngine';
 import { computeAgingSlope, computeRepeatability } from '../services/aging';
 import { computeTargetWindow } from '../services/targetWindow';
+import { analyzable } from '../services/shotFilter';
 import type {
   Bag, DialInSession, MachineTempSetting, QualityLevel, Shot, ShotRecommendation, TasteTag,
 } from '../domain/types';
@@ -548,9 +549,14 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   async function confirmDialIn() {
     if (!dialInSession) return;
     const sessionShots = await shotRepo.forSession(dialInSession.id);
-    const chosen =
-      sessionShots.find((s) => s.id === dialInSession.sweetSpotBestShotId) ??
-      [...sessionShots].sort((a, b) => b.rating - a.rating)[0];
+    // המתכון הוא השוט הטוב ביותר שנמדד בסשן, בשוויון המאוחר יותר — אותה
+    // חוקיות בדיוק כמו במנוע. הסתמכות על sweetSpotBestShotId לבדו הייתה
+    // שומרת נקודה שננעלה לפני ששוט מאוחר יותר היכה אותה.
+    const chosen = analyzable(sessionShots).reduce<Shot | null>(
+      (b, s) => (b === null || s.rating > b.rating
+        || (s.rating === b.rating && s.createdAt > b.createdAt) ? s : b),
+      null,
+    );
     if (!chosen) return;
     // מתכון אחד לכל פולים — מסירים סימון קודם
     const prev = shots.filter((s) => s.beanId === chosen.beanId && s.favorite);

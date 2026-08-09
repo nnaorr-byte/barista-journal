@@ -153,6 +153,18 @@ export function dialInDecide(ctx: DialInContext): DialInDecision {
   // תיקון ולא נבחר כמתכון.
   const sessionShots = analyzable(ctx.sessionShots);
   const sessionCount = ctx.sessionShots.length;
+  // השוט הטוב ביותר שנמדד בסשן. שוויון → המאוחר יותר, כי הציד הולך
+  // מדק לגס והמדריך מחפש את הגסה ביותר שעדיין טובה.
+  //
+  // חייב להיחשב מחדש בכל החלטה ולא להישען על sweetSpotBestShotId שנשמר:
+  // המצביע ההוא ננעל ברגע שהציד סימן נקודה, ואם שוט מאוחר יותר בסשן
+  // היכה אותו — הכיול היה שולח חזרה לשוט הפחות טוב. זה בדיוק מה שקרה
+  // בכיול אמיתי: 9/10 בטחינה 8.5 נשלח חזרה ל-8/10 בטחינה 9.
+  const sessionBest = sessionShots.reduce<Shot | null>(
+    (b, s) => (b === null || s.rating > b.rating
+      || (s.rating === b.rating && s.createdAt > b.createdAt) ? s : b),
+    null,
+  );
   const kind: DialInKind = session.kind ?? 'full';
   const targetYield = session.targetYieldGrams ?? DIAL_IN_DEFAULT_YIELD;
   const lockedDose = session.lockedDoseGrams ?? last.doseGrams;
@@ -267,7 +279,7 @@ export function dialInDecide(ctx: DialInContext): DialInDecision {
   }
   // ---- שלב 4: ציד ה-Sweet Spot ----
   else if (phase === 'sweet-spot') {
-    const best = sessionShots.find((s) => s.id === sweetSpotBestShotId) ?? last;
+    const best = sessionBest ?? last;
     const improved = last.id === best.id || last.rating >= best.rating;
     const atCoarseEnd = clampGrind(last.grindSetting + grindStep) === last.grindSetting;
     // הציד פותח טחינה, וטחינה גסה מקצרת את הזמן. שני תנאי עצירה נוספים
@@ -310,6 +322,7 @@ export function dialInDecide(ctx: DialInContext): DialInDecision {
     } else {
       // ירידה, טעם לא חיובי, תחתית החלון או קצה הסקאלה — הנקודה היא הצעד הקודם
       phase = 'confirm';
+      sweetSpotBestShotId = best.id; // המצביע עוקב אחרי מה שנמדד, לא אחרי מה שננעל
       targets.grindSetting = best.grindSetting;
       targets.yieldGrams = best.yieldGrams;
       targets.doseGrams = best.doseGrams;
@@ -332,12 +345,23 @@ export function dialInDecide(ctx: DialInContext): DialInDecision {
   }
   // ---- אחרי אישור, אם ממשיכים לירות ----
   else if (phase === 'confirm') {
-    const best = sessionShots.find((s) => s.id === sweetSpotBestShotId)
-      ?? [...sessionShots].sort((a, b) => b.rating - a.rating)[0] ?? last;
+    const best = sessionBest ?? last;
+    sweetSpotBestShotId = best.id;
     changeKind = 'none';
     changeLabel = 'ללא שינוי — הכיול הסתיים';
-    diagnosis = `הכיול הגיע לנקודה שלו (${best.rating}/10). מכאן זו עקביות, לא כיול.`;
-    instruction = `חזור על המתכון: ${best.doseGrams} גרם ← ${best.yieldGrams} גרם, טחינה ${best.grindSetting}${grinderSuffix}.`;
+    // כשהשוט האחרון הוא עצמו הטוב ביותר, "חזור למתכון" נשמע כמו הוראה
+    // לשנות משהו. הוא לא — אתה כבר שם, ומה שנשאר זה לאשר.
+    if (best.id === last.id) {
+      diagnosis =
+        `${best.rating}/10 — זה השוט הטוב ביותר בכיול הזה, והמספרים שלו הם המתכון. ` +
+        'מכאן זו עקביות, לא כיול.';
+      instruction =
+        `שמור על מה שעשית: ${best.doseGrams} גרם ← ${best.yieldGrams} גרם, ` +
+        `טחינה ${best.grindSetting}${grinderSuffix}, ${t} שניות.`;
+    } else {
+      diagnosis = `הכיול הגיע לנקודה שלו (${best.rating}/10). מכאן זו עקביות, לא כיול.`;
+      instruction = `חזור על המתכון: ${best.doseGrams} גרם ← ${best.yieldGrams} גרם, טחינה ${best.grindSetting}${grinderSuffix}.`;
+    }
     expectedResult = 'אותו שוט, כל בוקר.';
     tone = 'good';
     reminder = 'לחץ "זה המתכון" כדי לסגור את הכיול ולשמור אותו כמתכון של הפולים האלה.';

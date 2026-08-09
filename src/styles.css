@@ -204,6 +204,8 @@ button:focus-visible {
   background: transparent;
   border-bottom: 1px solid transparent;
   transition: background 0.25s ease, border-color 0.25s ease;
+  /* אותה סיבה כמו בסרגל התחתון — שכבה משלה, שלא תיסחף בגלילה ב-iOS */
+  transform: translateZ(0);
 }
 /* "זכוכית מתעוררת": בגלילה הכותרת מקבלת זכוכית קפה — כמו הניווט התחתון.
    הטקסטים שעוברים מתחתיה מיטשטשים מאחורי הזכוכית במקום להתנגש בכותרת. */
@@ -264,6 +266,12 @@ button:focus-visible {
      max() שומר על מרווח סימטרי במכשירים בלי notch, שבהם ה-inset הוא 0. */
   padding: 5px 4px max(5px, env(safe-area-inset-bottom));
   z-index: 20;
+  /* שכבת קומפוזיציה משלו. בלי זה iOS מצרף את הסרגל לשכבת הגלילה ומפסיק
+     לצייר אותו מחדש תוך כדי תנועה — הוא נראה נסחף כלפי מעלה ומתנתק
+     מהקצה התחתון. translateZ מוציא אותו מהשכבה הזו לתמיד.
+     שים לב: transform על אלמנט fixed לא שובר את המיקום שלו — רק transform
+     על *אב* היה עושה זאת, ולכן הוא אסור על .app ועל כל עוטף. */
+  transform: translateZ(0);
 }
 .bottom-nav button {
   background: none;
@@ -967,8 +975,12 @@ button.shot-item {
 }
 .dial-in-ladder li:last-child { border-bottom: 0; padding-bottom: 0; }
 .dial-in-ladder li.now { color: var(--text); font-weight: 600; }
-/* שוט שהוצא מהחישוב: נשאר ברצף (הוא קרה) אבל לא נראה כמו מדידה */
-.dial-in-ladder li.skipped { opacity: 0.55; }
+/* שוט שהוצא מהחישוב: נשאר ברצף (הוא קרה) אבל לא נראה כמו מדידה.
+   עמעום בצבע ולא ב-opacity — opacity יוצר שכבת קומפוזיציה נוספת בדיוק
+   מתחת ל-chrome הקבוע, וזו בדיוק העלות שגורמת לסחיפה ב-iOS. */
+.dial-in-ladder li.skipped,
+.dial-in-ladder li.skipped .ladder-n,
+.dial-in-ladder li.skipped .ladder-next { color: var(--text-faint, var(--text-muted)); }
 .dial-in-ladder li.skipped .ladder-next { text-decoration: line-through; }
 .ladder-in .badge { margin-inline-start: 6px; }
 .ladder-n {

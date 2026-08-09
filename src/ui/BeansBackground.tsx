@@ -79,6 +79,29 @@ export function BeansBackground() {
     let last = performance.now();
     let raf = 0;
 
+    // ---- עצירה בזמן גלילה ----
+    // הקנבס הזה מצייר 21 פולים ב-60fps מתחת לכל התוכן, ומעליו יושבים שני
+    // משטחי chrome קבועים עם backdrop-filter (הכותרת והסרגל התחתון) שדוגמים
+    // מחדש את מה שמאחוריהם בכל פריים. ב-iOS הצירוף הזה גורם למנוע לוותר
+    // על ציור מחדש של המשטחים הקבועים בזמן גלילה — והם נראים נסחפים
+    // ומתנתקים מהקצה. הגלילה היא הרגע שבו הרקע הכי פחות חשוב, ולכן הוא
+    // פשוט נעצר: אפס עבודה על הקנבס בדיוק כשהמסך זקוק לכל התקציב.
+    let scrollTimer = 0;
+    const stop = () => {
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+    };
+    const start = () => {
+      if (raf) return;
+      last = performance.now(); // בלי זה הפולים "קופצים" את כל זמן העצירה
+      raf = requestAnimationFrame(tick);
+    };
+    const onScroll = () => {
+      stop();
+      clearTimeout(scrollTimer);
+      scrollTimer = window.setTimeout(start, 160);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+
     const tick = (now: number) => {
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
@@ -129,6 +152,8 @@ export function BeansBackground() {
 
     return () => {
       cancelAnimationFrame(raf);
+      clearTimeout(scrollTimer);
+      window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', resize);
       window.removeEventListener('beans-burst', onBurst);
     };

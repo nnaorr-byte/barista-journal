@@ -3,12 +3,12 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import { shotRepo } from '../db/repositories';
 import { aiRecommend } from '../services/aiEngine';
-import { makeWindowResolver, type WindowResolver } from '../services/targetWindow';
+import { computeTargetWindow, makeWindowResolver, roastAgeAt, type TargetWindow, type WindowResolver } from '../services/targetWindow';
 import { adviceOutcomeForShot, isAdviceCurrent } from '../services/adviceAudit';
 import { computeAgingSlope, computeRepeatability } from '../services/aging';
 import {
   shotRatio, shotFlowRate,
-  type AiAdvice, type Bag, type Grinder, type MachineTempSetting,
+  type AiAdvice, type Bag, type Bean, type DialInSession, type Grinder, type MachineTempSetting,
   type QualityLevel, type Shot, type TasteTag,
 } from '../domain/types';
 import { Chips, EmptyState, Field, RatingPicker } from './components';
@@ -338,7 +338,7 @@ export function ShotsScreen() {
                   </p>
                 )}
                 {s.notes && <p className="small muted" style={{ margin: '4px 0' }}>"{s.notes}"</p>}
-                <ShotAdviceBlock shot={s} shots={data.shots} grinders={data.grinders} resolveWindow={resolveWindow} bags={data.bags} />
+                <ShotAdviceBlock shot={s} shots={data.shots} grinders={data.grinders} resolveWindow={resolveWindow} bags={data.bags} sessions={data.sessions} beans={data.beans} />
                 <div className="btn-row">
                   <button
                     className="btn small secondary"
@@ -451,6 +451,11 @@ function ShotCompare({
 // מהנתונים ההיסטוריים עבור שוטים שנשמרו לפני שהמוח נוסף.
 function reconstructAdvice(
   shot: Shot, shots: Shot[], grinders: Grinder[], resolveWindow: WindowResolver, bags: Bag[],
+  dialIn?: { session: DialInSession; sessionShots: Shot[] },
+  // חלון יעד מפורש. resolveWindow נותן את החלון *המקצועי* לפי הקלייה —
+  // נכון לשיפוט שוט היסטורי, אבל לא למה שיקרה עכשיו: שם החלון מכויל
+  // מהשוטים של הפולים האלה, וזה החלון שמסך הבית ומסך השוט עובדים מולו.
+  windowOverride?: TargetWindow,
 ): AiAdvice | null {
   try {
     const history = shots
@@ -465,8 +470,9 @@ function reconstructAdvice(
       beanShots: history,
       grinder: grinders.find((g) => g.id === shot.grinderId),
       grinderChanged: !!prevBeanShot && prevBeanShot.grinderId !== shot.grinderId,
+      dialIn,
       // חלון היעד שהיה תקף לשוט הזה — לפי הקלייה וגיל הקלייה שלו
-      targetWindow: resolveWindow(shot),
+      targetWindow: windowOverride ?? resolveWindow(shot),
       // אותו מודל רעש-הכנה כמו במסך השוט — מדידה אחת, לא שתיים
       prepSpread: (() => {
         const bag = bags.find((b) => b.id === shot.bagId);
@@ -480,17 +486,57 @@ function reconstructAdvice(
   }
 }
 
-function ShotAdviceBlock({ shot, shots, grinders, resolveWindow, bags }: {
+// חלון היעד "החי" — מכויל מהשוטים של אותם פולים על אותה מטחנה, בדיוק
+// כמו במסך הבית ובמסך השוט. בלעדיו היומן היה שופט את ההמלצה הבאה מול
+// החלון המקצועי בלבד ומגיע למסקנה אחרת מהבית על אותו שוט.
+function liveTargetWindow(shot: Shot, shots: Shot[], beans: Bean[], bags: Bag[]): TargetWindow | undefined {
+  const bean = beans.find((b) => b.id === shot.beanId);
+  if (!bean) return undefined;
+  const roastDate = bags.find((b) => b.id === shot.bagId)?.roastDate ?? null;
+  return computeTargetWindow({
+    roastLevel: bean.roastLevel,
+    roastAgeDays: roastAgeAt(roastDate, shot.createdAt),
+    beanShots: shots.filter((s) => s.beanId === shot.beanId && s.grinderId === shot.grinderId),
+  });
+}
+
+function ShotAdviceBlock({ shot, shots, grinders, resolveWindow, bags, sessions, beans }: {
   shot: Shot; shots: Shot[]; grinders: Grinder[]; resolveWindow: WindowResolver; bags: Bag[];
+  sessions: DialInSession[]; beans: Bean[];
 }) {
   const grinder = grinders.find((g) => g.id === shot.grinderId);
+
+  // ---- השוט האחרון בכיול פעיל הוא הווה, לא היסטוריה ----
+  // ההמלצה שנשמרה איתו היא צילום רגע: היא לא יודעת ששוט סומן כלא-מייצג
+  // מאז, שנוספה תגית טעם בעריכה, או שהמנוע עצמו התעדכן. עליו — ורק עליו —
+  // מחשבים מחדש, בדיוק כמו במסך הבית, כדי ששני המסכים לא יסתרו זה את זה.
+  // שוטים קודמים בסשן שומרים את מה שנאמר עליהם בזמנו: זה התיעוד.
+  const activeSession = shot.dialInSessionId
+    ? sessions.find((s) => s.id === shot.dialInSessionId && s.status === 'active')
+    : undefined;
+  const sessionShots = activeSession
+    ? shots
+        .filter((s) => s.dialInSessionId === activeSession.id)
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    : [];
+  const isLiveShot = !!activeSession && sessionShots[sessionShots.length - 1]?.id === shot.id;
+
   // המלצה שנשמרה מול סקאלת מטחנה שהשתנתה מאז אינה תקפה — לא הטקסט
   // ("הגעת לקצה הגס, 6") ולא היעד המספרי. במקרה כזה משחזרים מהנתונים
   // הנוכחיים במקום להציג מספר שכבר לא קיים על המטחנה.
   const stored = shot.aiAdvice ?? null;
-  const advice = stored && isAdviceCurrent(stored, grinder)
-    ? stored
-    : reconstructAdvice(shot, shots, grinders, resolveWindow, bags);
+  const live = isLiveShot && activeSession
+    ? reconstructAdvice(
+        shot, shots, grinders, resolveWindow, bags,
+        { session: activeSession, sessionShots },
+        // אותו חלון בדיוק שמסך הבית ומסך השוט מחשבים — מכויל מהפולים האלה
+        liveTargetWindow(shot, shots, beans, bags),
+      )
+    : null;
+  const advice = live
+    ?? (stored && isAdviceCurrent(stored, grinder)
+      ? stored
+      : reconstructAdvice(shot, shots, grinders, resolveWindow, bags));
   if (!advice) return null;
 
   // מה קרה להמלצה בשוט הבא — המוח בודק את עצמו
@@ -515,7 +561,10 @@ function ShotAdviceBlock({ shot, shots, grinders, resolveWindow, bags }: {
   return (
     <div style={{ background: 'var(--bg-elevated)', borderRadius: 10, padding: '9px 12px', margin: '6px 0' }}>
       <div className="coach-label" style={{ marginBottom: 4 }}>
-        <BrainIcon size={15} /> ההמלצה שקיבלת על השוט הזה{stored ? '' : ' (שחזור)'}
+        <BrainIcon size={15} />{' '}
+        {live
+          ? 'ההמלצה לשוט הבא — מחושבת עכשיו'
+          : `ההמלצה שקיבלת על השוט הזה${stored ? '' : ' (שחזור)'}`}
       </div>
       <p className="small" style={{ margin: '3px 0' }}>{advice.diagnosis}</p>
       <p className="small" style={{ margin: '3px 0', fontWeight: 600 }}>

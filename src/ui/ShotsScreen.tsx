@@ -13,20 +13,21 @@ import {
 } from '../domain/types';
 import { Chips, EmptyState, Field, RatingPicker } from './components';
 import { QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS, VS_PREVIOUS_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
-import { BanIcon, BeanIcon, BrainIcon, ChevronDownIcon, EditIcon, JournalIcon, SaveIcon, ScaleIcon, SearchIcon, StarIcon, TrashIcon, TrophyIcon, UndoIcon } from './icons';
+import { BanIcon, BeanIcon, BrainIcon, ChevronDownIcon, EditIcon, JournalIcon, SaveIcon, ScaleIcon, SearchIcon, StarIcon, TargetIcon, TrashIcon, TrophyIcon, UndoIcon } from './icons';
 
 const TASTE_OPTIONS = (Object.entries(TASTE_LABELS) as [TasteTag, string][]).map(([value, label]) => ({ value, label }));
 const QUALITY_OPTIONS = (Object.entries(QUALITY_LABELS) as [QualityLevel, string][]).map(([value, label]) => ({ value, label }));
 
 export function ShotsScreen() {
   const data = useLiveQuery(async () => {
-    const [shots, beans, grinders, bags] = await Promise.all([
+    const [shots, beans, grinders, bags, sessions] = await Promise.all([
       db.shots.orderBy('createdAt').reverse().toArray(),
       db.beans.toArray(),
       db.grinders.toArray(),
       db.bags.toArray(),
+      db.dialInSessions.toArray(),
     ]);
-    return { shots, beans, grinders, bags };
+    return { shots, beans, grinders, bags, sessions };
   });
 
   const [query, setQuery] = useState('');
@@ -80,6 +81,14 @@ export function ShotsScreen() {
   const beanMap = useMemo(
     () => new Map((data?.beans ?? []).map((b) => [b.id, b])),
     [data?.beans],
+  );
+
+  // שוטים ששייכים לכיול שעדיין רץ. עד שהכיול נסגר בפועל הם לא "עוד שוט
+  // ביומן" אלא צעד בתהליך — והיומן אומר את זה. אחרי הסגירה הסימון יורד:
+  // מאותו רגע השוט נשפט כמו כל שוט אחר.
+  const activeSessionIds = useMemo(
+    () => new Set((data?.sessions ?? []).filter((s) => s.status === 'active').map((s) => s.id)),
+    [data?.sessions],
   );
 
   // חלון היעד לכל שוט — לשחזור המלצות היסטוריות לפי הקלייה שהייתה תקפה אז
@@ -267,6 +276,9 @@ export function ShotsScreen() {
                 <span style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                   {s.favorite && <span style={{ color: 'var(--accent-strong)', display: 'inline-flex' }} title="מתכון שמור"><StarIcon size={15} filled /></span>}
                   {beanMap.get(s.beanId)?.name ?? 'פולים שנמחקו'}
+                  {s.dialInSessionId && activeSessionIds.has(s.dialInSessionId) && (
+                    <span className="badge accent">במסגרת כיול</span>
+                  )}
                   {s.choked && <span className="badge warn">נחנק</span>}
                   {s.excluded && <span className="badge">לא בחישוב</span>}
                 </span>
@@ -306,6 +318,16 @@ export function ShotsScreen() {
                     }}>
                       {VS_PREVIOUS_LABELS[s.vsPrevious]}
                     </b>
+                  </p>
+                )}
+                {s.dialInSessionId && activeSessionIds.has(s.dialInSessionId) && (
+                  <p className="small" style={{ margin: '4px 0', color: 'var(--accent-strong)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <TargetIcon size={15} />
+                    <span>
+                      שוט במסגרת כיול שעדיין רץ
+                      {s.aiAdvice?.dialIn ? ` · ${s.aiAdvice.dialIn.phaseLabel} · שוט ${s.aiAdvice.dialIn.shotIndex} בסשן` : ''}.
+                      {' '}הסימון ירד כשתאשר את המתכון.
+                    </span>
                   </p>
                 )}
                 {(s.choked || s.excluded) && (

@@ -5,7 +5,7 @@ import { computeInsights } from '../services/learning';
 import { recommendShot, confidenceLabel, daysSince } from '../services/recommendation';
 import { computeMaintenanceStatus } from '../services/maintenance';
 import { computeBackupStatus, shareBackup } from '../services/importExport';
-import { computeFreshness, computeWinningWindow } from '../services/freshness';
+import { AGED_OPTIMAL_DAYS, computeFreshness, computeWinningWindow } from '../services/freshness';
 import { computeBagUsage, ratingTrend, weeklySummary } from '../services/stats';
 import { computeAgingSlope, computePrepTightness, computeRepeatability, prepTightnessTrend } from '../services/aging';
 import { computeTargetWindow, makePersonalWindowResolver } from '../services/targetWindow';
@@ -231,12 +231,25 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
   // עדיפות לחלון האישי (מההיסטוריה) — אך רק אם הוא סביר (מתחיל עד יום 30).
   // חלון "מנצח" שמתחיל ביום 30+ הוא כמעט תמיד הטיה — הטכניקה השתפרה
   // עם הזמן, לא הפולים — ואז נופלים חזרה לחלון המדעי (5–30 יום).
+  // מצב הטריות של השקית הפעילה — מקור אחד, אותו אחד שמסך הפולים מציג
+  const activeFresh = activeBag
+    ? computeFreshness(activeBag.roastDate, activeBag.openDate, activeBagBean?.roastType)
+    : null;
+  // קלייה ישנה: השעון הוא הפתיחה, ולכן גם החלון האישי לא רלוונטי כאן.
+  // computeWinningWindow מודד דירוג מול *גיל קלייה*, ובפולים שנקנו ישנים
+  // הציר הזה חסר משמעות — שקית שנפתחה היום היא יום 0, לא יום 95.
+  const agedClock = activeFresh?.clock === 'opened';
   const winning = computeWinningWindow(shots, bags);
-  const personalWindow = winning && winning.from <= 30 ? winning : null;
-  const bagAge = activeBag ? daysSince(activeBag.roastDate) : null;
+  const personalWindow = !agedClock && winning && winning.from <= 30 ? winning : null;
+  // הגיל שמולו נמדדת הטריות: מהפתיחה בקלייה ישנה, מהקלייה בטרייה
+  const bagAge = agedClock
+    ? activeFresh?.freshnessAgeDays ?? null
+    : (activeBag ? daysSince(activeBag.roastDate) : null);
   // חלון הטריות להצגה בפס שבתוך ההמלצה. FALLBACK_WINDOW הוא החלון המקצועי
   // (5–30 יום) שמשמש כשאין חלון אישי אמין — אותו טווח שהטקסטים דיברו עליו עד היום.
-  const freshWindow = personalWindow ?? { from: 5, to: 30 };
+  const freshWindow = agedClock
+    ? { from: 0, to: AGED_OPTIMAL_DAYS }
+    : (personalWindow ?? { from: 5, to: 30 });
   // טון הטריות: מקור האמת נשאר הלוגיקה הקיימת (חלון אישי / שלב הטריות),
   // כי היא זו שקובעת אם יש כאן משהו לעשות. הפס עצמו נצבע לפי המקום בטווח.
   let freshnessNudge: { sub: string; tone: 'good' | 'warn' } | null = null;
@@ -252,7 +265,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       }
     } else {
       // אין חלון אישי אמין — הערכת הטריות המקצועית (5–30 יום אידיאלי, דד-ליין 60)
-      const fresh = computeFreshness(activeBag.roastDate, activeBag.openDate, activeBagBean?.roastType);
+      const fresh = activeFresh ?? computeFreshness(activeBag.roastDate, activeBag.openDate, activeBagBean?.roastType);
       // בקלייה ישנה השעון הוא הפתיחה, ולכן גם הניסוח: "בשיא הטריות" על
       // פולים בני 95 יום היה נשמע כמו טעות, גם כשהחלון עצמו נכון.
       const stageText: Partial<Record<typeof fresh.stage, { sub: string; tone: 'good' | 'warn' }>> =
@@ -342,7 +355,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
       key: 'freshness',
       tone: 'warn',
       icon: <LeafIcon size={18} strokeWidth={1.8} />,
-      title: `יום ${bagAge} מהקלייה`,
+      title: `יום ${bagAge} ${agedClock ? 'מפתיחת השקית' : 'מהקלייה'}`,
       sub: freshnessNudge.sub,
       cta: 'בדוק את הפולים',
       action: { label: 'הפולים שלי', secondary: true, onClick: () => navigate('beans') },
@@ -508,7 +521,11 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
                   {/* "הטווח שלך" כשהוא נגזר מהיומן, "טווח מומלץ" כשזה החלון המקצועי —
                       אחרת המספר נראה חיצוני, בזמן שהוא בא מהשוטים של נאור עצמו */}
                   <span className="small fresh-label" style={{ color: past ? 'var(--warn)' : 'var(--good)' }}>
-                    יום {bagAge} · {personalWindow ? 'הטווח שלך' : 'טווח מומלץ'} {freshWindow.from}–{freshWindow.to}
+                    {agedClock ? `יום ${bagAge} מהפתיחה` : `יום ${bagAge}`}
+                    {' · '}
+                    {agedClock
+                      ? `שימוש מיטבי עד ${freshWindow.to}`
+                      : `${personalWindow ? 'הטווח שלך' : 'טווח מומלץ'} ${freshWindow.from}–${freshWindow.to}`}
                   </span>
                 </div>
               );

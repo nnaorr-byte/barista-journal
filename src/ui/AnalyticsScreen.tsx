@@ -525,9 +525,15 @@ function FreshnessCurve({ shots, bags, allTime = false }: {
       <p className="muted small">
         ● מלא = שוט מצוין ({GOOD_RATING}+) · ○ מתאר = שאר השוטים. איפה שהמלאים מתקבצים — שם הפולים שלך בשיא.
       </p>
-      {winning && (
+      {winning ? (
         <p className="small" style={{ color: 'var(--crema)' }}>
           חלון הטריות המנצח שלך: ימים {winning.label} מהקלייה — ממוצע {winning.avg.toFixed(1)} ({winning.count} שוטים).
+        </p>
+      ) : (
+        <p className="muted small">
+          עדיין אין טווח גיל אחד שבולט מעל השאר: ההפרש בין הטווחים הטובים קטן מהרעש
+          במדידה. עד שיהיה הפרש אמיתי עדיף לא להכריז על מנצח — ההמלצות נשענות
+          בינתיים על החלון המקצועי.
         </p>
       )}
       {winning && winning.from > 30 && (

@@ -195,7 +195,17 @@ export function shotAgeRatings(rawShots: Shot[], bags: Bag[]): { age: number; ra
   });
 }
 
-// החלון המנצח: דורש לפחות 2 טווחים עם 2+ שוטים כדי שתהיה השוואה אמיתית
+// כמה הטווח המנצח חייב להקדים את הבא אחריו כדי להיחשב ממצא ולא רעש.
+//
+// נמדד על 54 השוטים של נאור: סטיית התקן של הדירוגים 0.89, ושגיאת התקן
+// של ההפרש בין שני טווחים עם ~16 שוטים כל אחד היא 0.28. במדידה ההיא
+// טווח 30–44 "ניצח" את 21–29 בהפרש של 0.011 — ארבעה אחוזים מסטיית תקן
+// אחת, כלומר הטלת מטבע — והאפליקציה הכריזה עליו "הטווח שלך" ואז אמרה
+// "אתה אחרי הטווח, שווה לסיים". סף של 0.3 הוא בערך סטיית תקן אחת.
+export const MIN_WINDOW_MARGIN = 0.3;
+
+// החלון המנצח: דורש לפחות 2 טווחים עם 2+ שוטים כדי שתהיה השוואה אמיתית,
+// והפרש שגדול מהרעש כדי שתהיה מסקנה.
 export function computeWinningWindow(shots: Shot[], bags: Bag[]): WinningWindow | null {
   const pts = shotAgeRatings(shots, bags);
   if (pts.length < 3) return null;
@@ -210,5 +220,6 @@ export function computeWinningWindow(shots: Shot[], bags: Bag[]): WinningWindow 
     })
     .filter((b) => b.count >= 2)
     .sort((a, b) => b.avg - a.avg);
-  return buckets.length >= 2 ? buckets[0] : null;
+  if (buckets.length < 2) return null;
+  return buckets[0].avg - buckets[1].avg >= MIN_WINDOW_MARGIN ? buckets[0] : null;
 }

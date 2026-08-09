@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import { bagRepo, dialInRepo, shotRepo } from '../db/repositories';
-import { recommendShot, confidenceLabel } from '../services/recommendation';
+import { confidenceLabel } from '../services/recommendation';
+import { nextShotRecommendation } from '../services/nextShot';
 import { aiRecommend, type AiAdvice } from '../services/aiEngine';
 import { DIAL_IN_DEFAULT_YIELD } from '../services/dialInEngine';
 import { computeAgingSlope, computeRepeatability } from '../services/aging';
@@ -60,15 +61,16 @@ const QUALITY_OPTIONS = (Object.entries(QUALITY_LABELS) as [QualityLevel, string
 
 export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const data = useLiveQuery(async () => {
-    const [user, beans, bags, shots, machines, grinders] = await Promise.all([
+    const [user, beans, bags, shots, machines, grinders, sessions] = await Promise.all([
       db.users.toArray().then((u) => u[0]),
       db.beans.filter((b) => !b.archived).toArray(),
       db.bags.filter((b) => !b.finished).toArray(),
       db.shots.orderBy('createdAt').reverse().toArray(),
       db.machines.toArray(),
       db.grinders.toArray(),
+      db.dialInSessions.toArray(),
     ]);
-    return { user, beans, bags, shots, machines, grinders };
+    return { user, beans, bags, shots, machines, grinders, sessions };
   });
 
   const [step, setStep] = useState<Step>('setup');
@@ -255,7 +257,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   }, [step]);
 
   if (!data) return null;
-  const { user, beans, bags, shots, machines, grinders } = data;
+  const { user, beans, bags, shots, machines, grinders, sessions } = data;
   const machine = machines.find((m) => m.isDefault) ?? machines[0];
 
   const beanBags = bags.filter((b) => b.beanId === beanId);
@@ -359,16 +361,19 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   function computeRecommendation() {
     if (!selectedBean || !selectedBag || !user) return;
     const gId = grinderId || (grinders.find((g) => g.isDefault) ?? grinders[0])?.id;
-    const rec = recommendShot({
+    // אותה הרכבה בדיוק שמסך הבית מציג. קודם נקראה כאן recommendShot לבדה,
+    // בלי הקשר הכיול — ולכן שלב ההכנה אמר "טחינה 9" בזמן שהבית והיומן
+    // אמרו "הקטן Yield ב-1 גרם". שני מסכים, שאלה אחת, תשובה אחת.
+    const rec = nextShotRecommendation({
       user,
       bean: selectedBean,
       bag: selectedBag,
-      beanShots: shots.filter((s) => s.beanId === selectedBean.id),
-      grinderShots: shots.filter((s) => s.beanId === selectedBean.id && s.grinderId === gId),
+      shots,
+      grinders,
+      sessions,
+      grinderId: gId,
       doseGrams: parseFloat(dose) || user.defaultDoseGrams,
-      grinder: grinders.find((g) => g.id === gId),
-      lastGrinderShot: shots.find((s) => s.grinderId === gId), // האחרון על המטחנה, מכל פולים
-    });
+    }).recommendation;
     setRecommendation(rec);
     // דרגת הטחינה בשלב התוצאות: ברירת מחדל = הדרגה שהוזנה בפועל בשוט
     // הקודם על אותה מטחנה (מה שהמטחנה מכוונת אליו כרגע) — לא המלצת ה-AI.

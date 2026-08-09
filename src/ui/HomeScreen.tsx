@@ -2,15 +2,15 @@ import { useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import { computeInsights } from '../services/learning';
-import { recommendShot, confidenceLabel, daysSince } from '../services/recommendation';
+import { confidenceLabel, daysSince } from '../services/recommendation';
 import { computeMaintenanceStatus } from '../services/maintenance';
 import { computeBackupStatus, shareBackup } from '../services/importExport';
 import { AGED_OPTIMAL_DAYS, computeFreshness, computeWinningWindow } from '../services/freshness';
 import { computeBagUsage, ratingTrend, weeklySummary } from '../services/stats';
 import { computeAgingSlope, computePrepTightness, computeRepeatability, prepTightnessTrend } from '../services/aging';
-import { computeTargetWindow, makePersonalWindowResolver } from '../services/targetWindow';
-import { aiRecommend } from '../services/aiEngine';
-import type { RoastLevel } from '../domain/types';
+import { makePersonalWindowResolver } from '../services/targetWindow';
+import { nextShotRecommendation } from '../services/nextShot';
+import type { RoastLevel, Shot } from '../domain/types';
 import { CountUp, DialInLadder, StatTile, EmptyState } from './components';
 import { ratingClass } from './labels';
 import { BeanIcon, ChevronDownIcon, CupIcon, LeafIcon, SaveIcon, SoapIcon, TargetIcon, TrendDownIcon, TrendIcon, WarnIcon } from './icons';
@@ -90,108 +90,35 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
   // שקית חדשה שעוד אין בה שוטים — ההמלצה כבר מתייחסת אליה
   const switchedBag = !!activeBag && !!lastBag && activeBag.id !== lastBag.id;
 
-  // המלצת השוט הבא — תמיד לשקית הפעילה. ברגע שהישנה מסומנת כנגמרה,
-  // המספרים עוברים לפולים החדשים: היחס לפי הקלייה שלהם, הזמן לפי גיל
-  // הקלייה שלהם, וההיסטוריה מתאפסת. אחרת המסך היה סותר את עצמו —
-  // התראות הטריות והמלאי כבר מדברות על השקית החדשה.
-  const baseRecommendation =
-    activeBagBean && activeBag && user
-      ? recommendShot({
-          user,
-          bean: activeBagBean,
-          bag: activeBag,
-          beanShots: shots.filter((s) => s.beanId === activeBagBean.id),
-          grinderShots: shots.filter(
-            (s) => s.beanId === activeBagBean.id && s.grinderId === (lastShot?.grinderId ?? defaultGrinder?.id),
-          ),
-          grinder: grinders.find((g) => g.id === (lastShot?.grinderId ?? defaultGrinder?.id)),
-          lastGrinderShot: shots.find((s) => s.grinderId === (lastShot?.grinderId ?? defaultGrinder?.id)),
-        })
-      : null;
-
-  // ---- כיול פעיל (DIAL IN) ----
-  // כשיש כיול רץ, המספרים על מסך הבית הם יעד הכיול ולא ממוצע ההיסטוריה.
-  const activeDialIn = dialInSessions.find((s) => s.status === 'active') ?? null;
-  const dialInBean = activeDialIn
-    ? beanMap.get(bags.find((b) => b.id === activeDialIn.bagId)?.beanId ?? '') ?? null
+  // המלצת השוט הבא — תמיד לשקית הפעילה, וכשיש עליה כיול פעיל גם יעדי
+  // הכיול. ההרכבה חיה ב-services/nextShot.ts כדי שמסך הבית, שלב ההכנה
+  // בשוט חדש והשוט האחרון ביומן יראו את אותו מספר בדיוק.
+  const next = activeBagBean && activeBag && user
+    ? nextShotRecommendation({
+        user,
+        bean: activeBagBean,
+        bag: activeBag,
+        shots,
+        grinders,
+        sessions: dialInSessions,
+        grinderId: lastShot?.grinderId ?? defaultGrinder?.id,
+        leadReason: switchedBag
+          ? `עברת לשקית חדשה — ${activeBagBean.name}. ההמלצה מתייחסת אליה בלבד; ההיסטוריה של הפולים הקודמים לא נכנסת לחישוב.`
+          : null,
+      })
     : null;
-  // מהישן לחדש — shots מגיעים מהחדש לישן
-  const dialInShots = activeDialIn
-    ? shots.filter((s) => s.dialInSessionId === activeDialIn.id).slice().reverse()
-    : [];
-  const dialInLast = dialInShots[dialInShots.length - 1] ?? null;
 
-  // ההמלצה מחושבת כאן מחדש ולא נקראת מתוך aiAdvice שנשמר עם השוט.
-  // הכרטיס הזה הוא "השוט הבא", והוא חייב לשקף את הנתונים כפי שהם עכשיו:
-  // המלצה שנשמרה היא צילום רגע — היא לא יודעת ששוט סומן כלא-מייצג מאז,
-  // שתועדה חניקה, או שהמנוע עצמו התעדכן. אותה חוקיות בדיוק כמו בשאר
-  // הכרטיס, שממילא מחושב חי דרך recommendShot.
-  const dialInAdvice = (() => {
-    if (!activeDialIn || !dialInLast) return null;
-    const bag = bags.find((b) => b.id === activeDialIn.bagId);
-    const bean = bag ? beanMap.get(bag.beanId) : null;
-    const fallback = dialInLast.aiAdvice ?? null;
-    if (!bag || !bean) return fallback;
-    const gId = dialInLast.grinderId;
-    const beanHistory = shots
-      .filter((s) => s.beanId === bean.id && s.grinderId === gId)
-      .slice()
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    const roastAge = daysSince(bag.roastDate);
-    const bagShots = shots.filter((s) => s.bagId === bag.id);
-    try {
-      return aiRecommend({
-        lastShot: dialInLast,
-        beanShots: beanHistory,
-        grinder: grinders.find((g) => g.id === gId),
-        roastAgeDays: roastAge,
-        targetWindow: computeTargetWindow({
-          roastLevel: bean.roastLevel,
-          roastAgeDays: roastAge,
-          beanShots: beanHistory,
-        }),
-        dialIn: { session: activeDialIn, sessionShots: dialInShots },
-        prepSpread: computeRepeatability(bagShots, [bag], computeAgingSlope(bagShots, [bag])),
-      });
-    } catch {
-      return fallback; // מוטב המלצה ישנה מאשר כרטיס ריק
-    }
-  })();
+  const recommendation = next?.recommendation ?? null;
+  const dialInAdvice = next?.dialInAdvice ?? null;
   const dialInState = dialInAdvice?.dialIn ?? null;
+  const dialInBean = next?.session ? activeBagBean : null;
+  const dialInShots = next?.sessionShots ?? [];
+  const dialInLast = dialInShots[dialInShots.length - 1] ?? null;
   // השורה האחרונה במסלול היא ההווה, לא היסטוריה — היא מקבלת את ההמלצה
   // שחושבה עכשיו. אחרת המסלול היה סותר את שורת המתכון שמתחתיו.
   const dialInLadderShots = dialInAdvice && dialInLast
-    ? dialInShots.map((s) => (s.id === dialInLast.id ? { ...s, aiAdvice: dialInAdvice } : s))
+    ? dialInShots.map((s: Shot) => (s.id === dialInLast.id ? { ...s, aiAdvice: dialInAdvice } : s))
     : dialInShots;
-
-  const recommendation = (() => {
-    // מעבר שקית — אומרים אותו במפורש. אחרת נראה כאילו המספרים "קפצו".
-    const base = baseRecommendation && switchedBag
-      ? {
-          ...baseRecommendation,
-          reasons: [
-            `עברת לשקית חדשה — ${activeBagBean?.name ?? 'הפולים החדשים'}. ההמלצה מתייחסת אליה בלבד; ההיסטוריה של הפולים הקודמים לא נכנסת לחישוב.`,
-            ...baseRecommendation.reasons,
-          ],
-        }
-      : baseRecommendation;
-    if (!base || !dialInState || !dialInAdvice) return base;
-    const t = dialInAdvice.targets;
-    // הטפטוף שנמדד נשמר — רק היעד שהוא נגזר ממנו מתחלף
-    const drip = base.stopAtGrams !== null ? base.yieldGrams - base.stopAtGrams : null;
-    return {
-      ...base,
-      doseGrams: t.doseGrams,
-      yieldGrams: t.yieldGrams,
-      grindSetting: t.grindSetting,
-      stopAtGrams: drip !== null ? Math.round((t.yieldGrams - drip) * 10) / 10 : null,
-      ratio: t.doseGrams > 0 ? t.yieldGrams / t.doseGrams : base.ratio,
-      reasons: [
-        `${dialInState.phaseLabel}: המספרים כאן הם יעד הכיול, לא ממוצע ההיסטוריה. ${dialInAdvice.instruction}`,
-        ...base.reasons,
-      ],
-    };
-  })();
 
   // פולים אחרונים בשימוש
   const recentBeanIds: string[] = [];

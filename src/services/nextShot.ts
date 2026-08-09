@@ -121,9 +121,20 @@ export function nextShotRecommendation(p: {
         ? Math.round((t.yieldGrams / t.doseGrams) * 10) / 10
         : withLead.ratio,
       machineTemp: t.machineTemp ?? withLead.machineTemp,
+      // שורת "🧠 מוח ה-AI" של הבסיס מוסרת: recommendShot מריץ את המוח
+      // בעץ ההחלטה היומיומי, בלי הקשר הכיול, ולכן היא אמרה "טחן גס יותר
+      // 8.5 ← 9" בדיוק מתחת להוראת הכיול שאמרה "הקטן Yield". שתי הוראות
+      // סותרות באותה מגירה. בכיול, קול הכיול הוא הקול היחיד.
       reasons: [
         `${state.phaseLabel}: המספרים כאן הם יעד הכיול, לא ממוצע ההיסטוריה. ${dialInAdvice.instruction}`,
-        ...withLead.reasons,
+        // גם האזהרות מוחלפות: אלה של הבסיס נולדו מאותו ניתוח חסר-הקשר.
+        // ושורת הטפטוף של הבסיס יורדת כי היא חושבה מול ה-Yield של הבסיס
+        // ("עצור ב-27.1") בזמן שיעד הכיול הוא אחר ("עצור ב-26.1") —
+        // ההוראה של הכיול ממילא כוללת את נקודת העצירה הנכונה.
+        ...withLead.reasons.filter(
+          (r) => !r.startsWith('🧠') && !r.startsWith('⚠️') && !r.startsWith('הטפטוף הממוצע'),
+        ),
+        ...dialInAdvice.warnings.map((w) => `⚠️ ${w}`),
       ],
     },
     dialInAdvice,

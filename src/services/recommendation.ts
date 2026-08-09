@@ -4,6 +4,8 @@ import {
 } from '../domain/types';
 import { learningConfidence } from './learning';
 import { aiRecommend } from './aiEngine';
+import { daysSince } from './dates';
+import { AGED_DEADLINE_DAYS, AGED_OPTIMAL_DAYS, resolveRoastType } from './freshness';
 import { analyzable } from './shotFilter';
 import { ROAST_DEFAULTS, bestShotsForCalibration, computeTargetWindow } from './targetWindow';
 
@@ -15,12 +17,8 @@ import { ROAST_DEFAULTS, bestShotsForCalibration, computeTargetWindow } from './
 // חלון זמן החליטה נגזר כולו מ-services/targetWindow.ts — מקור האמת היחיד
 // שממנו ניזונים גם מוח ה-AI וגם מדד "הדופק שלך".
 
-export function daysSince(isoDate: string | null): number | null {
-  if (!isoDate) return null;
-  const then = new Date(isoDate).getTime();
-  if (Number.isNaN(then)) return null;
-  return Math.floor((Date.now() - then) / (1000 * 60 * 60 * 24));
-}
+// מיוצא מחדש כדי שכל הקוראים הקיימים ימשיכו לעבוד; ההגדרה חיה ב-dates.ts
+export { daysSince };
 
 export function recommendShot(params: {
   user: UserProfile;
@@ -49,20 +47,40 @@ export function recommendShot(params: {
   let ratio = defaults.ratio;
   reasons.push(`נקודת פתיחה לקליית ${roastLabel(bean.roastLevel)}: יחס 1:${ratio.toFixed(1)}, ${defaults.timeMin}–${defaults.timeMax} שניות.`);
 
-  // שלב 2: התאמת טריות
+  // שלב 2: התאמת טריות — לפי השעון שהפולים האלה נמדדים בו
   const roastAge = daysSince(bag.roastDate);
-  if (roastAge !== null) {
-    if (roastAge < 5) {
-      beanNotes.push(`הפולים בני ${roastAge} ימים בלבד — עדיין משחררים CO₂. צפה לקרמה תוססת ולזרימה לא יציבה; אם השוט רץ מהר, אל תמהר להאשים את הטחינה.`);
-    } else if (roastAge > 30) {
-      beanNotes.push(`עברו ${roastAge} ימים מהקלייה — הפולים מאבדים גזים וטעם. סביר שתצטרך טחינה עדינה בדרגה אחת מהרגיל כדי לשמור על זמן החליטה.`);
-    } else {
-      beanNotes.push(`הפולים בני ${roastAge} ימים — בחלון הטריות האידיאלי לאספרסו (5–30 יום).`);
-    }
-  }
   const openAge = daysSince(bag.openDate);
-  if (openAge !== null && openAge > 21) {
-    beanNotes.push(`השקית פתוחה כבר ${openAge} ימים — חמצון מואץ. שקול לסיים אותה בקרוב.`);
+  const roastType = resolveRoastType(bean.roastType, bag.roastDate, bag.openDate);
+
+  if (roastType === 'aged') {
+    // קלייה ישנה: הגזים יצאו לפני חודשים, ולכן "עברו 95 ימים מהקלייה —
+    // הפולים מאבדים גזים" הוא לא רק לא רלוונטי אלא מטעה. הוא היה מופיע
+    // לצד תווית "שימוש מיטבי · יום 2 מהפתיחה" וסותר אותה באותו מסך.
+    if (openAge !== null) {
+      if (openAge <= AGED_OPTIMAL_DAYS) {
+        beanNotes.push(`השקית נפתחה לפני ${openAge} ימים — בתוך חלון השימוש המיטבי (עד ${AGED_OPTIMAL_DAYS} יום מהפתיחה).`);
+      } else if (openAge < AGED_DEADLINE_DAYS) {
+        beanNotes.push(`${openAge} ימים מהפתיחה — הטעם מתחיל לרדת. הדד-ליין ביום ${AGED_DEADLINE_DAYS}.`);
+      } else {
+        beanNotes.push(`עברו ${openAge} ימים מהפתיחה — מעבר לדד-ליין. הארומטים כבר דהו.`);
+      }
+    }
+    if (roastAge !== null) {
+      beanNotes.push(`הקלייה בת ${roastAge} ימים, אבל הפולים סומנו כקלייה ישנה: הגזים יצאו מזמן, והזמן שנמדד הוא מהפתיחה.`);
+    }
+  } else {
+    if (roastAge !== null) {
+      if (roastAge < 5) {
+        beanNotes.push(`הפולים בני ${roastAge} ימים בלבד — עדיין משחררים CO₂. צפה לקרמה תוססת ולזרימה לא יציבה; אם השוט רץ מהר, אל תמהר להאשים את הטחינה.`);
+      } else if (roastAge > 30) {
+        beanNotes.push(`עברו ${roastAge} ימים מהקלייה — הפולים מאבדים גזים וטעם. סביר שתצטרך טחינה עדינה בדרגה אחת מהרגיל כדי לשמור על זמן החליטה.`);
+      } else {
+        beanNotes.push(`הפולים בני ${roastAge} ימים — בחלון הטריות האידיאלי לאספרסו (5–30 יום).`);
+      }
+    }
+    if (openAge !== null && openAge > 21) {
+      beanNotes.push(`השקית פתוחה כבר ${openAge} ימים — חמצון מואץ. שקול לסיים אותה בקרוב.`);
+    }
   }
 
   // ---- חלון זמן היעד: מקור האמת (כללים לפי קלייה → טריות → כיול אישי) ----

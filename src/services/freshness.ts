@@ -1,5 +1,5 @@
 import type { Bag, RoastType, Shot } from '../domain/types';
-import { daysSince } from './recommendation';
+import { daysSince } from './dates';
 import { analyzable } from './shotFilter';
 
 // חלון הטריות של פולי אספרסו לפי תאריך קלייה:

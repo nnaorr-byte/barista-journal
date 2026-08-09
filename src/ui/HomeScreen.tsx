@@ -8,7 +8,8 @@ import { computeBackupStatus, shareBackup } from '../services/importExport';
 import { computeFreshness, computeWinningWindow } from '../services/freshness';
 import { computeBagUsage, ratingTrend, weeklySummary } from '../services/stats';
 import { computeAgingSlope, computePrepTightness, computeRepeatability, prepTightnessTrend } from '../services/aging';
-import { makePersonalWindowResolver } from '../services/targetWindow';
+import { computeTargetWindow, makePersonalWindowResolver } from '../services/targetWindow';
+import { aiRecommend } from '../services/aiEngine';
 import type { RoastLevel } from '../domain/types';
 import { CountUp, DialInLadder, StatTile, EmptyState } from './components';
 import { ratingClass } from './labels';
@@ -110,14 +111,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
 
   // ---- כיול פעיל (DIAL IN) ----
   // כשיש כיול רץ, המספרים על מסך הבית הם יעד הכיול ולא ממוצע ההיסטוריה.
-  // שני מקורות מספרים על אותו מסך זו סתירה — המקור כאן הוא ההמלצה שהמנוע
-  // נתן אחרי השוט האחרון בסשן, בדיוק זו שמופיעה במסך השוט.
   const activeDialIn = dialInSessions.find((s) => s.status === 'active') ?? null;
-  // shots ממוינים מהחדש לישן, ולכן [0] הוא השוט האחרון בסשן
-  const dialInAdvice = activeDialIn
-    ? shots.find((s) => s.dialInSessionId === activeDialIn.id)?.aiAdvice ?? null
-    : null;
-  const dialInState = dialInAdvice?.dialIn ?? null;
   const dialInBean = activeDialIn
     ? beanMap.get(bags.find((b) => b.id === activeDialIn.bagId)?.beanId ?? '') ?? null
     : null;
@@ -125,6 +119,50 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const dialInShots = activeDialIn
     ? shots.filter((s) => s.dialInSessionId === activeDialIn.id).slice().reverse()
     : [];
+  const dialInLast = dialInShots[dialInShots.length - 1] ?? null;
+
+  // ההמלצה מחושבת כאן מחדש ולא נקראת מתוך aiAdvice שנשמר עם השוט.
+  // הכרטיס הזה הוא "השוט הבא", והוא חייב לשקף את הנתונים כפי שהם עכשיו:
+  // המלצה שנשמרה היא צילום רגע — היא לא יודעת ששוט סומן כלא-מייצג מאז,
+  // שתועדה חניקה, או שהמנוע עצמו התעדכן. אותה חוקיות בדיוק כמו בשאר
+  // הכרטיס, שממילא מחושב חי דרך recommendShot.
+  const dialInAdvice = (() => {
+    if (!activeDialIn || !dialInLast) return null;
+    const bag = bags.find((b) => b.id === activeDialIn.bagId);
+    const bean = bag ? beanMap.get(bag.beanId) : null;
+    const fallback = dialInLast.aiAdvice ?? null;
+    if (!bag || !bean) return fallback;
+    const gId = dialInLast.grinderId;
+    const beanHistory = shots
+      .filter((s) => s.beanId === bean.id && s.grinderId === gId)
+      .slice()
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const roastAge = daysSince(bag.roastDate);
+    const bagShots = shots.filter((s) => s.bagId === bag.id);
+    try {
+      return aiRecommend({
+        lastShot: dialInLast,
+        beanShots: beanHistory,
+        grinder: grinders.find((g) => g.id === gId),
+        roastAgeDays: roastAge,
+        targetWindow: computeTargetWindow({
+          roastLevel: bean.roastLevel,
+          roastAgeDays: roastAge,
+          beanShots: beanHistory,
+        }),
+        dialIn: { session: activeDialIn, sessionShots: dialInShots },
+        prepSpread: computeRepeatability(bagShots, [bag], computeAgingSlope(bagShots, [bag])),
+      });
+    } catch {
+      return fallback; // מוטב המלצה ישנה מאשר כרטיס ריק
+    }
+  })();
+  const dialInState = dialInAdvice?.dialIn ?? null;
+  // השורה האחרונה במסלול היא ההווה, לא היסטוריה — היא מקבלת את ההמלצה
+  // שחושבה עכשיו. אחרת המסלול היה סותר את שורת המתכון שמתחתיו.
+  const dialInLadderShots = dialInAdvice && dialInLast
+    ? dialInShots.map((s) => (s.id === dialInLast.id ? { ...s, aiAdvice: dialInAdvice } : s))
+    : dialInShots;
 
   const recommendation = (() => {
     // מעבר שקית — אומרים אותו במפורש. אחרת נראה כאילו המספרים "קפצו".
@@ -440,7 +478,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
                   ))}
                 </ol>
                 <p className="small" style={{ margin: '0 0 8px' }}>{dialInState.phaseLabel}</p>
-                <DialInLadder shots={dialInShots} limit={3} />
+                <DialInLadder shots={dialInLadderShots} limit={3} />
               </div>
             )}
 

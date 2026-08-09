@@ -22,10 +22,20 @@ export function DialInLadder({ shots, limit }: { shots: Shot[]; limit?: number }
           const line = dialInStepLine(s);
           const n = (hidden || 0) + i + 1;
           const isLast = i === rows.length - 1;
+          // שוט שהוצא מהחישוב עדיין חלק מהרצף — הוא באמת קרה — אבל אסור
+          // שייראה כמו מדידה שהכיול נשען עליה. עמום ומסומן.
+          const skipped = !!s.excluded || !!s.choked;
           return (
-            <li key={s.id} className={isLast ? 'now' : undefined} aria-current={isLast ? 'step' : undefined}>
+            <li
+              key={s.id}
+              className={`${isLast ? 'now' : ''}${skipped ? ' skipped' : ''}`.trim() || undefined}
+              aria-current={isLast ? 'step' : undefined}
+            >
               <span className="ladder-n">{n}</span>
-              <span className="ladder-in">{line.input}</span>
+              <span className="ladder-in">
+                {line.input}
+                {skipped && <span className="badge">{s.choked ? 'נחנק' : 'לא בחישוב'}</span>}
+              </span>
               <span className="ladder-next" aria-label={`ההמלצה שניתנה: ${line.next}`}>
                 <span aria-hidden="true">← </span>{line.next}
               </span>

@@ -174,6 +174,14 @@ export function dialInDecide(ctx: DialInContext): DialInDecision {
   let phase: DialInPhase = session.phase ?? 'window';
   let sweetSpotBestShotId = session.sweetSpotBestShotId ?? null;
 
+  // שלב האישור אינו סוף פסוק. "הכיול הגיע לנקודה שלו" היא קביעה על
+  // המספרים, והטעם גובר עליהם (עיקרון 1 של המדריך). שוט אישור שחוזר עם
+  // תלונה אמיתית מחזיר את הכיול לשלב הכוונון במקום לענות "ללא שינוי".
+  if (phase === 'confirm' && !last.choked) {
+    const c = dialInComplaint(last);
+    if (c !== 'perfect' && c !== 'good' && c !== 'untagged') phase = 'taste';
+  }
+
   // ה-Dose תמיד חוזר לערך הקפוא — גם אם המשתמש סטה ממנו בטעות
   const targets: AiTargets = {
     doseGrams: lockedDose,
@@ -455,12 +463,25 @@ export function dialInDecide(ctx: DialInContext): DialInDecision {
 
       case 'flat': {
         const withBitter = last.tasteTags.includes('bitter');
+        // המדריך שולח "חסרה מתיקות בלי מרירות" לטחינה גסה יותר, בהנחה
+        // שאתה בצד הדק והזרימה לא אחידה. ההנחה הזו נשענת על כך שיש לאן
+        // לפתוח: טחינה גסה מקצרת, ואם הזמן כבר במחצית התחתונה של החלון
+        // הצעד הזה מוציא ממנו — כלומר מרחיק מהמתיקות במקום לקרב אליה.
+        // אותו שיקול בדיוק שעוצר את ציד ה-Sweet Spot. אז נשאר Yield.
+        const noRoomToCoarsen = t > 0 && t <= (window.min + window.max) / 2;
         if (withBitter) {
           diagnosis =
             'חסרה מתיקות ויש גם מעט מרירות — סימן שהחילוץ עבר במעט את נקודת המתיקות. ' +
             'המדריך קורא לצעד קטן, לא לצעד מלא.';
           instruction = yieldBy(-YIELD_STEP_FINE);
           expectedResult = 'עצירה גרם אחד מוקדם יותר — בדיוק לפני שהמרירות מכסה על המתיקות.';
+        } else if (noRoomToCoarsen) {
+          diagnosis =
+            `חסרה מתיקות ב-${t} שניות — במחצית התחתונה של חלון היעד (${window.min}–${window.max}). ` +
+            'המדריך שולח כאן לטחינה גסה יותר, אבל היא מקצרת את הזמן ותוציא אותך מהחלון — ' +
+            'כלומר תרחיק מהמתיקות במקום לקרב אליה. הכלי שנשאר הוא Yield.';
+          instruction = yieldBy(-YIELD_STEP_FINE);
+          expectedResult = 'עצירה גרם אחד מוקדם יותר, באותו זמן חליטה — פחות מהחלק המדולל בסוף.';
         } else {
           diagnosis =
             'חסרה מתיקות בלי מרירות — לא חילוץ יתר. לפי המדריך, טחינה דקה מדי אינה בהכרח טובה יותר: ' +

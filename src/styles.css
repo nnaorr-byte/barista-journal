@@ -967,6 +967,10 @@ button.shot-item {
 }
 .dial-in-ladder li:last-child { border-bottom: 0; padding-bottom: 0; }
 .dial-in-ladder li.now { color: var(--text); font-weight: 600; }
+/* שוט שהוצא מהחישוב: נשאר ברצף (הוא קרה) אבל לא נראה כמו מדידה */
+.dial-in-ladder li.skipped { opacity: 0.55; }
+.dial-in-ladder li.skipped .ladder-next { text-decoration: line-through; }
+.ladder-in .badge { margin-inline-start: 6px; }
 .ladder-n {
   flex: none;
   min-width: 1.35em;

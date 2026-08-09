@@ -4,6 +4,7 @@ import type {
 import { auditAdviceHistory } from './adviceAudit';
 import { PREP_NOISE_SEC, type Repeatability } from './aging';
 import { dialInDecide } from './dialInEngine';
+import { analyzable, chokeFloor, fineLimit } from './shotFilter';
 import { DEFAULT_TARGET_WINDOW, diagnosisBounds, type TargetWindow } from './targetWindow';
 
 // ============================================================
@@ -214,8 +215,12 @@ export function aiRecommend(params: {
   prepSpread?: Repeatability | null;
 }): AiAdvice {
   const { lastShot: last, beanShots, grinder, grinderChanged } = params;
-  const history = beanShots;
   const grindStep = grinder?.scaleStep || 1;
+  // הקיר הדק נקרא מהרשימה הגולמית (שוט חנוק הוא בדיוק המידע), וההיסטוריה
+  // שממנה לומדים מסוננת ממנו וממה שסומן כפסול.
+  const floor = chokeFloor(beanShots);
+  const fineFloor = fineLimit(floor, grindStep);
+  const history = analyzable(beanShots);
   const prev = prevSameBeanShot(history, last);
   const t = last.brewTimeSec;
   const cls = classifyTaste(last);
@@ -228,9 +233,12 @@ export function aiRecommend(params: {
   const { tooFast, tooSlow } = diagnosisBounds(window);
   const windowText = `${window.min}–${window.max} שניות`;
 
-  const lastShotSummary =
-    `${last.doseGrams}←${last.yieldGrams} גרם · ${t} שניות · טחינה ${last.grindSetting}` +
-    ` · טעם: ${tasteText(last)} · דירוג ${last.rating}/10`;
+  // שוט חנוק: אין זמן, אין טעם ואין דירוג למדוד. סיכום שמציג 0 בשלושתם
+  // נראה כמו תיעוד חסר במקום כמו מה שהוא — מדידה של הקצה הדק.
+  const lastShotSummary = last.choked
+    ? `טחינה ${last.grindSetting} · המכונה נחנקה — הזרימה לא התחילה`
+    : `${last.doseGrams}←${last.yieldGrams} גרם · ${t} שניות · טחינה ${last.grindSetting}` +
+      ` · טעם: ${tasteText(last)} · דירוג ${last.rating}/10`;
 
   // ברירת מחדל: לשמור על אותם פרמטרים
   const targets: AiTargets = {
@@ -259,7 +267,8 @@ export function aiRecommend(params: {
   }
 
   // ---- כלל זהב: זמן קיצוני ----
-  if (t > 0 && (t < 15 || t > 45)) {
+  // שוט חנוק פטור: הזמן שלו אינו מדידה, ואזהרה עליו רק מסתירה את האבחנה
+  if (!last.choked && t > 0 && (t < 15 || t > 45)) {
     warnings.push(
       `זמן חליטה קיצוני (${t} שניות) — המתכון עשוי להיות לא יציב.` +
       (cls.kind === 'positive' ? ' אבל הטעם מצוין, ולפי הכללים — לא משנים אוטומטית.' : ''),
@@ -286,6 +295,18 @@ export function aiRecommend(params: {
   // אמר "אי אפשר לעלות עוד", וגם ביקורת ההמלצות שפטה מול יעד שלא זז.
   const grindFiner = () => {
     targets.grindSetting = clampGrind(last.grindSetting - grindStep);
+    // קיר החניקה: אם כבר נחנקת בדרגה הזו (או גסה ממנה) בפולים האלה,
+    // לרדת עוד זו לא עדינות אלא חניקה נוספת. הכלי הזה מוצה כאן.
+    if (fineFloor !== null && targets.grindSetting < fineFloor) {
+      targets.grindSetting = last.grindSetting;
+      changeKind = 'none';
+      changeLabel = 'הטחינה בקיר החניקה';
+      instruction =
+        `תיעדת חניקה בטחינה ${floor}${grinder ? ` (${grinder.name})` : ''} בפולים האלה, ולכן ` +
+        `${fineFloor} היא הדרגה הדקה ביותר שיש טעם לנסות. אתה כבר עליה או קרוב אליה — ` +
+        'הכלי הזה מוצה. השינוי הבא צריך לבוא מ-Yield או מטמפרטורה.';
+      return;
+    }
     if (targets.grindSetting === last.grindSetting) {
       changeKind = 'none';
       changeLabel = 'הטחינה בקצה הדק של הסקאלה';
@@ -369,6 +390,7 @@ export function aiRecommend(params: {
       grinderName: grinder?.name,
       clampGrind,
       prepSpread,
+      chokeFloor: floor,
     });
     targets.doseGrams = d.targets.doseGrams;
     targets.yieldGrams = d.targets.yieldGrams;
@@ -382,6 +404,20 @@ export function aiRecommend(params: {
     tone = d.tone;
     reminderOverride = d.reminder;
     dialInState = d.state;
+  }
+  // ---- השוט נחנק ----
+  // אין כאן מה לאבחן מהטעם או מהשעון: הזרימה נעצרה, וכל מספר אחר בשוט
+  // הזה נגזר מזה. הכיוון היחיד הוא גס יותר, והדרגה הזו נרשמת כקיר.
+  else if (last.choked) {
+    grindCoarser();
+    diagnosis =
+      `המכונה נחנקה בטחינה ${last.grindSetting}${grinder ? ` (${grinder.name})` : ''} — ` +
+      'ההתנגדות גבוהה מכדי שהמים יעברו. זו לא בעיית טעם ולא בעיית Yield, ' +
+      'ומכאן והלאה זו הדרגה שלא נרד מתחתיה בפולים האלה.';
+    expectedResult = 'זרימה שמתחילה. משם ממשיכים לכייל לפי הזמן והטעם.';
+    tone = 'warn';
+    reminderOverride =
+      'שוט חנוק לא נכנס לחישובים — הוא רק מסמן את הקצה. אל תשנה שום דבר חוץ מהטחינה.';
   }
   // ---- עדיפות למתכון מוצלח (עיקרון 4) ----
   else if (recipe && last.rating <= recipe.rating - 2 && deviatesFromRecipe(last, recipe, grindStep)) {
@@ -573,7 +609,8 @@ export function aiRecommend(params: {
 
   // ---- נקודת עצירה: יעד סופי ⟵ איפה לעצור בפועל ----
   // לפי הטפטוף הנמדד של המשתמש (אם תועדו עצירה+סופי), אחרת ברירת מחדל 3–4 גרם.
-  if (changeKind !== 'prep') {
+  // בשוט חנוק אין Yield אמיתי לגזור ממנו נקודת עצירה, ושורה כזו תצא שטות.
+  if (changeKind !== 'prep' && !last.choked) {
     const measuredDrips = history
       .filter((s) => s.yieldStopGrams && s.yieldGrams > (s.yieldStopGrams ?? 0))
       .map((s) => s.yieldGrams - (s.yieldStopGrams ?? 0));

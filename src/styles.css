@@ -788,6 +788,32 @@ button.shot-item {
   color: inherit;
   text-align: start;
 }
+/* מתג דגל על רשומה (נחנק / לא מייצג). לא צ'יפ ולא שדה — זו הצהרה על
+   אמינות השורה, ולכן היא נראית כמו הערה עם תיבה ולא כמו קלט רגיל. */
+.flag-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px;
+  margin-top: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.93rem;
+}
+.flag-toggle input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--accent-strong);
+  flex-shrink: 0;
+}
+.flag-toggle:has(input:checked) {
+  border-color: color-mix(in srgb, var(--warn) 55%, transparent);
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+}
+
 /* ---- קיבוץ היומן לפי פולים ----
    כל סוג פולים הוא הקשר נפרד: הטחינה, הזמן והמתכון שלו לא ברי-השוואה
    לפולים אחרים. הקבוצה הפעילה פתוחה, השאר כפתורי מסגרת מקופלים. */

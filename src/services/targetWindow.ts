@@ -1,4 +1,5 @@
 import type { Bag, Bean, RoastLevel, Shot } from '../domain/types';
+import { analyzable, isAnalyzable } from './shotFilter';
 
 // ============================================================
 // חלון זמן החליטה — מקור אמת אחד לכל האפליקציה
@@ -50,7 +51,8 @@ const FRESH_ROAST_SHIFT = 2;
 // אותה בחירה משמשת גם לכיול היחס ב-recommendation.ts — מיוצא כדי שלא
 // יתפצלו לשתי הגדרות שונות של "השוטים הטובים שלי".
 export function bestShotsForCalibration(beanShots: Shot[]): Shot[] {
-  const rated = beanShots.filter((s) => s.rating >= 6);
+  // שוט פסול או חנוק לא מכייל כלום — הוא בדיוק מה שהמדידה צריכה לסנן
+  const rated = analyzable(beanShots).filter((s) => s.rating >= 6);
   if (rated.length === 0) return [];
   return [...rated]
     .sort((a, b) => b.rating - a.rating)
@@ -145,7 +147,7 @@ export function makePersonalWindowResolver(
   const bagMap = new Map(bags.map((b) => [b.id, b]));
   const byBean = new Map<string, Shot[]>();
   for (const s of shots) {
-    if (s.rating <= 0 || s.brewTimeSec <= 0) continue;
+    if (s.rating <= 0 || s.brewTimeSec <= 0 || !isAnalyzable(s)) continue;
     const list = byBean.get(s.beanId);
     if (list) list.push(s);
     else byBean.set(s.beanId, [s]);

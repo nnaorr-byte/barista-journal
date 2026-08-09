@@ -10,6 +10,7 @@ import { CountUp, Field, StatTile, EmptyState } from './components';
 import { computeWinningWindow, shotAgeRatings } from '../services/freshness';
 import { auditAllAdvice } from '../services/adviceAudit';
 import { analyzeRecurringProblems } from '../services/recurringProblems';
+import { analyzable } from '../services/shotFilter';
 import { formatDateTime, shotWeights } from './labels';
 import { DashboardScreen } from './DashboardScreen';
 import { BeanIcon, BrainIcon, BulbIcon, ChartIcon, CoinIcon, CupIcon, FlameIcon, GearIcon, GiftIcon, LeafIcon, MedalIcon, ScaleIcon, SettingsIcon, StarIcon, TargetIcon, TasteIcon, TimerIcon, TrendIcon, TrophyIcon } from './icons';
@@ -734,7 +735,9 @@ export function AnalyticsScreen() {
   const beanName = (id: string) => beanMap.get(id)?.name ?? 'פולים שנמחקו';
   const activeBeanId = shots[shots.length - 1]?.beanId ?? '';
   const scopeId = scope === null ? activeBeanId : scope;
-  const scoped = scopeId ? shots.filter((s) => s.beanId === scopeId) : shots;
+  // שוטים שסומנו כלא-מייצגים או שנחנקו יוצאים מכל מדד איכות ומגמה.
+  // דשבורד העלויות מקבל את הרשימה הגולמית — הקפה הזה באמת נצרך.
+  const scoped = analyzable(scopeId ? shots.filter((s) => s.beanId === scopeId) : shots);
   const scopedEnough = scoped.length >= 2;
   // רשימת הפולים לבחירה — לפי סדר השימוש האחרון
   const beanOptions = [...new Map(
@@ -800,7 +803,7 @@ export function AnalyticsScreen() {
   }));
 
   // עקביות — גלובלית בכוונה: היד שלך לא מתאפסת עם שקית חדשה
-  const newest = [...shots].reverse();
+  const newest = analyzable(shots).reverse();
   const consistency = consistencyScore(newest.slice(0, 10));
   const prevConsistency = newest.length >= 14 ? consistencyScore(newest.slice(10, 20)) : null;
 

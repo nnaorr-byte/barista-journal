@@ -2,6 +2,7 @@ import type {
   AiAdvice, AiTargets, DialInKind, DialInPhase, DialInSession, DialInState, Shot,
 } from '../domain/types';
 import { PREP_NOISE_SEC, type Repeatability } from './aging';
+import { analyzable } from './shotFilter';
 import type { TargetWindow } from './targetWindow';
 
 // ============================================================
@@ -59,6 +60,20 @@ export type DialInComplaint =
   | 'good' // חיובי אבל עוד לא שם
   | 'untagged';
 
+// שמות התלונות בעברית — לשימוש בהסברים שמצטטים את הסיווג
+const COMPLAINT_LABEL: Record<DialInComplaint, string> = {
+  conflict: 'חמוץ ומר יחד',
+  sour: 'חמוץ',
+  bitter: 'מר',
+  dry: 'יבש',
+  watery: 'מימי',
+  flat: 'חסרה מתיקות',
+  thin: 'גוף חלש',
+  perfect: 'מצוין',
+  good: 'חיובי',
+  untagged: 'לא תויג',
+};
+
 export function dialInComplaint(shot: Shot): DialInComplaint {
   const tags = new Set(shot.tasteTags);
   if (tags.has('sour') && tags.has('bitter')) return 'conflict';
@@ -112,6 +127,9 @@ export interface DialInContext {
   grinderName?: string;
   clampGrind: (v: number) => number; // אותה הצמדה לגבולות הסקאלה כמו במוח
   prepSpread?: Repeatability | null;
+  // הטחינה הגסה ביותר שבה המכונה נחנקה בפולים האלה (services/shotFilter.ts).
+  // הכיול לא שולח מתחתיה — שם אין מדידה, רק חניקה נוספת.
+  chokeFloor?: number | null;
 }
 
 export interface DialInDecision {
@@ -129,7 +147,12 @@ export interface DialInDecision {
 }
 
 export function dialInDecide(ctx: DialInContext): DialInDecision {
-  const { session, lastShot: last, sessionShots, window, grindStep, clampGrind } = ctx;
+  const { session, lastShot: last, window, grindStep, clampGrind } = ctx;
+  // הלוגיקה לומדת רק משוטים מדידים. שוט שנחנק או שסומן כפסול עדיין נספר
+  // כשוט בסשן (הוא באמת קרה), אבל לא משמש כ-Sweet Spot, לא נספר כצעד
+  // תיקון ולא נבחר כמתכון.
+  const sessionShots = analyzable(ctx.sessionShots);
+  const sessionCount = ctx.sessionShots.length;
   const kind: DialInKind = session.kind ?? 'full';
   const targetYield = session.targetYieldGrams ?? DIAL_IN_DEFAULT_YIELD;
   const lockedDose = session.lockedDoseGrams ?? last.doseGrams;
@@ -161,8 +184,19 @@ export function dialInDecide(ctx: DialInContext): DialInDecision {
     changeLabel = label;
     return target;
   };
+  // הדרגה הדקה ביותר שיש טעם לנסות: צעד אחד גס מהקיר שתועד
+  const fineFloor = ctx.chokeFloor != null ? round1(ctx.chokeFloor + grindStep) : null;
   const finer = () => {
     targets.grindSetting = grindTo(-grindStep, 'דרגת טחינה — דק יותר');
+    if (fineFloor !== null && targets.grindSetting < fineFloor) {
+      targets.grindSetting = last.grindSetting;
+      changeKind = 'none';
+      changeLabel = 'הטחינה בקיר החניקה';
+      return (
+        `תיעדת חניקה בטחינה ${ctx.chokeFloor}${grinderSuffix}, ולכן ${fineFloor} היא הדרגה הדקה ` +
+        'ביותר שיש טעם לנסות בפולים האלה. הטחינה מוצתה ככלי — ממשיכים ב-Yield.'
+      );
+    }
     return targets.grindSetting === last.grindSetting
       ? `הטחינה כבר בקצה הדק של הסקאלה (${last.grindSetting}${grinderSuffix}) — אי אפשר לרדת עוד.`
       : `טחן דק יותר: מדרגה ${last.grindSetting} לדרגה ${targets.grindSetting}${grinderSuffix}.`;
@@ -190,7 +224,18 @@ export function dialInDecide(ctx: DialInContext): DialInDecision {
   // ---- שכבת הגנה: תיעול. עוצר את הכיול, לא מכייל על פאק שבור ----
   const complaint = dialInComplaint(last);
   const noise = ctx.prepSpread && ctx.prepSpread.spreadSec >= PREP_NOISE_SEC ? ctx.prepSpread : null;
-  if (complaint === 'conflict') {
+  // ---- שכבת הגנה: השוט נחנק. אין מדידה, יש קיר ----
+  if (last.choked) {
+    instruction = `${coarser()} אל תשנה שום דבר אחר.`;
+    diagnosis =
+      `המכונה נחנקה בטחינה ${last.grindSetting}${grinderSuffix} — הזרימה לא התחילה, ` +
+      'ולכן אין בשוט הזה זמן, טעם או Yield שאפשר לכייל מהם. ' +
+      'הדרגה הזו נרשמת כקצה הדק של הפולים האלה, והכיול לא ישלח אליה שוב.';
+    expectedResult = 'זרימה שמתחילה — ומשם הכיול ממשיך מאותה נקודה.';
+    tone = 'warn';
+    reminder = 'שוט חנוק לא נספר בכיול ולא נכנס לחישובים. הוא רק מסמן את הגבול.';
+  }
+  else if (complaint === 'conflict') {
     changeKind = 'prep';
     changeLabel = 'הכנת הפאק (לא הגדרות!)';
     diagnosis =
@@ -225,8 +270,19 @@ export function dialInDecide(ctx: DialInContext): DialInDecision {
     const best = sessionShots.find((s) => s.id === sweetSpotBestShotId) ?? last;
     const improved = last.id === best.id || last.rating >= best.rating;
     const atCoarseEnd = clampGrind(last.grindSetting + grindStep) === last.grindSetting;
+    // הציד פותח טחינה, וטחינה גסה מקצרת את הזמן. שני תנאי עצירה נוספים
+    // על "הדירוג ירד", ושניהם נמדדו כחסרים בפועל:
+    //   · הזמן ירד למחצית התחתונה של חלון היעד. לא "מתחת למינימום" —
+    //     זה מאוחר מדי: הציד רק מקצר, ולכן צעד שנעשה בגבול התחתון כבר
+    //     נוחת מחוץ לחלון, והדירוג יגלה את זה רק אחרי שזה קרה. אמצע
+    //     החלון משאיר חצי חלון של מרווח, וזה בדיוק מה שהשלב מחפש:
+    //     הנקודה הסלחנית ביותר, לא הקיצונית ביותר.
+    //   · הטעם אינו חיובי. דירוג 8 עם "מר" הוא לא אישור להמשיך לפתוח.
+    const windowMid = (window.min + window.max) / 2;
+    const atWindowFloor = t > 0 && t <= windowMid;
+    const tasteOk = complaint === 'perfect' || complaint === 'good' || complaint === 'untagged';
 
-    if (improved && !atCoarseEnd) {
+    if (improved && tasteOk && !atCoarseEnd && !atWindowFloor) {
       sweetSpotBestShotId = last.id;
       instruction = `${coarser()} כל השאר נשאר.`;
       diagnosis =
@@ -236,8 +292,23 @@ export function dialInDecide(ctx: DialInContext): DialInDecision {
       expectedResult = 'זרימה אחידה יותר ומתיקות גבוהה יותר — או ירידה, ואז נחזור צעד אחורה.';
       tone = 'good';
       reminder = 'בציד הזה ירידה היא לא כישלון — היא הסימן שעברנו את הנקודה ומצאנו אותה.';
+    } else if (complaint === 'flat') {
+      // חסרה מתיקות בזמן קצר — זה חילוץ-חסר, ופתיחה נוספת רק תחמיר.
+      // כאן הציד נעצר והולך אחורה, לכיוון ההפוך מהברירת מחדל שלו.
+      phase = 'confirm';
+      const text = finer();
+      targets.yieldGrams = targetYield;
+      if (targets.grindSetting !== last.grindSetting) changeLabel = 'צעד אחורה — דק יותר';
+      diagnosis =
+        `${last.rating}/10 אבל חסרה מתיקות ב-${t} שניות. ` +
+        'המתיקות היא הדבר האחרון שמחולץ, וטחינה גסה מקצרת את הזמן ומרחיקה ממנה — ' +
+        'כלומר הציד עבר את הנקודה. עוצרים ומחזירים צעד.';
+      instruction = `${text} זו הנקודה; עשה אותה פעם אחת לאימות.`;
+      expectedResult = 'זמן ארוך במעט, ואיתו המתיקות שהייתה חסרה.';
+      tone = 'good';
+      reminder = REMINDER_TASTE;
     } else {
-      // ירידה או קצה הסקאלה — הנקודה היא הצעד הקודם
+      // ירידה, טעם לא חיובי, תחתית החלון או קצה הסקאלה — הנקודה היא הצעד הקודם
       phase = 'confirm';
       targets.grindSetting = best.grindSetting;
       targets.yieldGrams = best.yieldGrams;
@@ -246,7 +317,11 @@ export function dialInDecide(ctx: DialInContext): DialInDecision {
       changeLabel = 'חזרה לנקודת ה-Sweet Spot';
       diagnosis = atCoarseEnd
         ? `הגעת לקצה הגס של הסקאלה (${last.grindSetting}${grinderSuffix}). הנקודה הטובה ביותר שנמדדה היא ${best.rating}/10.`
-        : `${last.rating}/10 מול ${best.rating}/10 בצעד הקודם — האיכות ירדה. עברנו את הנקודה, וחוזרים צעד אחורה. זה ה-Sweet Spot.`;
+        : atWindowFloor
+          ? `${t} שניות — במחצית התחתונה של חלון היעד (${window.min}–${window.max}). הציד רק מקצר, וצעד נוסף לגס צפוי להוציא אותך מהחלון. לכן הוא נעצר כאן, על ${best.rating}/10.`
+          : !tasteOk
+            ? `${last.rating}/10 אבל הטעם עדיין לא נקי (${COMPLAINT_LABEL[complaint]}). הציד ממשיך רק על טעם חיובי — כאן הוא נעצר, והנקודה היא הצעד הקודם.`
+            : `${last.rating}/10 מול ${best.rating}/10 בצעד הקודם — האיכות ירדה. עברנו את הנקודה, וחוזרים צעד אחורה. זה ה-Sweet Spot.`;
       instruction =
         `חזור למתכון: ${best.doseGrams} גרם ← ${best.yieldGrams} גרם, טחינה ${best.grindSetting}${grinderSuffix}. ` +
         'עשה אותו עוד פעם אחת לאימות — ואם הוא חוזר על עצמו, אשר אותו כמתכון של הפולים האלה.';
@@ -432,7 +507,7 @@ export function dialInDecide(ctx: DialInContext): DialInDecision {
       phase,
       phaseStep: PHASE_STEP[phase],
       phaseLabel: PHASE_LABEL[phase],
-      shotIndex: sessionShots.length,
+      shotIndex: sessionCount,
       readyToConfirm,
       targetYieldGrams: targetYield,
       lockedDoseGrams: lockedDose,

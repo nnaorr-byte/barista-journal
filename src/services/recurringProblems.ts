@@ -1,4 +1,5 @@
 import type { Bag, Bean, RoastLevel, Shot, TasteTag } from '../domain/types';
+import { analyzable } from './shotFilter';
 
 // ============================================================
 // הבעיה החוזרת שלך — ניתוח מצטבר על כל ההיסטוריה
@@ -111,7 +112,7 @@ export function analyzeRecurringProblems(params: {
   beans: Bean[];
   bags: Bag[];
 }): RecurringProblem[] {
-  const rated = params.shots.filter((s) => s.rating > 0);
+  const rated = analyzable(params.shots).filter((s) => s.rating > 0);
   if (rated.length < MIN_SHOTS) return [];
 
   const beanMap = new Map(params.beans.map((b) => [b.id, b]));

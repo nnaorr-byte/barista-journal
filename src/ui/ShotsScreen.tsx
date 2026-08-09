@@ -13,7 +13,7 @@ import {
 } from '../domain/types';
 import { Chips, EmptyState, Field, RatingPicker } from './components';
 import { QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS, VS_PREVIOUS_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
-import { BeanIcon, BrainIcon, ChevronDownIcon, EditIcon, JournalIcon, SaveIcon, ScaleIcon, SearchIcon, StarIcon, TrashIcon, TrophyIcon, UndoIcon } from './icons';
+import { BanIcon, BeanIcon, BrainIcon, ChevronDownIcon, EditIcon, JournalIcon, SaveIcon, ScaleIcon, SearchIcon, StarIcon, TrashIcon, TrophyIcon, UndoIcon } from './icons';
 
 const TASTE_OPTIONS = (Object.entries(TASTE_LABELS) as [TasteTag, string][]).map(([value, label]) => ({ value, label }));
 const QUALITY_OPTIONS = (Object.entries(QUALITY_LABELS) as [QualityLevel, string][]).map(([value, label]) => ({ value, label }));
@@ -264,9 +264,11 @@ export function ShotsScreen() {
             >
               <span className={`shot-rating ${ratingClass(s.rating)}`}>{s.rating}</span>
               <span style={{ flex: 1 }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                   {s.favorite && <span style={{ color: 'var(--accent-strong)', display: 'inline-flex' }} title="מתכון שמור"><StarIcon size={15} filled /></span>}
                   {beanMap.get(s.beanId)?.name ?? 'פולים שנמחקו'}
+                  {s.choked && <span className="badge warn">נחנק</span>}
+                  {s.excluded && <span className="badge">לא בחישוב</span>}
                 </span>
                 <span className="muted small" style={{ display: 'block' }}>
                   {shotWeights(s)} · {s.brewTimeSec} שניות · טחינה {s.grindSetting}
@@ -306,6 +308,13 @@ export function ShotsScreen() {
                     </b>
                   </p>
                 )}
+                {(s.choked || s.excluded) && (
+                  <p className="small" style={{ margin: '4px 0', color: 'var(--warn)' }}>
+                    {s.choked
+                      ? 'המכונה נחנקה. השוט לא נכנס לאף חישוב — אבל דרגת הטחינה שלו מסמנת למוח את הקצה הדק של הפולים האלה.'
+                      : 'סומן כלא מייצג את הפולים האלה. לא נכנס לחלון היעד, להמלצה, למדידת ההזדקנות ולביקורת ההמלצות.'}
+                  </p>
+                )}
                 {s.notes && <p className="small muted" style={{ margin: '4px 0' }}>"{s.notes}"</p>}
                 <ShotAdviceBlock shot={s} shots={data.shots} grinders={data.grinders} resolveWindow={resolveWindow} bags={data.bags} />
                 <div className="btn-row">
@@ -325,6 +334,18 @@ export function ShotsScreen() {
                     {s.favorite ? <><StarIcon size={17} filled /> הסר מתכון</> : <><StarIcon size={17} /> שמור כמתכון</>}
                   </button>
                   <button className="btn small secondary" onClick={() => setEditing(s)}><EditIcon size={17} /> עריכה</button>
+                  {/* פסילה — השוט נשאר ביומן ויוצא מכל חישוב. הכלי שחסר
+                      כשהשוט הראשון אחרי מעבר פולים נושא שאריות במטחנה. */}
+                  <button
+                    className="btn small secondary"
+                    onClick={() => shotRepo.put({
+                      ...s,
+                      excluded: s.excluded ? undefined : true,
+                      excludedReason: s.excluded ? undefined : 'סומן ביומן כלא מייצג',
+                    })}
+                  >
+                    <BanIcon size={17} /> {s.excluded ? 'החזר לחישוב' : 'סמן כלא מייצג'}
+                  </button>
                   <button className="btn small secondary" onClick={() => toggleCompare(s.id)}>
                     <ScaleIcon size={17} /> {compareIds.includes(s.id) ? 'הסר מהשוואה' : 'השווה'}
                   </button>
@@ -504,6 +525,8 @@ function EditShotForm({ shot, onClose }: { shot: Shot; onClose: () => void }) {
   const [aftertaste, setAftertaste] = useState<QualityLevel | null>(shot.aftertaste);
   const [notes, setNotes] = useState(shot.notes);
   const [rating, setRating] = useState(shot.rating);
+  const [choked, setChoked] = useState(!!shot.choked);
+  const [excluded, setExcluded] = useState(!!shot.excluded);
 
   return (
     <div className="card">
@@ -561,6 +584,21 @@ function EditShotForm({ shot, onClose }: { shot: Shot; onClose: () => void }) {
       <Chips groupLabel="אחרית חיך" multi={false} options={QUALITY_OPTIONS} selected={aftertaste ? [aftertaste] : []} onToggle={(v) => setAftertaste(aftertaste === v ? null : v)} />
 
       <Field label="הערות"><textarea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+
+      <h3>אמינות הרשומה</h3>
+      <label className="flag-toggle">
+        <input type="checkbox" checked={choked} onChange={(e) => setChoked(e.target.checked)} />
+        <span>המכונה נחנקה — דרגת הטחינה נרשמת כקצה הדק</span>
+      </label>
+      <label className="flag-toggle">
+        <input type="checkbox" checked={excluded} onChange={(e) => setExcluded(e.target.checked)} />
+        <span>לא מייצג את הפולים — הוצא מכל חישוב</span>
+      </label>
+      <p className="muted small" style={{ marginTop: 4 }}>
+        שוט מסומן נשאר ביומן ונספר בצריכת השקית, אבל לא מכייל את חלון היעד, את ההמלצה
+        או את מדידת ההזדקנות.
+      </p>
+
       <h3>דירוג</h3>
       <RatingPicker value={rating} onChange={setRating} />
       <div className="btn-row">
@@ -585,6 +623,9 @@ function EditShotForm({ shot, onClose }: { shot: Shot; onClose: () => void }) {
               aftertaste,
               notes,
               rating,
+              choked: choked || undefined,
+              excluded: excluded || undefined,
+              excludedReason: excluded ? (shot.excludedReason ?? 'סומן ביומן כלא מייצג') : undefined,
             });
             onClose();
           }}

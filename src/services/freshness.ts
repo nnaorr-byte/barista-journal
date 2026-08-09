@@ -1,5 +1,6 @@
 import type { Bag, Shot } from '../domain/types';
 import { daysSince } from './recommendation';
+import { analyzable } from './shotFilter';
 
 // חלון הטריות של פולי אספרסו לפי תאריך קלייה:
 // • 0–4 ימים: הפולים עדיין "מגזזים" CO₂ (Degassing) — לא יציבים.
@@ -142,7 +143,9 @@ export interface WinningWindow {
 }
 
 // זוגות (גיל קלייה ביום ההכנה, דירוג) לכל השוטים עם תאריך קלייה ידוע
-export function shotAgeRatings(shots: Shot[], bags: Bag[]): { age: number; rating: number }[] {
+export function shotAgeRatings(rawShots: Shot[], bags: Bag[]): { age: number; rating: number }[] {
+  // עקומת הטריות מודדת טעם מול גיל — שוט פסול או חנוק אינו נקודה בה
+  const shots = analyzable(rawShots);
   const bagMap = new Map(bags.map((b) => [b.id, b]));
   return shots.flatMap((s) => {
     const roast = bagMap.get(s.bagId)?.roastDate;

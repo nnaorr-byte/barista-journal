@@ -388,6 +388,17 @@ export function PackageIcon({ size = 24, strokeWidth = 1.7 }: IconProps) {
   );
 }
 
+// עיגול עם קו אלכסוני — "לא נספר". לא איקס (מחיקה) ולא אזהרה: הרשומה
+// נשארת, היא פשוט לא נכנסת לחישוב.
+export function BanIcon({ size = 24, strokeWidth = 1.7 }: IconProps) {
+  return (
+    <svg {...svgProps(size)} strokeWidth={strokeWidth}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M6 18 L18 6" />
+    </svg>
+  );
+}
+
 export function WarnIcon({ size = 24, strokeWidth = 1.7 }: IconProps) {
   return (
     <svg {...svgProps(size)} strokeWidth={strokeWidth}>

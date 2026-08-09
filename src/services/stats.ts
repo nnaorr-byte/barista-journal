@@ -1,7 +1,12 @@
 import { shotRatio, type Bag, type Bean, type Shot } from '../domain/types';
+import { analyzable } from './shotFilter';
 import { DEFAULT_TARGET_WINDOW, type TargetWindow, type WindowResolver } from './targetWindow';
 
 // שירות סטטיסטיקה: חישובי Dashboard, צריכת פולים ועלות לשוט.
+//
+// מדדי איכות (דירוג, עקביות, "בחלון היעד") מסננים שוטים פסולים וחנוקים.
+// computeBagUsage מכוון לא מסנן: הקפה של שוט שנחנק באמת יצא מהשקית,
+// והמלאי חייב לדעת את זה.
 
 export interface BagUsage {
   bag: Bag;
@@ -55,9 +60,10 @@ export interface BeanComparison {
 }
 
 export function compareBeans(beans: Bean[], shots: Shot[]): BeanComparison[] {
+  const rated = analyzable(shots);
   return beans
     .map((bean) => {
-      const beanShots = shots.filter((s) => s.beanId === bean.id);
+      const beanShots = rated.filter((s) => s.beanId === bean.id);
       if (beanShots.length === 0) return null;
       return {
         bean,
@@ -73,7 +79,7 @@ export function compareBeans(beans: Bean[], shots: Shot[]): BeanComparison[] {
 }
 
 export function topShots(shots: Shot[], n: number, worst = false): Shot[] {
-  const sorted = [...shots].sort((a, b) =>
+  const sorted = analyzable(shots).sort((a, b) =>
     worst ? a.rating - b.rating : b.rating - a.rating,
   );
   return sorted.slice(0, n);
@@ -138,10 +144,11 @@ export interface WeeklySummary {
 // resolveWindow: חלון היעד לכל שוט (makeWindowResolver מ-targetWindow.ts).
 // בלעדיו נופלים לחלון ברירת מחדל — המדד עדיין עובד, פחות מדויק.
 export function weeklySummary(
-  shots: Shot[],
+  rawShots: Shot[],
   offset = 0,
   resolveWindow: WindowResolver = () => DEFAULT_TARGET_WINDOW,
 ): WeeklySummary {
+  const shots = analyzable(rawShots);
   const start = weekStart(new Date());
   start.setDate(start.getDate() - 7 * offset);
   const end = new Date(start);
@@ -195,7 +202,8 @@ export function weeksBackWithData(shots: Shot[]): number {
   return Math.max(0, Math.round((cur - old) / (7 * 86400000)));
 }
 
-export function ratingTrend(shotsNewestFirst: Shot[]): Trend {
+export function ratingTrend(rawNewestFirst: Shot[]): Trend {
+  const shotsNewestFirst = analyzable(rawNewestFirst);
   if (shotsNewestFirst.length < 6) {
     return { direction: 'insufficient', recentAvg: 0, previousAvg: 0 };
   }

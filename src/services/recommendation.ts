@@ -4,6 +4,7 @@ import {
 } from '../domain/types';
 import { learningConfidence } from './learning';
 import { aiRecommend } from './aiEngine';
+import { analyzable } from './shotFilter';
 import { ROAST_DEFAULTS, bestShotsForCalibration, computeTargetWindow } from './targetWindow';
 
 // מנוע ההמלצות: שרשרת של שלושה מודולים —
@@ -31,7 +32,12 @@ export function recommendShot(params: {
   grinder?: Grinder; // המטחנה הנוכחית — לחישובי מוח ה-AI
   lastGrinderShot?: Shot; // השוט האחרון על המטחנה הנוכחית, מכל סוג פולים
 }): ShotRecommendation {
-  const { user, bean, bag, beanShots, grinderShots, grinder, lastGrinderShot } = params;
+  const { user, bean, bag, grinder, lastGrinderShot } = params;
+  // רשימות גולמיות נשמרות בצד: מוח ה-AI צריך אותן כדי לקרוא מהן את קיר
+  // החניקה. כל השאר כאן לומד רק משוטים מדידים.
+  const rawGrinderShots = params.grinderShots;
+  const beanShots = analyzable(params.beanShots);
+  const grinderShots = analyzable(params.grinderShots);
   const reasons: string[] = [];
   const beanNotes: string[] = [];
   const defaults = ROAST_DEFAULTS[bean.roastLevel];
@@ -102,8 +108,10 @@ export function recommendShot(params: {
   // הניתוח מתבסס אך ורק על שוטים מהמטחנה הנוכחית — דרגות טחינה אינן
   // ברות-השוואה בין מטחנות. החלפת מטחנה = הניתוח מתחיל מחדש.
   if (grinderShots.length > 0) {
-    const history = [...grinderShots].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    const last = history[history.length - 1];
+    // ההיסטוריה שנשלחת למוח היא הגולמית: הוא מסנן אותה בעצמו, אבל צריך
+    // לראות בה את השוטים שנחנקו כדי לדעת איפה הקצה הדק
+    const history = [...rawGrinderShots].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const last = [...grinderShots].sort((a, b) => a.createdAt.localeCompare(b.createdAt)).slice(-1)[0];
     // פער הימים מאז השוט האחרון — להתראת הזדקנות של המוח
     const gapDays = Math.floor((Date.now() - new Date(last.createdAt).getTime()) / 86400000);
     const ai = aiRecommend({

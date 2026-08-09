@@ -1,4 +1,5 @@
 import type { Bag, Shot } from '../domain/types';
+import { isAnalyzable } from './shotFilter';
 
 // ============================================================
 // הזדקנות וחזרתיות — שני מדדים מאותה מדידה
@@ -68,7 +69,8 @@ export function groupBySettings(shots: Shot[], bags: Bag[]): SettingGroup[] {
   const bagMap = new Map(bags.map((b) => [b.id, b]));
   const map = new Map<string, SettingGroup>();
   for (const s of shots) {
-    if (!s.brewTimeSec) continue;
+    // שוט פסול או חנוק אינו מדידה של זמן — והמדידה כאן היא כולה זמן
+    if (!s.brewTimeSec || !isAnalyzable(s)) continue;
     const age = roastAgeDays(s, bagMap.get(s.bagId));
     if (age === null) continue;
     const key = `${s.grindSetting}|${s.doseGrams}`;

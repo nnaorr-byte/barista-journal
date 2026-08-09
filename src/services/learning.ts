@@ -1,4 +1,5 @@
 import { shotRatio, shotFlowRate, type Shot, type TasteTag, type RoastLevel } from '../domain/types';
+import { analyzable } from './shotFilter';
 
 // מנוע הלמידה האישית: מחלץ מההיסטוריה את הפרמטרים שמניבים
 // את הדירוגים הגבוהים ביותר. עובד על ממוצע משוקלל לפי דירוג,
@@ -36,9 +37,11 @@ function weightedAvg(shots: Shot[], pick: (s: Shot) => number): number | null {
 }
 
 export function computeInsights(
-  shots: Shot[],
+  rawShots: Shot[],
   beanRoastLevels: Map<string, RoastLevel>,
 ): PersonalInsights {
+  // הלמידה מושכת ממוצע משוקלל מהשוטים — רשומה פסולה מזיזה אותו
+  const shots = analyzable(rawShots);
   const shotCount = shots.length;
   const avgRating = shotCount ? shots.reduce((a, s) => a + s.rating, 0) / shotCount : 0;
   const bestShot = shots.reduce<Shot | null>(

@@ -86,6 +86,9 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   const [yieldGrams, setYieldGrams] = useState(''); // גרם סופי אחרי טפטוף
   const [brewTime, setBrewTime] = useState('');
   const [quick, setQuick] = useState(false); // מצב "שוט מהיר"
+  // המכונה נחנקה: אין זמן, אין טעם, אין Yield אמיתי. השוט נשמר בכל זאת
+  // כי דרגת הטחינה שלו היא המידע — הקצה הדק של הפולים האלה.
+  const [choked, setChoked] = useState(false);
   const [grindSetting, setGrindSetting] = useState('');
   const [temp, setTemp] = useState<MachineTempSetting>('medium');
   // ברירת המחדל של נאור: סלסלת IMS מקצועית
@@ -179,7 +182,8 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
           setBeanId(d.beanId); setBagId(d.bagId ?? ''); setGrinderId(d.grinderId ?? '');
           setDose(d.dose ?? '16'); setRecommendation(d.recommendation ?? null);
           setYieldStop(d.yieldStop ?? ''); setYieldGrams(d.yieldGrams ?? ''); setBrewTime(d.brewTime ?? '');
-          setQuick(!!d.quick); setGrindSetting(d.grindSetting ?? ''); setTemp(d.temp ?? 'medium');
+          setQuick(!!d.quick); setChoked(!!d.choked);
+          setGrindSetting(d.grindSetting ?? ''); setTemp(d.temp ?? 'medium');
           setBasketType(d.basketType ?? 'IMS/מקצועית'); setPortafilterType(d.portafilterType ?? 'Bottomless');
           setTasteTags(d.tasteTags ?? []); setTasteOther(d.tasteOther ?? '');
           setBody(d.body ?? null); setCrema(d.crema ?? null);
@@ -211,7 +215,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     }
     localStorage.setItem(DRAFT_KEY, JSON.stringify({
       savedAt: Date.now(), step, beanId, bagId, grinderId, dose, recommendation,
-      yieldStop, yieldGrams, brewTime, quick, grindSetting, temp, basketType,
+      yieldStop, yieldGrams, brewTime, quick, choked, grindSetting, temp, basketType,
       portafilterType, tasteTags, tasteOther, body, crema, aftertaste, notes, rating, vsPrevious,
     }));
   });
@@ -427,6 +431,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
         brewTimeSec: parseInt(brewTime) || 0,
         grindSetting: parseFloat(grindSetting) || 0,
         machineTemp: temp,
+        choked: choked || undefined,
         basketType,
         portafilterType,
         tasteTags,
@@ -566,7 +571,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
   function discardDraft() {
     localStorage.removeItem(DRAFT_KEY);
     setBeanId(''); setBagId(''); setGrinderId(''); setDose('16'); setRecommendation(null);
-    setYieldStop(''); setYieldGrams(''); setBrewTime(''); setQuick(false);
+    setYieldStop(''); setYieldGrams(''); setBrewTime(''); setQuick(false); setChoked(false);
     setGrindSetting(''); setTemp('medium'); setBasketType('IMS/מקצועית'); setPortafilterType('Bottomless');
     setTasteTags([]); setTasteOther(''); setBody(null); setCrema(null); setAftertaste(null);
     setNotes(''); setRating(0); setVsPrevious(null); setShowTasteDetail(false); setShowEquipment(false); setDraftRestored(false); setSaveError(null); setRestoreWarning(null);
@@ -833,6 +838,18 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
             </Field>
           </div>
 
+          {/* חניקה — לא תקלה בתיעוד אלא מדידה בפני עצמה: הקצה הדק */}
+          <label className="flag-toggle">
+            <input type="checkbox" checked={choked} onChange={(e) => setChoked(e.target.checked)} />
+            <span>המכונה נחנקה — הזרימה לא התחילה או ירדה לטפטוף</span>
+          </label>
+          {choked && (
+            <p className="muted small" style={{ marginTop: 4 }}>
+              השוט יישמר ביומן ולא ייכנס לאף חישוב — חוץ מדבר אחד: דרגת הטחינה הזו נרשמת
+              כקצה הדק של הפולים האלה, והמוח לא ישלח אליה שוב. אין צורך למלא זמן, טעם או דירוג.
+            </p>
+          )}
+
           {/* ציוד — סלסלה + פורטפילטר מקופלים כברירת מחדל (כמעט לא משתנים).
               נפתחים אוטומטית כשהערך שונה מברירת המחדל, כמו מגירת הטעם. */}
           <button
@@ -973,13 +990,18 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
             <button className="btn secondary" onClick={() => history.back()}>→ חזרה</button>
             <button
               className="btn" style={{ flex: 1 }}
-              disabled={!dose || !yieldGrams || !brewTime || rating === 0 || saving}
+              // שוט חנוק לא נמדד, ולכן גם לא נדרש למלא את שדות המדידה
+              disabled={choked
+                ? (!dose || !grindSetting || saving)
+                : (!dose || !yieldGrams || !brewTime || rating === 0 || saving)}
               onClick={saveShot}
             >
               <SaveIcon size={18} /> {saveError ? 'נסה לשמור שוב' : 'שמור וקבל ניתוח'}
             </button>
           </div>
-          <MissingFieldsHint dose={dose} yieldGrams={yieldGrams} brewTime={brewTime} rating={rating} />
+          {!choked && (
+            <MissingFieldsHint dose={dose} yieldGrams={yieldGrams} brewTime={brewTime} rating={rating} />
+          )}
         </div>
       </div>
     );
@@ -1166,7 +1188,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 // שוט נוסף עם אותם פולים — איפוס תוצאות בלבד
                 setYieldStop(''); setYieldGrams(''); setBrewTime(''); setTasteTags([]); setTasteOther('');
                 setBody(null); setCrema(null); setAftertaste(null);
-                setNotes(''); setRating(0); setVsPrevious(null); setQuick(false); setShowTasteDetail(false); setShowEquipment(false);
+                setNotes(''); setRating(0); setVsPrevious(null); setQuick(false); setChoked(false); setShowTasteDetail(false); setShowEquipment(false);
                 setAdvice(null); setMultiVarWarning(null); setSavedShotId(null); setMarkedFavorite(false);
                 setBeanRecord(null); setThinking(false); setCelebrate(false);
                 setDialInSession(null); setDialInClosed(null);

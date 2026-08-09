@@ -1,4 +1,5 @@
 import type { AiAdvice, Grinder, Shot } from '../domain/types';
+import { analyzable } from './shotFilter';
 
 // ---- תקפות המלצה שנשמרה מול הסקאלה הנוכחית של המטחנה ----
 // יעדי הטחינה מוצמדים לגבולות הסקאלה. אם הסקאלה הוגדרה לא נכון ותוקנה
@@ -55,7 +56,10 @@ export function isAdviceFollowed(advice: AiAdvice, next: Shot): boolean {
 }
 
 // ביקורת על היסטוריה אחת (אותם פולים+מטחנה), ממוינת מהישן לחדש
-export function auditAdviceHistory(history: Shot[], grinder?: Grinder): AdviceOutcome[] {
+export function auditAdviceHistory(rawHistory: Shot[], grinder?: Grinder): AdviceOutcome[] {
+  // שוט פסול או חנוק לא שופט המלצה ולא נשפט בעצמו — אחרת שורה אחת
+  // מזוהמת הופכת המלצה טובה ל"נכשלה", וזה בדיוק מה שהמדד הזה מודד
+  const history = analyzable(rawHistory);
   const out: AdviceOutcome[] = [];
   for (let i = 0; i < history.length - 1; i++) {
     const advice = history[i].aiAdvice;
@@ -111,7 +115,7 @@ export function adviceOutcomeForShot(
   allShots: Shot[],
 ): AdviceOutcome | null {
   if (!advice || !MEASURABLE.includes(advice.changeKind) || !shot.rating) return null;
-  const next = allShots
+  const next = analyzable(allShots)
     .filter((s) => s.beanId === shot.beanId && s.grinderId === shot.grinderId && s.createdAt > shot.createdAt)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
   if (!next || !next.rating) return null;

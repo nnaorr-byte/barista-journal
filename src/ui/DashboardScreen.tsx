@@ -11,7 +11,11 @@ import { BeanIcon, CalendarIcon, ChartIcon, FlameIcon, GearIcon, TasteIcon, Tren
 
 // "מבט על" — נטמע כקטגוריה בתוך מסך הניתוח (AnalyticsScreen);
 // גרפי המגמה לאורך זמן חיים בקטגוריית "מגמות" שם, לא כאן.
-export function DashboardScreen() {
+//
+// beanId: מסנן הפולים של מסך הניתוח. ריק = כל הפולים. כשהוא מסונן,
+// כל המדדים כאן מחושבים על אותם פולים בלבד — כולל ה-KPI, הפילוחים
+// והטופ/פלופ. השוואת הפולים היא היחידה שנעלמת: אין מה להשוות לעצמך.
+export function DashboardScreen({ beanId = '' }: { beanId?: string }) {
   const data = useLiveQuery(async () => {
     const [shots, beans, grinders] = await Promise.all([
       db.shots.orderBy('createdAt').toArray(), // ישן→חדש לגרפים
@@ -22,17 +26,23 @@ export function DashboardScreen() {
   });
 
   if (!data) return null;
-  const { shots, beans, grinders } = data;
+  const { shots: allShots, beans, grinders } = data;
+  const shots = beanId ? allShots.filter((s) => s.beanId === beanId) : allShots;
 
   if (shots.length === 0) {
     return (
       <div className="card">
-        <EmptyState icon={<ChartIcon size={40} />} text="ה-Dashboard יתעורר לחיים אחרי השוטים הראשונים" hint="כל שוט שתתעד יוסיף נתונים לגרפים ולתובנות." />
+        {beanId ? (
+          <EmptyState icon={<ChartIcon size={40} />} text="אין עדיין שוטים בפולים האלה" hint="בחר פולים אחרים במסנן, או תעד שוט ראשון מהשקית הזו." />
+        ) : (
+          <EmptyState icon={<ChartIcon size={40} />} text="ה-Dashboard יתעורר לחיים אחרי השוטים הראשונים" hint="כל שוט שתתעד יוסיף נתונים לגרפים ולתובנות." />
+        )}
       </div>
     );
   }
 
   const beanMap = new Map(beans.map((b) => [b.id, b]));
+  const scopeName = beanId ? beanMap.get(beanId)?.name ?? 'פולים שנמחקו' : null;
   const roastMap = new Map<string, RoastLevel>(beans.map((b) => [b.id, b.roastLevel]));
   const newestFirst = [...shots].reverse();
   const insights = computeInsights(shots, roastMap);
@@ -65,7 +75,7 @@ export function DashboardScreen() {
   return (
     <div>
       <div className="card">
-        <h2><ChartIcon size={20} /> מבט על</h2>
+        <h2><ChartIcon size={20} /> מבט על{scopeName ? ` — ${scopeName}` : ''}</h2>
         <div className="stat-grid">
           <StatTile value={<CountUp value={shots.length} />} label="שוטים סה״כ" />
           <StatTile value={<CountUp value={insights.avgRating} decimals={1} />} label="דירוג ממוצע" />
@@ -87,7 +97,7 @@ export function DashboardScreen() {
         )}
       </div>
 
-      {beanComparison.length > 0 && (
+      {!beanId && beanComparison.length > 0 && (
         <div className="card">
           <h2><BeanIcon size={20} /> השוואת פולים (דירוג ממוצע)</h2>
           <BarChart

@@ -239,7 +239,13 @@ export function CountUp({ value, decimals, prefix = '', suffix = '', duration = 
 // המצב "מחכה" נכתב ל-DOM ב-useLayoutEffect (לפני הציור הראשון, בלי הבהוב)
 // **ורק** כשיש IntersectionObserver והמשתמש לא ביקש פחות תנועה — כלומר
 // אותו קוד שמסתיר מתחייב גם לחשוף. בלעדיו האלמנט פשוט מוצג במלואו.
-export function useRevealOnView<T extends HTMLElement>(threshold = 0.25) {
+// repeat=false — פעם אחת ודי (מד הטריות: הנסיעה מספרת סיפור שנאמר כבר).
+// repeat=true  — הנפשה בכל כניסה לתצוגה (הגרפים במסך הנתונים).
+//
+// היסטרזיס: **נחשף** כשרבע מהאלמנט בתוך המסך, אבל **מתאפס** רק כשהוא יצא
+// לגמרי. בלי זה גרף שיושב בדיוק על גבול המסך היה מהבהב בכל תזוזת גלילה
+// קטנה, ואיפוס בזמן שהוא עדיין נראה היה מראה אותו נמחק מול העיניים.
+export function useRevealOnView<T extends HTMLElement>({ repeat = false, threshold = 0.25 } = {}) {
   const ref = useRef<T | null>(null);
   const [revealed, setRevealed] = useState(false);
 
@@ -251,30 +257,44 @@ export function useRevealOnView<T extends HTMLElement>(threshold = 0.25) {
       setRevealed(true);
       return;
     }
+    const show = () => {
+      if (el.dataset.reveal === 'in') return; // כתיבה חוזרת לא מריצה מחדש
+      el.dataset.reveal = 'in';
+      setRevealed(true);
+    };
+    const hide = () => {
+      if (el.dataset.reveal === 'pending') return;
+      el.dataset.reveal = 'pending';
+      setRevealed(false);
+    };
+
     // כבר בתצוגה ברגע הרכיבה? מנפישים מיד, בלי לחכות למסירה הראשונה של
     // ה-observer. זה גם מה שמגן על התוכן שמעל הקיפול: IntersectionObserver
     // לא מוסר קריאות כשהדף אינו מצויר (טאב מוסתר, headless), והבדיקה
     // הסינכרונית כאן לא תלויה בזה.
     const rect = el.getBoundingClientRect();
     const vh = window.innerHeight || document.documentElement.clientHeight;
-    if (rect.bottom > 0 && rect.top < vh * 0.9) {
-      el.dataset.reveal = 'in';
-      setRevealed(true);
-      return;
-    }
-    el.dataset.reveal = 'pending';
+    const visibleNow = rect.bottom > 0 && rect.top < vh * 0.9;
+    if (visibleNow) show();
+    else hide();
+    if (visibleNow && !repeat) return; // אין מה לצפות יותר
+
     const io = new IntersectionObserver(
       (entries) => {
-        if (!entries.some((e) => e.isIntersecting)) return;
-        el.dataset.reveal = 'in';
-        setRevealed(true);
-        io.unobserve(el); // פעם אחת בלבד — גלילה חזרה לא מריצה שוב
+        for (const e of entries) {
+          if (e.intersectionRatio >= threshold) {
+            show();
+            if (!repeat) io.unobserve(el);
+          } else if (repeat && !e.isIntersecting) {
+            hide();
+          }
+        }
       },
-      { threshold },
+      { threshold: [0, threshold] },
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [threshold]);
+  }, [repeat, threshold]);
 
   return { ref, revealed };
 }

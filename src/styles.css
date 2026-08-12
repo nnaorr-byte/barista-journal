@@ -1216,15 +1216,24 @@ table.data th { color: var(--text-muted); font-weight: 700; font-size: 0.75rem; 
 }
 .chart-axis { animation: chart-fade 0.3s ease-out 0.18s backwards; }
 
-/* ---- חשיפה בגלילה ---- */
-/* גרף מתחת לקו הקיפול סיים להנפיש את עצמו לפני שהעין הגיעה אליו. ה-hook
-   מסמן `pending` לפני הציור הראשון והופך ל-`in` כשהגרף נכנס לתצוגה;
-   כאן רק עוצרים ומשחררים את הפעלת האנימציה. ה-fill מסוג backwards מחזיק
-   בינתיים את מצב ה-from, ולכן העצירה היא "עוד לא צויר" ולא "חצי מצויר".
-   בלי המאפיין בכלל (בלי JS, בלי IntersectionObserver, reduced-motion)
-   האנימציה רצה בכניסה כמו קודם — לעולם לא נשארת עצורה. */
-.chart-wrap[data-reveal='pending'] * { animation-play-state: paused; }
-.chart-wrap[data-reveal='in'] * { animation-play-state: running; }
+/* ---- חשיפה בגלילה, בכל כניסה מחדש ---- */
+/* ה-hook מסמן `pending` כשהגרף מחוץ למסך ו-`in` כשהוא נכנס. המעבר
+   מאפס את `animation-name`, וזה מה שמריץ את האנימציה **מחדש** בכל כניסה —
+   `animation-play-state: paused` היה עוצר, אבל אנימציה שכבר הסתיימה לא
+   מתאפסת מעצירה, ולכן היא לא מספיקה כאן.
+   מכיוון שאין אנימציה במצב `pending`, אין גם `backwards` שיחזיק את מצב
+   ההתחלה — ולכן הוא נכתב במפורש למטה. זה מותר כאן, ורק כאן, כי אותו hook
+   שכותב `pending` הוא זה שמתחייב לכתוב `in` (ראה "מי שמסתיר מתחייב
+   לחשוף"). בלי המאפיין בכלל — בלי JS, בלי IntersectionObserver או
+   ב-reduced-motion — הגרף מוצג במלואו. */
+.chart-wrap[data-reveal='pending'] * { animation-name: none; }
+.chart-wrap[data-reveal='pending'] .chart-line { stroke-dashoffset: 1; }
+.chart-wrap[data-reveal='pending'] .chart-dot { opacity: 0; transform: scale(0.4); }
+.chart-wrap[data-reveal='pending'] .chart-bar-x { transform: scaleX(0); }
+.chart-wrap[data-reveal='pending'] .chart-bar-y { transform: scaleY(0); }
+.chart-wrap[data-reveal='pending'] .chart-ink,
+.chart-wrap[data-reveal='pending'] .chart-axis,
+.chart-wrap[data-reveal='pending'] .chart-line-overlay { opacity: 0; }
 
 /* ---- מד הטריות: מתמלא, ואז הסמן נוסע ליום הנוכחי ---- */
 /* אותה שפה של הגרפים, שתי תנועות בלבד:

@@ -59,8 +59,9 @@ export function LineChart({
   overlayLabel?: string;
   markers?: ChartMarker[];
 }) {
+  // repeat: הגרף מנפיש את עצמו בכל כניסה לתצוגה, לא רק בראשונה.
   // ה-hook חייב לרוץ לפני כל return מוקדם — כלל ההוקים של React
-  const reveal = useRevealOnView<HTMLDivElement>();
+  const reveal = useRevealOnView<HTMLDivElement>({ repeat: true });
   if (points.length < 2) {
     return <p className="muted small">צריך לפחות 2 שוטים כדי להציג מגמה.</p>;
   }
@@ -180,8 +181,9 @@ export function LineChart({
 }
 
 export function BarChart({ points, unit = '', maxValue }: { points: Point[]; unit?: string; maxValue?: number }) {
+  // repeat: הגרף מנפיש את עצמו בכל כניסה לתצוגה, לא רק בראשונה.
   // ה-hook חייב לרוץ לפני כל return מוקדם — כלל ההוקים של React
-  const reveal = useRevealOnView<HTMLDivElement>();
+  const reveal = useRevealOnView<HTMLDivElement>({ repeat: true });
   if (points.length === 0) return <p className="muted small">אין נתונים עדיין.</p>;
 
   // viewBox צר (312 — רוחב הכרטיס בטלפון) + הגבלת רוחב תצוגה — כך הטקסט
@@ -249,8 +251,9 @@ export function ScatterChart({
   xLabel: string;
   yLabel: string;
 }) {
+  // repeat: הגרף מנפיש את עצמו בכל כניסה לתצוגה, לא רק בראשונה.
   // ה-hook חייב לרוץ לפני כל return מוקדם — כלל ההוקים של React
-  const reveal = useRevealOnView<HTMLDivElement>();
+  const reveal = useRevealOnView<HTMLDivElement>({ repeat: true });
   if (points.length < 2) return <p className="muted small">צריך לפחות 2 שוטים להצגת פיזור.</p>;
 
   const xs = points.map((p) => p.x);
@@ -305,8 +308,9 @@ export function ScatterChart({
 
 // היסטוגרמה אנכית (התפלגות דירוגים 1–10)
 export function Histogram({ bins, unit = '' }: { bins: Point[]; unit?: string }) {
+  // repeat: הגרף מנפיש את עצמו בכל כניסה לתצוגה, לא רק בראשונה.
   // ה-hook חייב לרוץ לפני כל return מוקדם — כלל ההוקים של React
-  const reveal = useRevealOnView<HTMLDivElement>();
+  const reveal = useRevealOnView<HTMLDivElement>({ repeat: true });
   if (bins.every((b) => b.value === 0)) return <p className="muted small">אין נתונים עדיין.</p>;
   const max = Math.max(...bins.map((b) => b.value));
   const iw = W - M.left - M.right;

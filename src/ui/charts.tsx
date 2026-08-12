@@ -8,6 +8,7 @@
 // טאב מוסתר שמקפיא rAF — עדיין מוצג במלואו. ה-stagger נשלט דרך `--i`.
 
 import type { CSSProperties } from 'react';
+import { useRevealOnView } from './components';
 
 // אינדקס הסטאגר לאלמנט. התקרה עצמה יושבת ב-CSS (min(var(--i), N)).
 const stagger = (i: number) => ({ '--i': i }) as CSSProperties;
@@ -58,6 +59,8 @@ export function LineChart({
   overlayLabel?: string;
   markers?: ChartMarker[];
 }) {
+  // ה-hook חייב לרוץ לפני כל return מוקדם — כלל ההוקים של React
+  const reveal = useRevealOnView<HTMLDivElement>();
   if (points.length < 2) {
     return <p className="muted small">צריך לפחות 2 שוטים כדי להציג מגמה.</p>;
   }
@@ -93,7 +96,7 @@ export function LineChart({
     : null;
 
   return (
-    <div className="chart-wrap" dir="ltr">
+    <div className="chart-wrap" dir="ltr" ref={reveal.ref}>
       <svg
         className="chart-svg" viewBox={`0 0 ${W} ${H}`} role="img"
         aria-label={`גרף מגמה, ${points.length} נקודות — ערך אחרון ${points[points.length - 1].value}${unit}`}
@@ -177,6 +180,8 @@ export function LineChart({
 }
 
 export function BarChart({ points, unit = '', maxValue }: { points: Point[]; unit?: string; maxValue?: number }) {
+  // ה-hook חייב לרוץ לפני כל return מוקדם — כלל ההוקים של React
+  const reveal = useRevealOnView<HTMLDivElement>();
   if (points.length === 0) return <p className="muted small">אין נתונים עדיין.</p>;
 
   // viewBox צר (312 — רוחב הכרטיס בטלפון) + הגבלת רוחב תצוגה — כך הטקסט
@@ -191,7 +196,7 @@ export function BarChart({ points, unit = '', maxValue }: { points: Point[]; uni
 
   return (
     // dir=ltr כדי ש-textAnchor יתנהג עקבית; המחרוזות בעברית מוצגות נכון בזכות bidi
-    <div className="chart-wrap" dir="ltr">
+    <div className="chart-wrap" dir="ltr" ref={reveal.ref}>
       <svg
         className="chart-svg" viewBox={`0 0 ${BW} ${height}`} role="img"
         style={{ maxWidth: 380 }}
@@ -244,6 +249,8 @@ export function ScatterChart({
   xLabel: string;
   yLabel: string;
 }) {
+  // ה-hook חייב לרוץ לפני כל return מוקדם — כלל ההוקים של React
+  const reveal = useRevealOnView<HTMLDivElement>();
   if (points.length < 2) return <p className="muted small">צריך לפחות 2 שוטים להצגת פיזור.</p>;
 
   const xs = points.map((p) => p.x);
@@ -264,7 +271,7 @@ export function ScatterChart({
   const yTicks = niceTicks(minY, maxY, 4);
 
   return (
-    <div className="chart-wrap" dir="ltr">
+    <div className="chart-wrap" dir="ltr" ref={reveal.ref}>
       <svg
         className="chart-svg" viewBox={`0 0 ${W} ${H}`} role="img"
         aria-label={`תרשים פיזור: ${yLabel} מול ${xLabel}, ${points.length} שוטים`}
@@ -298,6 +305,8 @@ export function ScatterChart({
 
 // היסטוגרמה אנכית (התפלגות דירוגים 1–10)
 export function Histogram({ bins, unit = '' }: { bins: Point[]; unit?: string }) {
+  // ה-hook חייב לרוץ לפני כל return מוקדם — כלל ההוקים של React
+  const reveal = useRevealOnView<HTMLDivElement>();
   if (bins.every((b) => b.value === 0)) return <p className="muted small">אין נתונים עדיין.</p>;
   const max = Math.max(...bins.map((b) => b.value));
   const iw = W - M.left - M.right;
@@ -306,7 +315,7 @@ export function Histogram({ bins, unit = '' }: { bins: Point[]; unit?: string })
   const gap = iw / bins.length;
 
   return (
-    <div className="chart-wrap" dir="ltr">
+    <div className="chart-wrap" dir="ltr" ref={reveal.ref}>
       <svg
         className="chart-svg" viewBox={`0 0 ${W} ${H}`} role="img"
         aria-label={`היסטוגרמת התפלגות: ${bins.filter((b) => b.value > 0).map((b) => `${b.label}: ${b.value}${unit}`).join(', ')}`}

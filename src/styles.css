@@ -1216,6 +1216,40 @@ table.data th { color: var(--text-muted); font-weight: 700; font-size: 0.75rem; 
 }
 .chart-axis { animation: chart-fade 0.3s ease-out 0.18s backwards; }
 
+/* ---- חשיפה בגלילה ---- */
+/* גרף מתחת לקו הקיפול סיים להנפיש את עצמו לפני שהעין הגיעה אליו. ה-hook
+   מסמן `pending` לפני הציור הראשון והופך ל-`in` כשהגרף נכנס לתצוגה;
+   כאן רק עוצרים ומשחררים את הפעלת האנימציה. ה-fill מסוג backwards מחזיק
+   בינתיים את מצב ה-from, ולכן העצירה היא "עוד לא צויר" ולא "חצי מצויר".
+   בלי המאפיין בכלל (בלי JS, בלי IntersectionObserver, reduced-motion)
+   האנימציה רצה בכניסה כמו קודם — לעולם לא נשארת עצורה. */
+.chart-wrap[data-reveal='pending'] * { animation-play-state: paused; }
+.chart-wrap[data-reveal='in'] * { animation-play-state: running; }
+
+/* ---- מד הטריות: מתמלא, ואז הסמן נוסע ליום הנוכחי ---- */
+/* אותה שפה של הגרפים, שתי תנועות בלבד:
+   1. חלון הטריות גדל מתחילתו ב-scaleX — transform, לא width.
+   2. הסמן מקבל את המיקום האמיתי רק אחרי החשיפה, וה-transition שעליו
+      נושא אותו מיום 0 עד היום. זו הנסיעה שמלמדת שהפס הוא ציר זמן.
+   האנימציה מוצהרת רק כשיש `data-reveal`, כלומר רק כשה-hook התחייב
+   לחשוף. בלי JS, בלי IntersectionObserver או ב-reduced-motion — הפס
+   פשוט מוצג במלואו, בלי הצהרת אנימציה בכלל. */
+.fresh-window,
+.fresh-bar-fill { transform-origin: left center; }
+.fresh-track[data-reveal] .fresh-window,
+[data-reveal] > .fresh-bar-fill {
+  animation: chart-grow-x 0.5s var(--ease-out-quart) backwards;
+}
+.fresh-track[data-reveal='pending'] .fresh-window,
+[data-reveal='pending'] > .fresh-bar-fill { animation-play-state: paused; }
+.fresh-track[data-reveal='in'] .fresh-window,
+[data-reveal='in'] > .fresh-bar-fill { animation-play-state: running; }
+/* נסיעת הסמן — אותו transition משמש גם לחשיפה (יום 0 → היום) וגם להחלקה
+   בהחלפת שקית. inset-inline-start על אלמנט absolute לא מזיז אף אח, ו-transform
+   לא יכול לבטא אחוז מרוחב המסילה. הרוחב והחלון נשארים סטטיים בכוונה. */
+.fresh-today { transition: inset-inline-start 0.5s var(--ease-out-quart); }
+.fresh-dot { transition: left 0.5s var(--ease-out-quart); }
+
 /* ---- שלד טעינה ---- */
 /* סריקת גרדיאנט על background-position, לא opacity — עמעום קבוע על
    אלמנטים חוזרים בתוך תוכן נגלל הוא בדיוק העלות שמסיטה את ה-chrome ב-iOS. */
@@ -1236,12 +1270,6 @@ table.data th { color: var(--text-muted); font-weight: 700; font-size: 0.75rem; 
 }
 .skeleton-card { display: flex; flex-direction: column; gap: 9px; }
 .skeleton-card .stat-tile { display: flex; flex-direction: column; align-items: center; gap: 7px; }
-
-/* ---- סמן "היום" בפס הטריות: מחליק למקומו ---- */
-/* inset-inline-start על אלמנט absolute — לא מזיז אף אח, ו-transform לא
-   יכול לבטא אחוז מרוחב המסילה. הרוחב והחלון נשארים סטטיים בכוונה. */
-.fresh-today { transition: inset-inline-start 0.32s var(--spring); }
-.fresh-dot { transition: left 0.32s var(--spring); }
 
 /* ---- אריח הטחינה: הבזק חד-פעמי כשההמלצה מזיזה אותו ---- */
 /* ה-JSX נותן לאריח key לפי ערך הטחינה, כך שהאלמנט נבנה מחדש כשהערך

@@ -11,10 +11,27 @@ import { computeAgingSlope, computePrepTightness, computeRepeatability, prepTigh
 import { makePersonalWindowResolver } from '../services/targetWindow';
 import { nextShotRecommendation } from '../services/nextShot';
 import type { RoastLevel, Shot } from '../domain/types';
-import { CountUp, DialInLadder, StatTile, EmptyState, ScreenSkeleton } from './components';
+import { CountUp, DialInLadder, StatTile, EmptyState, ScreenSkeleton, useRevealOnView } from './components';
 import { ratingClass } from './labels';
 import { BeanIcon, ChevronDownIcon, CupIcon, LeafIcon, SaveIcon, SoapIcon, TargetIcon, TrendDownIcon, TrendIcon, WarnIcon } from './icons';
 import type { Screen } from '../App';
+
+// מסילת הטריות. רכיב נפרד ולא JSX בתוך ה-IIFE, כי הוא מריץ hook — וגם
+// כי החשיפה שלו היא שלו: החלון גדל מתחילתו, ואז הסמן נוסע מיום 0 עד היום.
+function FreshTrack({ windowStart, windowWidth, todayAt }: {
+  windowStart: string;
+  windowWidth: string;
+  todayAt: string;
+}) {
+  const { ref, revealed } = useRevealOnView<HTMLDivElement>();
+  return (
+    <div className="fresh-track" ref={ref}>
+      <div className="fresh-window" style={{ insetInlineStart: windowStart, width: windowWidth }} />
+      {/* לפני החשיפה הסמן יושב על יום 0; ה-transition עושה את הנסיעה */}
+      <div className="fresh-today" style={{ insetInlineStart: revealed ? todayAt : '0%' }} />
+    </div>
+  );
+}
 
 // ===== שכבת ההתראות =====
 // התראה אחת מוצגת במלואה (הראשונה בסולם העדיפות), היתר נספרות ב-+N.
@@ -438,13 +455,11 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
               const past = bagAge > freshWindow.to;
               return (
                 <div className="fresh-bar">
-                  <div className="fresh-track">
-                    <div
-                      className="fresh-window"
-                      style={{ insetInlineStart: pct(freshWindow.from), width: pct(freshWindow.to - freshWindow.from) }}
-                    />
-                    <div className="fresh-today" style={{ insetInlineStart: pct(bagAge) }} />
-                  </div>
+                  <FreshTrack
+                    windowStart={pct(freshWindow.from)}
+                    windowWidth={pct(freshWindow.to - freshWindow.from)}
+                    todayAt={pct(bagAge)}
+                  />
                   {/* "הטווח שלך" כשהוא נגזר מהיומן, "טווח מומלץ" כשזה החלון המקצועי —
                       אחרת המספר נראה חיצוני, בזמן שהוא בא מהשוטים של נאור עצמו */}
                   <span className="small fresh-label" style={{ color: past ? 'var(--warn)' : 'var(--good)' }}>

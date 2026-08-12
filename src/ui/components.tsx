@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Shot } from '../domain/types';
 import { dialInStepLine } from './labels';
@@ -229,6 +229,54 @@ export function CountUp({ value, decimals, prefix = '', suffix = '', duration = 
     return () => cancelAnimationFrame(raf);
   }, [value, duration]);
   return <>{prefix}{display.toFixed(dec)}{suffix}</>;
+}
+
+// ---- חשיפה בגלילה ----
+// גרף שיושב מתחת לקו הקיפול סיים להנפיש את עצמו לפני שהעין הגיעה אליו.
+// ההנפשה כאן היא חשיפת נתונים ולא קישוט, ולכן היא צריכה לרוץ ברגע שהגרף
+// נכנס לתצוגה — לא ברגע שהוא נכנס ל-DOM.
+//
+// המצב "מחכה" נכתב ל-DOM ב-useLayoutEffect (לפני הציור הראשון, בלי הבהוב)
+// **ורק** כשיש IntersectionObserver והמשתמש לא ביקש פחות תנועה — כלומר
+// אותו קוד שמסתיר מתחייב גם לחשוף. בלעדיו האלמנט פשוט מוצג במלואו.
+export function useRevealOnView<T extends HTMLElement>(threshold = 0.25) {
+  const ref = useRef<T | null>(null);
+  const [revealed, setRevealed] = useState(false);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced || typeof IntersectionObserver === 'undefined') {
+      setRevealed(true);
+      return;
+    }
+    // כבר בתצוגה ברגע הרכיבה? מנפישים מיד, בלי לחכות למסירה הראשונה של
+    // ה-observer. זה גם מה שמגן על התוכן שמעל הקיפול: IntersectionObserver
+    // לא מוסר קריאות כשהדף אינו מצויר (טאב מוסתר, headless), והבדיקה
+    // הסינכרונית כאן לא תלויה בזה.
+    const rect = el.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    if (rect.bottom > 0 && rect.top < vh * 0.9) {
+      el.dataset.reveal = 'in';
+      setRevealed(true);
+      return;
+    }
+    el.dataset.reveal = 'pending';
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        el.dataset.reveal = 'in';
+        setRevealed(true);
+        io.unobserve(el); // פעם אחת בלבד — גלילה חזרה לא מריצה שוב
+      },
+      { threshold },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [threshold]);
+
+  return { ref, revealed };
 }
 
 // ---- שלד טעינה ----

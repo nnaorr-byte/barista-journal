@@ -5,7 +5,7 @@ import { bagRepo, beanRepo } from '../db/repositories';
 import { computeBagUsage } from '../services/stats';
 import { computeFreshness, formatDeadline, resolveRoastType } from '../services/freshness';
 import type { Bag, Bean, RoastLevel, RoastType, Shot } from '../domain/types';
-import { ConfirmButton, CountUp, EmptyState, Field, ScreenSkeleton, StatTile } from './components';
+import { ConfirmButton, CountUp, EmptyState, Field, ScreenSkeleton, StatTile, useRevealOnView } from './components';
 import { ROAST_LEVELS, formatDate, ratingClass } from './labels';
 import { BeanIcon, CalendarIcon, PlusIcon, SaveIcon, TrashIcon, UndoIcon, WarnIcon } from './icons';
 
@@ -38,17 +38,21 @@ function FreshnessBar({ ageDays, scaleDays, clock }: {
 }) {
   const opened = clock === 'opened';
   const pct = Math.max(0, Math.min(100, (ageDays / scaleDays) * 100));
+  // חשיפה בגלילה: המסילה נמשכת מיום 0 (scaleX על fresh-bar-fill), ואז
+  // הסמן נוסע ליום הנוכחי. אותה שפה של הגרפים במסך הנתונים.
+  const { ref, revealed } = useRevealOnView<HTMLDivElement>();
   return (
     <div style={{ margin: '6px 0' }} dir="ltr">
-      <div style={{
-        position: 'relative', height: 6, borderRadius: 999,
-        background: opened ? OPENED_GRADIENT : ROAST_GRADIENT,
-        opacity: 0.55,
-      }}>
+      <div ref={ref} style={{ position: 'relative', height: 6, borderRadius: 999 }}>
+        <div className="fresh-bar-fill" style={{
+          position: 'absolute', inset: 0, borderRadius: 999,
+          background: opened ? OPENED_GRADIENT : ROAST_GRADIENT,
+          opacity: 0.55,
+        }} />
         {/* fresh-dot נושא transition על left — הסמן מחליק למקומו כשמחליפים
             שקית, כך שהפס נקרא כציר זמן ולא כגרפיקה סטטית */}
         <div className="fresh-dot" style={{
-          position: 'absolute', top: '50%', left: `${pct}%`,
+          position: 'absolute', top: '50%', left: `${revealed ? pct : 0}%`,
           width: 12, height: 12, borderRadius: '50%',
           background: 'var(--crema)', border: '2px solid var(--bg-elevated)',
           transform: 'translate(-50%, -50%)', boxShadow: '0 0 6px rgba(0,0,0,0.4)',

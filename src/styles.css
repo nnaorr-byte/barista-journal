@@ -72,6 +72,8 @@
   --speed: 0.22s;
   /* ease-out-quint — האטה חלקה בלי קפיצת overshoot */
   --spring: cubic-bezier(0.22, 1, 0.36, 1);
+  /* ease-out-quart — רכה מעט מ-quint, לציור ארוך יותר (גרפים) */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 /* ---- מצב בהיר (לאטה זכוכית) ---- */
@@ -1159,6 +1161,98 @@ table.data th { color: var(--text-muted); font-weight: 700; font-size: 0.75rem; 
 .cat-swap > *:nth-child(3) { animation-delay: 90ms; }
 .cat-swap > *:nth-child(4) { animation-delay: 135ms; }
 .cat-swap > *:nth-child(n+5) { animation-delay: 180ms; }
+/* סטאגר בתוך סטאגר: הכרטיס כבר נכנס מדורג, ואריחי הסטטיסטיקה שבתוכו
+   הריצו כוריאוגרפיה שנייה על אותו תוכן. ההורה מנצח, האריחים נכנסים איתו. */
+.cat-swap .stat-tile,
+.scope-swap .stat-tile { animation: none; }
+
+/* ---- החלפת הפולים בניתוח: הצלבה, לא כניסה מחדש ---- */
+/* החלפת קטגוריה מחליפה אילו כרטיסים מוצגים ולכן מצדיקה כניסה מדורגת.
+   החלפת פולים משאירה את אותם כרטיסים ומחליפה את *המשמעות* של המספרים —
+   דהייה קצרה אחת אומרת "תמונה אחרת" בלי להזיז תוכן שנקרא ברגע זה. */
+@keyframes scope-fade {
+  from { opacity: 0.25; }
+}
+.scope-swap { animation: scope-fade 0.18s ease-out; }
+
+/* ---- גרפים שמציירים את עצמם ---- */
+/* מצב המנוחה של כל אלמנט הוא המצב הסופי (הקו מצויר, הבר מלא), והאנימציה
+   רק מגיעה אליו מהתחלה אחרת — כך גרף שהאנימציה שלו לא רצה עדיין קריא. */
+@keyframes chart-draw { from { stroke-dashoffset: 1; } }
+@keyframes chart-grow-x { from { transform: scaleX(0); } }
+@keyframes chart-grow-y { from { transform: scaleY(0); } }
+@keyframes chart-fade { from { opacity: 0; } }
+@keyframes chart-dot-in { from { opacity: 0; transform: scale(0.4); } }
+
+/* pathLength="1" מנרמל את אורך הקו ל-1, ולכן אין צורך למדוד אותו ב-JS */
+.chart-line {
+  stroke-dasharray: 1;
+  animation: chart-draw 0.62s var(--ease-out-quart) backwards;
+}
+.chart-line-overlay { animation: chart-fade 0.3s ease-out 0.34s backwards; }
+.chart-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: chart-dot-in 0.24s var(--spring) backwards;
+  animation-delay: calc(min(var(--i, 0), 14) * 26ms);
+}
+/* בר אופקי ב-RTL גדל מימין לשמאל; אנכי גדל מהבסיס. transform ולא width/height. */
+.chart-bar-x {
+  transform-box: fill-box;
+  transform-origin: right center;
+  animation: chart-grow-x 0.46s var(--ease-out-quart) backwards;
+  animation-delay: calc(min(var(--i, 0), 10) * 45ms);
+}
+.chart-bar-y {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+  animation: chart-grow-y 0.42s var(--ease-out-quart) backwards;
+  animation-delay: calc(min(var(--i, 0), 10) * 34ms);
+}
+/* תוויות ערך — נכנסות אחרי הצורה שהן מתארות */
+.chart-ink {
+  animation: chart-fade 0.26s ease-out backwards;
+  animation-delay: calc(0.2s + min(var(--i, 0), 10) * 40ms);
+}
+.chart-axis { animation: chart-fade 0.3s ease-out 0.18s backwards; }
+
+/* ---- שלד טעינה ---- */
+/* סריקת גרדיאנט על background-position, לא opacity — עמעום קבוע על
+   אלמנטים חוזרים בתוך תוכן נגלל הוא בדיוק העלות שמסיטה את ה-chrome ב-iOS. */
+@keyframes skeleton-sweep {
+  to { background-position: -200% 0; }
+}
+.skeleton {
+  display: block;
+  background:
+    linear-gradient(
+      90deg,
+      var(--bg-elevated) 0%,
+      color-mix(in srgb, var(--accent) 9%, var(--bg-elevated)) 50%,
+      var(--bg-elevated) 100%
+    );
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.2s ease-in-out infinite;
+}
+.skeleton-card { display: flex; flex-direction: column; gap: 9px; }
+.skeleton-card .stat-tile { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+
+/* ---- סמן "היום" בפס הטריות: מחליק למקומו ---- */
+/* inset-inline-start על אלמנט absolute — לא מזיז אף אח, ו-transform לא
+   יכול לבטא אחוז מרוחב המסילה. הרוחב והחלון נשארים סטטיים בכוונה. */
+.fresh-today { transition: inset-inline-start 0.32s var(--spring); }
+.fresh-dot { transition: left 0.32s var(--spring); }
+
+/* ---- אריח הטחינה: הבזק חד-פעמי כשההמלצה מזיזה אותו ---- */
+/* ה-JSX נותן לאריח key לפי ערך הטחינה, כך שהאלמנט נבנה מחדש כשהערך
+   משתנה — וזה מה שמריץ את האנימציה שוב. box-shadow בלבד, בלי layout. */
+@keyframes tile-settle {
+  from {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 34%, transparent);
+    border-color: var(--accent-strong);
+  }
+}
+.verify-tile.changed { animation: tile-settle 0.42s var(--ease-out-quart); }
 
 /* ---- יציאת טוסט הביטול: מהירה מהכניסה (כלל ה-75%) ---- */
 @keyframes toast-out {
@@ -1441,6 +1535,10 @@ button.alert-toggle {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    /* בלי איפוס ההשהיה, אנימציית backwards מחזיקה את מצב ה-from (שקוף)
+       לאורך כל ההשהיה — כלומר תוכן נעלם למי שביקש פחות תנועה. */
+    animation-delay: 0s !important;
+    transition-delay: 0s !important;
   }
 }
 

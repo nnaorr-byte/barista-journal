@@ -5,7 +5,7 @@ import { bagRepo, beanRepo } from '../db/repositories';
 import { computeBagUsage } from '../services/stats';
 import { computeFreshness, formatDeadline, resolveRoastType } from '../services/freshness';
 import type { Bag, Bean, RoastLevel, RoastType, Shot } from '../domain/types';
-import { ConfirmButton, CountUp, EmptyState, Field, StatTile } from './components';
+import { ConfirmButton, CountUp, EmptyState, Field, ScreenSkeleton, StatTile } from './components';
 import { ROAST_LEVELS, formatDate, ratingClass } from './labels';
 import { BeanIcon, CalendarIcon, PlusIcon, SaveIcon, TrashIcon, UndoIcon, WarnIcon } from './icons';
 
@@ -45,7 +45,9 @@ function FreshnessBar({ ageDays, scaleDays, clock }: {
         background: opened ? OPENED_GRADIENT : ROAST_GRADIENT,
         opacity: 0.55,
       }}>
-        <div style={{
+        {/* fresh-dot נושא transition על left — הסמן מחליק למקומו כשמחליפים
+            שקית, כך שהפס נקרא כציר זמן ולא כגרפיקה סטטית */}
+        <div className="fresh-dot" style={{
           position: 'absolute', top: '50%', left: `${pct}%`,
           width: 12, height: 12, borderRadius: '50%',
           background: 'var(--crema)', border: '2px solid var(--bg-elevated)',
@@ -78,7 +80,7 @@ export function BeansScreen() {
   // "תעודת סיום" לשקית שסומנה כרגע כנגמרה
   const [farewellBagId, setFarewellBagId] = useState<string | null>(null);
 
-  if (!data) return null;
+  if (!data) return <ScreenSkeleton cards={3} tiles={0} />;
   const { beans, bags, shots } = data;
 
   // סדר הרשימה: הפולים של השוט האחרון ראשונים. lastUsedAt נגזר מהשוטים

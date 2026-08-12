@@ -4,7 +4,7 @@ import { db } from '../db/database';
 import { weeklySummary, weeksBackWithData, TARGET_RATING } from '../services/stats';
 import { makePersonalWindowResolver } from '../services/targetWindow';
 import { shotRatio } from '../domain/types';
-import { StatTile } from './components';
+import { ScreenSkeleton, StatTile } from './components';
 import { formatDateTime, ratingClass, shotWeights } from './labels';
 import { BulbIcon, ChartIcon, TargetIcon, TrendIcon, TrophyIcon } from './icons';
 
@@ -38,7 +38,7 @@ export function WeeklySummaryScreen() {
   });
   const [offset, setOffset] = useState(0);
 
-  if (!data) return null;
+  if (!data) return <ScreenSkeleton cards={2} tiles={4} />;
   const { shots, beans, bags } = data;
   const beanMap = new Map(beans.map((b) => [b.id, b]));
 

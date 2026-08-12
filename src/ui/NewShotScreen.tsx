@@ -12,7 +12,7 @@ import { analyzable } from '../services/shotFilter';
 import type {
   Bag, DialInSession, MachineTempSetting, QualityLevel, Shot, ShotRecommendation, TasteTag,
 } from '../domain/types';
-import { Chips, DialInLadder, Field, RatingPicker, StatTile, VsPreviousPicker } from './components';
+import { Chips, DialInLadder, Field, RatingPicker, ScreenSkeleton, StatTile, VsPreviousPicker } from './components';
 import { QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS } from './labels';
 import { BoltIcon, BrainIcon, BulbIcon, CheckIcon, ChevronDownIcon, ClipboardIcon, CupIcon, PlusIcon, SaveIcon, StarIcon, TargetIcon, TimerIcon, TrophyIcon, WarnIcon } from './icons';
 import { Celebration } from './Celebration';
@@ -256,7 +256,7 @@ export function NewShotScreen({ navigate }: { navigate: (s: Screen) => void }) {
     prevStepRef.current = step;
   }, [step]);
 
-  if (!data) return null;
+  if (!data) return <ScreenSkeleton cards={2} tiles={0} />;
   const { user, beans, bags, shots, machines, grinders, sessions } = data;
   const machine = machines.find((m) => m.isDefault) ?? machines[0];
 

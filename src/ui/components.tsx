@@ -180,8 +180,13 @@ export function EmptyState({ icon, text, hint }: { icon: ReactNode; text: string
   );
 }
 
-// מספר שנספר למעלה בכניסה למסך (~0.6 שניות, ease-out).
+// מספר שנספר אל הערך החדש. בכניסה למסך — מאפס (~0.6 שניות, ease-out-quart);
+// אחר כך **מהערך שהוצג עד עכשיו**, ב-260ms. הגרסה הקודמת התחילה תמיד מאפס,
+// ולכן שוט חדש שהזיז ממוצע מ-8.4 ל-8.6 הפיל את המספר ל-0.0 והטיס אותו חזרה —
+// זה נקרא "הנתונים נטענים מחדש", לא "הערך השתנה".
 // מכבד "הפחתת תנועה" — במצב כזה מציג את הערך הסופי מיד.
+const UPDATE_MS = 260; // שינוי ערך חי — טווח ה-150–250ms של שינויי מצב
+
 export function CountUp({ value, decimals, prefix = '', suffix = '', duration = 600 }: {
   value: number;
   decimals?: number;
@@ -190,25 +195,91 @@ export function CountUp({ value, decimals, prefix = '', suffix = '', duration = 
   duration?: number;
 }) {
   const dec = decimals ?? (Number.isInteger(value) ? 0 : 1);
-  const [display, setDisplay] = useState(() =>
-    matchMedia('(prefers-reduced-motion: reduce)').matches ? value : 0);
+  const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const [display, setDisplay] = useState(() => (reduced() ? value : 0));
+  // המספר שמוצג ברגע זה. אנימציה שנקטעת באמצע ממשיכה מכאן ולא קופצת.
+  const fromRef = useRef(reduced() ? value : 0);
+  const mountedRef = useRef(false);
+
   useEffect(() => {
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (reduced()) {
+      fromRef.current = value;
+      setDisplay(value);
+      return;
+    }
+    const from = fromRef.current;
+    const ms = mountedRef.current ? UPDATE_MS : duration;
+    mountedRef.current = true;
+    if (from === value) {
       setDisplay(value);
       return;
     }
     let raf = 0;
     const start = performance.now();
     const tick = (now: number) => {
-      const t = Math.min((now - start) / duration, 1);
+      const t = Math.min((now - start) / ms, 1);
       const eased = 1 - Math.pow(1 - t, 4); // ease-out-quart
-      setDisplay(value * eased);
+      const current = from + (value - from) * eased;
+      fromRef.current = current;
+      setDisplay(current);
       if (t < 1) raf = requestAnimationFrame(tick);
+      else fromRef.current = value;
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [value, duration]);
   return <>{prefix}{display.toFixed(dec)}{suffix}</>;
+}
+
+// ---- שלד טעינה ----
+// useLiveQuery מחזיר undefined בפריים הראשון. בלי שלד המסך ריק ואז קופץ
+// לתוכן מלא — בטלפון עם DB אמיתי זה הבהוב. השלד שומר את הצורה של מה שבא.
+export function Skeleton({ height = 16, width = '100%', radius = 8 }: {
+  height?: number | string;
+  width?: number | string;
+  radius?: number;
+}) {
+  return (
+    <span
+      className="skeleton"
+      aria-hidden="true"
+      style={{ height, width, borderRadius: radius }}
+    />
+  );
+}
+
+// שלד של כרטיס: כותרת + כמה שורות. rows=0 לכרטיס כותרת בלבד.
+export function SkeletonCard({ rows = 3, tiles = 0 }: { rows?: number; tiles?: number }) {
+  return (
+    <div className="card skeleton-card" aria-hidden="true">
+      <Skeleton height={20} width="42%" />
+      {tiles > 0 && (
+        <div className="stat-grid" style={{ marginTop: 12 }}>
+          {Array.from({ length: tiles }, (_, i) => (
+            <div key={i} className="stat-tile">
+              <Skeleton height={26} width="60%" />
+              <Skeleton height={11} width="80%" />
+            </div>
+          ))}
+        </div>
+      )}
+      {Array.from({ length: rows }, (_, i) => (
+        <Skeleton key={i} height={13} width={i === rows - 1 ? '58%' : '100%'} />
+      ))}
+    </div>
+  );
+}
+
+// מסך בטעינה: כותרת + N כרטיסים. `aria-busy` כדי שקורא מסך לא יקריא שלד.
+export function ScreenSkeleton({ cards = 2, tiles = 4 }: { cards?: number; tiles?: number }) {
+  return (
+    <div aria-busy="true" role="status" aria-label="טוען נתונים">
+      <SkeletonCard rows={1} tiles={tiles} />
+      {Array.from({ length: Math.max(0, cards - 1) }, (_, i) => (
+        <SkeletonCard key={i} rows={3} />
+      ))}
+    </div>
+  );
 }
 
 // כפתור אישור דו-שלבי — תחליף עקבי ל-confirm() הנטיבי של הדפדפן.

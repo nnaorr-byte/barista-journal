@@ -6,7 +6,7 @@ import {
   type Bag, type Bean, type DialInSession, type Grinder, type Shot,
 } from '../domain/types';
 import { BarChart, LineChart, ScatterChart, Histogram, type Point, type ScatterPoint } from './charts';
-import { CountUp, Field, StatTile, EmptyState } from './components';
+import { CountUp, Field, StatTile, EmptyState, ScreenSkeleton } from './components';
 import { computeWinningWindow, shotAgeRatings } from '../services/freshness';
 import { auditAllAdvice } from '../services/adviceAudit';
 import { analyzeRecurringProblems } from '../services/recurringProblems';
@@ -743,8 +743,11 @@ export function AnalyticsScreen() {
   // מסנן פולים. null = טרם נבחר, ולכן ברירת המחדל: הפולים שבשימוש עכשיו.
   // '' = כל הפולים. אחרת מזהה פולים ספציפיים.
   const [scope, setScope] = useState<string | null>(null);
+  // איזו החלפה הובילה לרינדור הזה — קובע את התנועה, ולכן נקבע במקום שבו
+  // ההחלפה קורית ולא נגזר מ-ref בזמן רינדור (StrictMode מרנדר פעמיים).
+  const [swap, setSwap] = useState<'cat' | 'scope'>('cat');
 
-  if (!data) return null;
+  if (!data) return <ScreenSkeleton cards={3} tiles={4} />;
   const { shots, grinders, beans, bags, sessions } = data;
 
   if (wrapped) {
@@ -871,7 +874,7 @@ export function AnalyticsScreen() {
               type="button"
               className={`chip ${cat === c.value ? 'selected' : ''}`}
               aria-pressed={cat === c.value}
-              onClick={() => setCat(c.value)}
+              onClick={() => { setSwap('cat'); setCat(c.value); }}
             >
               {c.label}
             </button>
@@ -882,7 +885,7 @@ export function AnalyticsScreen() {
         {beanOptions.length > 1 && (
           <div style={{ marginTop: 12 }}>
             <Field label="הפולים בניתוח">
-              <select value={scopeId} onChange={(e) => setScope(e.target.value)}>
+              <select value={scopeId} onChange={(e) => { setSwap('scope'); setScope(e.target.value); }}>
                 {beanOptions.map(([id, name]) => (
                   <option key={id} value={id}>
                     {name}{id === activeBeanId ? ' — בשימוש עכשיו' : ''}
@@ -905,8 +908,11 @@ export function AnalyticsScreen() {
         )}
       </div>
 
-      {/* הקבוצה המסוננת — key={cat} מפעיל כניסה מדורגת בכל החלפת קטגוריה */}
-      <div className="cat-swap" key={cat}>
+      {/* המפתח כולל גם את הפולים, כדי שהחלפת מסנן תריץ תנועה — אבל לא את
+          אותה תנועה: החלפת קטגוריה מחליפה אילו כרטיסים מוצגים (כניסה
+          מדורגת), החלפת פולים משאירה אותם ומחליפה את משמעות המספרים
+          (הצלבה קצרה, בלי להזיז תוכן שנקרא ברגע זה). */}
+      <div className={swap === 'cat' ? 'cat-swap' : 'scope-swap'} key={`${cat}|${scopeId}`}>
 
       {/* מבט על — ה-Dashboard המלא, מסונן לפולים שנבחרו */}
       {show('overview') && <DashboardScreen beanId={scopeId} />}

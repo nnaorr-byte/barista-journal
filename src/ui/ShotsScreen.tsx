@@ -11,7 +11,7 @@ import {
   type AiAdvice, type Bag, type Bean, type DialInSession, type Grinder, type MachineTempSetting,
   type QualityLevel, type Shot, type TasteTag,
 } from '../domain/types';
-import { Chips, EmptyState, Field, RatingPicker } from './components';
+import { Chips, EmptyState, Field, RatingPicker, ScreenSkeleton } from './components';
 import { QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS, VS_PREVIOUS_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
 import { BanIcon, BeanIcon, BrainIcon, ChevronDownIcon, EditIcon, JournalIcon, SaveIcon, ScaleIcon, SearchIcon, StarIcon, TargetIcon, TrashIcon, TrophyIcon, UndoIcon } from './icons';
 
@@ -97,7 +97,7 @@ export function ShotsScreen() {
     [data?.beans, data?.bags],
   );
 
-  if (!data) return null;
+  if (!data) return <ScreenSkeleton cards={4} tiles={0} />;
 
   const filtered = data.shots.filter((s) => {
     if (minRating > 0 && s.rating < minRating) return false;

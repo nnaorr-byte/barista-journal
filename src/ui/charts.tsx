@@ -1,5 +1,16 @@
 // רכיבי גרף SVG קלים, חד-סדרתיים בכוונה: זהות לפי תוויות ציר,
 // לא לפי צבע — כך הגרפים נגישים גם לעיוורי צבעים בלי מקרא.
+//
+// ---- תנועה ----
+// הגרף מצייר את עצמו בכניסה: הקו נמשך, הברים גדלים מהבסיס, הנקודות עולות
+// בסטאגר. הכיתובים והמצב הסופי הם מצב המנוחה של ה-CSS (ה-keyframes מגדיר
+// רק `from`), ולכן גרף שהאנימציה שלו לא רצה — reduced-motion, דפדפן ישן,
+// טאב מוסתר שמקפיא rAF — עדיין מוצג במלואו. ה-stagger נשלט דרך `--i`.
+
+import type { CSSProperties } from 'react';
+
+// אינדקס הסטאגר לאלמנט. התקרה עצמה יושבת ב-CSS (min(var(--i), N)).
+const stagger = (i: number) => ({ '--i': i }) as CSSProperties;
 
 const ACCENT = 'var(--accent)';
 const GRID = 'var(--border)';
@@ -102,7 +113,7 @@ export function LineChart({
           </g>
         )}
         {ticks.map((t) => (
-          <g key={t}>
+          <g key={t} className="chart-axis">
             <line x1={M.left} x2={W - M.right} y1={y(t)} y2={y(t)} stroke={GRID} strokeWidth="1" opacity="0.5" />
             <text x={M.left - 6} y={y(t) + 4} textAnchor="end" fontSize="11" fill={INK_MUTED}>
               {t}
@@ -128,27 +139,33 @@ export function LineChart({
               </g>
             );
           })}
-        <path d={path} fill="none" stroke={ACCENT} strokeWidth="2" strokeLinejoin="round" />
+        {/* pathLength=1 מנרמל את אורך הקו, כך שה-CSS מושך אותו בלי למדוד ב-JS */}
+        <path
+          className="chart-line" pathLength={1}
+          d={path} fill="none" stroke={ACCENT} strokeWidth="2" strokeLinejoin="round"
+        />
         {overlayPath && (
-          <path d={overlayPath} fill="none" stroke={ACCENT} strokeWidth="2" strokeDasharray="6 5" opacity="0.65" strokeLinejoin="round" />
+          /* הממוצע הנע כבר מקווקו — משיכת dash-offset הייתה מתנגשת בו, ולכן דהייה */
+          <path className="chart-line-overlay" d={overlayPath} fill="none" stroke={ACCENT} strokeWidth="2" strokeDasharray="6 5" opacity="0.65" strokeLinejoin="round" />
         )}
         {overlayPath && overlayLabel && (
-          <text x={M.left + 4} y={M.top + 4} fontSize="10" fill={INK_MUTED}>
+          <text className="chart-line-overlay" x={M.left + 4} y={M.top + 4} fontSize="10" fill={INK_MUTED}>
             - - {overlayLabel}
           </text>
         )}
         {points.map((p, i) => (
-          <circle key={i} cx={x(i)} cy={y(p.value)} r="4" fill={ACCENT}>
+          <circle className="chart-dot" style={stagger(i)} key={i} cx={x(i)} cy={y(p.value)} r="4" fill={ACCENT}>
             <title>{`${p.label}: ${p.value}${unit}`}</title>
           </circle>
         ))}
         {xLabelIdx.map((i) => (
-          <text key={i} x={x(i)} y={H - 8} textAnchor="middle" fontSize="11" fill={INK_MUTED}>
+          <text className="chart-axis" key={i} x={x(i)} y={H - 8} textAnchor="middle" fontSize="11" fill={INK_MUTED}>
             {points[i].label}
           </text>
         ))}
         {/* תווית ערך אחרון בלבד — תווית ישירה סלקטיבית */}
         <text
+          className="chart-ink" style={stagger(points.length)}
           x={x(points.length - 1)} y={y(points[points.length - 1].value) - 10}
           textAnchor="middle" fontSize="12" fontWeight="700" fill="var(--text)"
         >
@@ -184,18 +201,20 @@ export function BarChart({ points, unit = '', maxValue }: { points: Point[]; uni
           const barW = Math.max(3, (p.value / max) * barMax);
           const yPos = i * rowH + 5;
           return (
-            <g key={i}>
-              <text x={BW - 4} y={yPos + 14} textAnchor="end" fontSize="13.5" fill="var(--text)">
+            <g key={i} style={stagger(i)}>
+              <text className="chart-axis" x={BW - 4} y={yPos + 14} textAnchor="end" fontSize="13.5" fill="var(--text)">
                 {truncate(p.label, 16)}
               </text>
-              {/* RTL: הבר גדל מימין לשמאל */}
+              {/* RTL: הבר גדל מימין לשמאל — scaleX סביב הקצה הימני, לא width */}
               <rect
+                className="chart-bar-x"
                 x={BW - labelW - 8 - barW} y={yPos} width={barW} height={19} rx="4"
                 fill={ACCENT}
               >
                 <title>{`${p.label}: ${p.value}${unit}`}</title>
               </rect>
               <text
+                className="chart-ink"
                 x={BW - labelW - 13 - barW} y={yPos + 14}
                 textAnchor="end" fontSize="13.5" fontWeight="700" fill="var(--text)"
               >
@@ -251,16 +270,17 @@ export function ScatterChart({
         aria-label={`תרשים פיזור: ${yLabel} מול ${xLabel}, ${points.length} שוטים`}
       >
         {yTicks.map((t) => (
-          <g key={`y${t}`}>
+          <g key={`y${t}`} className="chart-axis">
             <line x1={M.left} x2={W - M.right} y1={py(t)} y2={py(t)} stroke={GRID} strokeWidth="1" opacity="0.5" />
             <text x={M.left - 6} y={py(t) + 4} textAnchor="end" fontSize="11" fill={INK_MUTED}>{t}</text>
           </g>
         ))}
         {xTicks.map((t) => (
-          <text key={`x${t}`} x={px(t)} y={H - 8} textAnchor="middle" fontSize="11" fill={INK_MUTED}>{t}</text>
+          <text className="chart-axis" key={`x${t}`} x={px(t)} y={H - 8} textAnchor="middle" fontSize="11" fill={INK_MUTED}>{t}</text>
         ))}
         {points.map((p, i) => (
           <circle
+            className="chart-dot" style={stagger(i)}
             key={i} cx={px(p.x)} cy={py(p.y)} r={p.highlight ? 7 : 5}
             fill={p.highlight ? ACCENT : 'none'}
             stroke={ACCENT} strokeWidth="2"
@@ -295,8 +315,9 @@ export function Histogram({ bins, unit = '' }: { bins: Point[]; unit?: string })
           const h = max > 0 ? (b.value / max) * ih : 0;
           const cx = M.left + gap * i + gap / 2;
           return (
-            <g key={b.label}>
+            <g key={b.label} style={stagger(i)}>
               <rect
+                className="chart-bar-y"
                 x={cx - barW / 2} y={M.top + ih - h}
                 width={barW} height={Math.max(h, b.value > 0 ? 3 : 0)} rx="4"
                 fill={ACCENT}
@@ -304,11 +325,11 @@ export function Histogram({ bins, unit = '' }: { bins: Point[]; unit?: string })
                 <title>{`${b.label}: ${b.value}${unit}`}</title>
               </rect>
               {b.value > 0 && (
-                <text x={cx} y={M.top + ih - h - 6} textAnchor="middle" fontSize="11" fontWeight="700" fill="var(--text)">
+                <text className="chart-ink" x={cx} y={M.top + ih - h - 6} textAnchor="middle" fontSize="11" fontWeight="700" fill="var(--text)">
                   {b.value}
                 </text>
               )}
-              <text x={cx} y={H - 8} textAnchor="middle" fontSize="11" fill={INK_MUTED}>{b.label}</text>
+              <text className="chart-axis" x={cx} y={H - 8} textAnchor="middle" fontSize="11" fill={INK_MUTED}>{b.label}</text>
             </g>
           );
         })}

@@ -5,7 +5,7 @@ import { computeInsights } from '../services/learning';
 import { roastLabel } from '../services/recommendation';
 import { shotRatio, type RoastLevel, type Shot } from '../domain/types';
 import { BarChart, type Point } from './charts';
-import { CountUp, StatTile, EmptyState } from './components';
+import { CountUp, StatTile, EmptyState, ScreenSkeleton } from './components';
 import { TASTE_LABELS, formatDateTime, ratingClass, shotWeights } from './labels';
 import { BeanIcon, CalendarIcon, ChartIcon, FlameIcon, GearIcon, TasteIcon, TrendDownIcon, TrendIcon, TrophyIcon } from './icons';
 
@@ -25,7 +25,7 @@ export function DashboardScreen({ beanId = '' }: { beanId?: string }) {
     return { shots, beans, grinders };
   });
 
-  if (!data) return null;
+  if (!data) return <ScreenSkeleton cards={2} tiles={4} />;
   const { shots: allShots, beans, grinders } = data;
   const shots = beanId ? allShots.filter((s) => s.beanId === beanId) : allShots;
 

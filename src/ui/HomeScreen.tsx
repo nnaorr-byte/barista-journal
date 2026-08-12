@@ -11,7 +11,7 @@ import { computeAgingSlope, computePrepTightness, computeRepeatability, prepTigh
 import { makePersonalWindowResolver } from '../services/targetWindow';
 import { nextShotRecommendation } from '../services/nextShot';
 import type { RoastLevel, Shot } from '../domain/types';
-import { CountUp, DialInLadder, StatTile, EmptyState } from './components';
+import { CountUp, DialInLadder, StatTile, EmptyState, ScreenSkeleton } from './components';
 import { ratingClass } from './labels';
 import { BeanIcon, ChevronDownIcon, CupIcon, LeafIcon, SaveIcon, SoapIcon, TargetIcon, TrendDownIcon, TrendIcon, WarnIcon } from './icons';
 import type { Screen } from '../App';
@@ -56,7 +56,7 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
     return { user, shots, beans, bags, events, grinders, dialInSessions };
   });
 
-  if (!data) return null;
+  if (!data) return <ScreenSkeleton cards={3} tiles={3} />;
   const { user, shots, beans, bags, events, grinders, dialInSessions } = data;
 
   const greeting = timeGreeting(user?.name);
@@ -496,7 +496,10 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
                 <span className="verify-value">1:{recommendation.ratio.toFixed(1)}</span>
               </div>
               {recommendation.grindSetting !== null && (
-                <div className={`verify-tile${grindDelta !== 0 ? ' changed' : ''}`}>
+                /* key לפי ערך הטחינה: כשההמלצה מזיזה אותו React בונה את
+                   האריח מחדש, וזה מריץ שוב את הבזק ה-tile-settle. בלי זה
+                   האנימציה רצה פעם אחת בלבד, בטעינה הראשונה. */
+                <div key={recommendation.grindSetting} className={`verify-tile${grindDelta !== 0 ? ' changed' : ''}`}>
                   <span className="verify-label">
                     טחינה{grindDelta !== 0 && ` ${grindDelta < 0 ? '‎↓' : '‎↑'}${Math.abs(grindDelta)}`}
                   </span>

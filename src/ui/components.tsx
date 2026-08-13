@@ -251,6 +251,21 @@ function fullyInView(rect: DOMRect | DOMRectReadOnly, top: number, bottom: numbe
   return rect.top >= top - REVEAL_SLACK_PX && rect.bottom <= bottom + REVEAL_SLACK_PX;
 }
 
+// ה-viewport אינו השטח הנראה. הכותרת דביקה למעלה וסרגל הניווט קבוע למטה,
+// ושניהם מכסים תוכן שנמצא "בתוך המסך" מבחינת הדפדפן. בלי הקיזוז הזה גרף
+// שהקצה התחתון שלו יושב מאחורי סרגל הניווט נחשב נראה במלואו, ההנפשה רצה,
+// והמשתמש ראה רק את החלק העליון שלו — בדיוק התחושה של "מתחיל מוקדם מדי".
+// נמדד מה-DOM ולא מקבוע: הגבהים תלויים ב-safe-area של המכשיר.
+function visibleBand() {
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  const bar = document.querySelector('.topbar');
+  const nav = document.querySelector('.bottom-nav');
+  return {
+    top: bar ? Math.max(0, bar.getBoundingClientRect().bottom) : 0,
+    bottom: nav ? Math.min(vh, nav.getBoundingClientRect().top) : vh,
+  };
+}
+
 // repeat=false — פעם אחת ודי (מד הטריות: הנסיעה מספרת סיפור שנאמר כבר).
 // repeat=true  — הנפשה בכל כניסה לתצוגה (הגרפים במסך הנתונים).
 //
@@ -282,37 +297,59 @@ export function useRevealOnView<T extends HTMLElement>({ repeat = false } = {}) 
       setRevealed(false);
     };
 
-    // כבר כולו בתצוגה ברגע הרכיבה? מנפישים מיד, בלי לחכות למסירה הראשונה
-    // של ה-observer. זה גם מה שמגן על התוכן שמעל הקיפול: IntersectionObserver
-    // לא מוסר קריאות כשהדף אינו מצויר (טאב מוסתר, headless), והבדיקה
-    // הסינכרונית כאן לא תלויה בזה.
-    const vh = window.innerHeight || document.documentElement.clientHeight;
-    const visibleNow = fullyInView(el.getBoundingClientRect(), 0, vh);
-    if (visibleNow) show();
-    else hide();
-    if (visibleNow && !repeat) return; // אין מה לצפות יותר
+    let io: IntersectionObserver | null = null;
 
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          // rootBounds חסר בחלק מהדפדפנים כשה-root הוא ה-viewport
-          const top = e.rootBounds?.top ?? 0;
-          const bottom = e.rootBounds?.bottom
-            ?? (window.innerHeight || document.documentElement.clientHeight);
-          if (fullyInView(e.boundingClientRect, top, bottom)) {
-            show();
-            if (!repeat) io.unobserve(el);
-          } else if (repeat && !e.isIntersecting) {
-            hide();
+    // ה-rootMargin מכווץ את שטח הבדיקה לרצועה שבאמת נראית, ובלעדיו היחס
+    // מגיע ל-1 כבר מאחורי סרגל הניווט ואינו משתנה יותר — כלומר אין נקודת
+    // מדידה נוספת בהמשך הגלילה. הוא נקבע ברגע יצירת ה-observer, ולכן
+    // נבנה מחדש בשינוי גודל או סיבוב מסך.
+    const setup = () => {
+      io?.disconnect();
+      const band = visibleBand();
+
+      // כבר כולו ברצועה הנראית ברגע הרכיבה? מנפישים מיד, בלי לחכות למסירה
+      // הראשונה של ה-observer. זה גם מה שמגן על התוכן שמעל הקיפול:
+      // IntersectionObserver לא מוסר קריאות כשהדף אינו מצויר (טאב מוסתר,
+      // headless), והבדיקה הסינכרונית כאן לא תלויה בזה.
+      const visibleNow = fullyInView(el.getBoundingClientRect(), band.top, band.bottom);
+      if (visibleNow) show();
+      else hide();
+      if (visibleNow && !repeat) return; // אין מה לצפות יותר
+
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            // rootBounds כבר מכווץ לפי ה-rootMargin. חסר בחלק מהדפדפנים,
+            // ואז נופלים לרצועה שחושבה בזמן ההתקנה.
+            const top = e.rootBounds?.top ?? band.top;
+            const bottom = e.rootBounds?.bottom ?? band.bottom;
+            if (fullyInView(e.boundingClientRect, top, bottom)) {
+              show();
+              if (!repeat) io?.unobserve(el);
+            } else if (repeat && !e.isIntersecting) {
+              hide();
+            }
           }
-        }
-      },
-      // מדרגות ביניים אינן הסף עצמו — הן רק נקודות דגימה, כדי שהבדיקה
-      // הגאומטרית תיבחן גם באלמנט גבוה שלא מגיע ליחס 1 לעולם.
-      { threshold: [0, 0.25, 0.5, 0.75, 0.95, 1] },
-    );
-    io.observe(el);
-    return () => io.disconnect();
+        },
+        {
+          rootMargin: `-${Math.round(band.top)}px 0px -${Math.round(vh - band.bottom)}px 0px`,
+          // מדרגות ביניים אינן הסף עצמו — הן רק נקודות דגימה, כדי שהבדיקה
+          // הגאומטרית תיבחן גם באלמנט גבוה שלא מגיע ליחס 1 לעולם.
+          threshold: [0, 0.25, 0.5, 0.75, 0.95, 1],
+        },
+      );
+      io.observe(el);
+    };
+
+    setup();
+    window.addEventListener('resize', setup);
+    window.addEventListener('orientationchange', setup);
+    return () => {
+      io?.disconnect();
+      window.removeEventListener('resize', setup);
+      window.removeEventListener('orientationchange', setup);
+    };
   }, [repeat]);
 
   return { ref, revealed };

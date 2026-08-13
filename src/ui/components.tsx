@@ -239,13 +239,27 @@ export function CountUp({ value, decimals, prefix = '', suffix = '', duration = 
 // המצב "מחכה" נכתב ל-DOM ב-useLayoutEffect (לפני הציור הראשון, בלי הבהוב)
 // **ורק** כשיש IntersectionObserver והמשתמש לא ביקש פחות תנועה — כלומר
 // אותו קוד שמסתיר מתחייב גם לחשוף. בלעדיו האלמנט פשוט מוצג במלואו.
+// כמה מרווח נסלח על כל קצה לפני שנחשיב אלמנט כ"לא שלם במסך". בלי זה
+// גרף שהקצה התחתון שלו חורג בפיקסל אחד לא היה מתחיל לעולם.
+const REVEAL_SLACK_PX = 6;
+
+// האם האלמנט **כולו** בתוך המסך. אלמנט גבוה מהמסך לא יכול להיכנס כולו,
+// ולכן עבורו התנאי המקביל הוא שהוא ממלא את המסך מקצה לקצה — אחרת הוא
+// לא היה מונפש לעולם.
+function fullyInView(rect: DOMRect | DOMRectReadOnly, top: number, bottom: number): boolean {
+  if (rect.height > bottom - top) return rect.top <= top && rect.bottom >= bottom;
+  return rect.top >= top - REVEAL_SLACK_PX && rect.bottom <= bottom + REVEAL_SLACK_PX;
+}
+
 // repeat=false — פעם אחת ודי (מד הטריות: הנסיעה מספרת סיפור שנאמר כבר).
 // repeat=true  — הנפשה בכל כניסה לתצוגה (הגרפים במסך הנתונים).
 //
-// היסטרזיס: **נחשף** כשרבע מהאלמנט בתוך המסך, אבל **מתאפס** רק כשהוא יצא
-// לגמרי. בלי זה גרף שיושב בדיוק על גבול המסך היה מהבהב בכל תזוזת גלילה
-// קטנה, ואיפוס בזמן שהוא עדיין נראה היה מראה אותו נמחק מול העיניים.
-export function useRevealOnView<T extends HTMLElement>({ repeat = false, threshold = 0.25 } = {}) {
+// היסטרזיס: **נחשף** רק כשהאלמנט כולו בתוך המסך, אבל **מתאפס** רק כשהוא
+// יצא ממנו לגמרי. קודם הסף לכניסה היה רבע מהאלמנט, ובפועל הגרף רץ ברגע
+// שהכותרת שמעליו נכנסה — הציור הסתיים כשעדיין רק החלק העליון שלו נראה.
+// שני ספים רחוקים גם מונעים הבהוב מתזוזת גלילה קטנה על גבול המסך,
+// ומוודאים שהאיפוס תמיד קורה מחוץ לשדה הראייה ולא מול העיניים.
+export function useRevealOnView<T extends HTMLElement>({ repeat = false } = {}) {
   const ref = useRef<T | null>(null);
   const [revealed, setRevealed] = useState(false);
 
@@ -268,13 +282,12 @@ export function useRevealOnView<T extends HTMLElement>({ repeat = false, thresho
       setRevealed(false);
     };
 
-    // כבר בתצוגה ברגע הרכיבה? מנפישים מיד, בלי לחכות למסירה הראשונה של
-    // ה-observer. זה גם מה שמגן על התוכן שמעל הקיפול: IntersectionObserver
+    // כבר כולו בתצוגה ברגע הרכיבה? מנפישים מיד, בלי לחכות למסירה הראשונה
+    // של ה-observer. זה גם מה שמגן על התוכן שמעל הקיפול: IntersectionObserver
     // לא מוסר קריאות כשהדף אינו מצויר (טאב מוסתר, headless), והבדיקה
     // הסינכרונית כאן לא תלויה בזה.
-    const rect = el.getBoundingClientRect();
     const vh = window.innerHeight || document.documentElement.clientHeight;
-    const visibleNow = rect.bottom > 0 && rect.top < vh * 0.9;
+    const visibleNow = fullyInView(el.getBoundingClientRect(), 0, vh);
     if (visibleNow) show();
     else hide();
     if (visibleNow && !repeat) return; // אין מה לצפות יותר
@@ -282,7 +295,11 @@ export function useRevealOnView<T extends HTMLElement>({ repeat = false, thresho
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
-          if (e.intersectionRatio >= threshold) {
+          // rootBounds חסר בחלק מהדפדפנים כשה-root הוא ה-viewport
+          const top = e.rootBounds?.top ?? 0;
+          const bottom = e.rootBounds?.bottom
+            ?? (window.innerHeight || document.documentElement.clientHeight);
+          if (fullyInView(e.boundingClientRect, top, bottom)) {
             show();
             if (!repeat) io.unobserve(el);
           } else if (repeat && !e.isIntersecting) {
@@ -290,11 +307,13 @@ export function useRevealOnView<T extends HTMLElement>({ repeat = false, thresho
           }
         }
       },
-      { threshold: [0, threshold] },
+      // מדרגות ביניים אינן הסף עצמו — הן רק נקודות דגימה, כדי שהבדיקה
+      // הגאומטרית תיבחן גם באלמנט גבוה שלא מגיע ליחס 1 לעולם.
+      { threshold: [0, 0.25, 0.5, 0.75, 0.95, 1] },
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [repeat, threshold]);
+  }, [repeat]);
 
   return { ref, revealed };
 }

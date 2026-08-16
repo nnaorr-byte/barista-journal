@@ -1,0 +1,209 @@
+import { useMemo } from 'react';
+import type { Bag, Bean, Grinder, Shot } from '../domain/types';
+import { analyzeGrind } from '../services/grindAnalysis';
+import { makePersonalWindowResolver } from '../services/targetWindow';
+import { ScatterChart } from './charts';
+import { EmptyState } from './components';
+import { formatDateTime, shotWeights } from './labels';
+import { BulbIcon, GearIcon, TimerIcon, TrophyIcon } from './icons';
+
+// ===== ניתוח טחינה =====
+// כרטיס אחד לכל השאלה "מה הטחינה תרמה בפולים האלה": טבלת הדרגות, שער
+// ההמרה בין צעד טחינה לשניות, מי טובה יותר (או שאין הכרעה), השוט הטוב
+// ביותר, והמסקנה. החישוב כולו ב-services/grindAnalysis.ts.
+//
+// beanId ריק = "כל הפולים יחד" במסנן. השוואת טחינה בין זני פולים שונים
+// חסרת משמעות — לכל זן קיר דק אחר וחלון זמן אחר — ולכן נעצרים כאן.
+export function GrindAnalysisCard({ beanId, shots, bags, beans, grinders }: {
+  beanId: string;
+  shots: Shot[];
+  bags: Bag[];
+  beans: Bean[];
+  grinders: Grinder[];
+}) {
+  const analysis = useMemo(() => {
+    if (!beanId) return null;
+    const beanShots = shots.filter((s) => s.beanId === beanId);
+    return analyzeGrind({
+      rawShots: beanShots,
+      bags,
+      bean: beans.find((b) => b.id === beanId),
+      grinders,
+      resolveWindow: makePersonalWindowResolver(beans, bags, shots),
+    });
+  }, [beanId, shots, bags, beans, grinders]);
+
+  if (!beanId) {
+    return (
+      <div className="card">
+        <h2><GearIcon size={20} /> ניתוח טחינה</h2>
+        <EmptyState
+          icon={<GearIcon size={40} />}
+          text="בחר פולים בודדים כדי לנתח טחינה"
+          hint="לכל זן פולים קיר דק אחר וחלון זמן אחר — השוואת דרגות טחינה בין זנים שונים לא אומרת כלום."
+        />
+      </div>
+    );
+  }
+
+  if (!analysis) {
+    return (
+      <div className="card">
+        <h2><GearIcon size={20} /> ניתוח טחינה</h2>
+        <EmptyState
+          icon={<GearIcon size={40} />}
+          text="עדיין לא שינית טחינה בפולים האלה"
+          hint="הניתוח מתעורר מהרגע שיש שתי דרגות טחינה שונות להשוות ביניהן."
+        />
+      </div>
+    );
+  }
+
+  const { rows, time, verdict, best, floor, ageAdjusted, conclusions, beanName, totalShots } = analysis;
+
+  const scatter = shots
+    .filter((s) => s.beanId === beanId && s.grindSetting > 0 && s.brewTimeSec > 0 && !s.excluded && !s.choked)
+    .map((s) => ({
+      x: s.grindSetting,
+      y: s.brewTimeSec,
+      highlight: s.rating >= 8,
+      label: `טחינה ${s.grindSetting}: ${s.brewTimeSec} שניות · דירוג ${s.rating}`,
+    }));
+
+  return (
+    <>
+      <div className="card">
+        <h2><GearIcon size={20} /> ניתוח טחינה — {beanName}</h2>
+        <p className="muted small" style={{ marginTop: 0 }}>
+          {totalShots} שוטים ברי-ניתוח על {rows.length} דרגות טחינה, מכל השקיות של הפולים האלה.
+          {ageAdjusted
+            ? ' זמני החליטה מתוקננים לגיל הקלייה — מה שנשאר הוא הטחינה.'
+            : ' זמני החליטה גולמיים (ראה הערה במסקנות).'}
+        </p>
+
+        <div style={{ overflowX: 'auto' }}>
+          <table className="data">
+            <thead>
+              <tr>
+                <th>טחינה</th>
+                <th>שוטים</th>
+                <th>דירוג</th>
+                <th>זמן</th>
+                <th>יחס</th>
+                <th>בחלון</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.grindSetting}>
+                  <th style={{ whiteSpace: 'nowrap' }}>
+                    {r.grindSetting}
+                    {r.isCurrent && <span className="badge accent" style={{ marginInlineStart: 6 }}>עכשיו</span>}
+                    {floor !== null && r.grindSetting <= floor
+                      && <span className="badge warn" style={{ marginInlineStart: 6 }}>נחנק</span>}
+                  </th>
+                  <td>{r.shots}</td>
+                  <td style={{ fontWeight: 700 }}>{r.avgRating.toFixed(1)}</td>
+                  <td>{r.avgTimeSec !== null ? `${r.avgTimeSec.toFixed(1)}s` : '—'}</td>
+                  <td>{r.avgRatio !== null ? `1:${r.avgRatio.toFixed(1)}` : '—'}</td>
+                  <td>{r.inTargetPct !== null ? `${r.inTargetPct}%` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="muted small" style={{ marginTop: 8 }}>
+          "בחלון" = אחוז השוטים שנחתו גם בזמן היעד של הפולים האלה וגם בדירוג 8+. הוא מפריד
+          טוב יותר מהדירוג לבדו, כי הדירוגים שלך דחוסים בקצה העליון.
+        </p>
+      </div>
+
+      {/* מי טובה יותר — או שאין הכרעה */}
+      {verdict && (
+        <div className={`card${verdict.decisive ? ' accent' : ''}`}>
+          <h2><TrophyIcon size={20} /> {verdict.decisive ? `הדרגה שעבדה: ${verdict.best}` : 'אין הכרעה בין הדרגות'}</h2>
+          <div className="stat-grid cols-3">
+            <div className="stat-tile">
+              <div className="value">{verdict.best}</div>
+              <div className="label">מובילה בדירוג</div>
+            </div>
+            <div className="stat-tile">
+              <div className="value">{verdict.deltaRating.toFixed(1)}</div>
+              <div className="label">פער מ-{verdict.other}</div>
+            </div>
+            <div className="stat-tile">
+              <div className="value">{verdict.se.toFixed(1)}</div>
+              <div className="label">שגיאת המדידה</div>
+            </div>
+          </div>
+          <p className="muted small" style={{ marginTop: 10 }}>
+            {verdict.decisive
+              ? `הפער גדול מפי שניים משגיאת המדידה — הוא לא צירוף מקרים.`
+              : `כדי להכריז על מנצחת צריך פער של לפחות ${(2 * verdict.se).toFixed(1)} נקודות (פי שניים משגיאת המדידה) וגם 0.4 לפחות. כאן הוא ${verdict.deltaRating.toFixed(1)}.`}
+          </p>
+        </div>
+      )}
+
+      {/* שער ההמרה: צעד טחינה → שניות */}
+      {time && (
+        <div className="card">
+          <h2><TimerIcon size={20} /> מה הטחינה עושה לזמן</h2>
+          {time.meaningful ? (
+            <div className="stat-grid cols-3">
+              <div className="stat-tile">
+                <div className="value">{time.secPerStep > 0 ? '+' : ''}{time.secPerStep.toFixed(1)}s</div>
+                <div className="label">לכל צעד טחינה</div>
+              </div>
+              <div className="stat-tile">
+                <div className="value">{Math.abs(time.r).toFixed(2)}</div>
+                <div className="label">חוזק הקשר</div>
+              </div>
+              <div className="stat-tile">
+                <div className="value">{time.shots}</div>
+                <div className="label">שוטים במדידה</div>
+              </div>
+            </div>
+          ) : (
+            <p className="small" style={{ color: 'var(--warn)' }}>
+              הקשר בין הטחינה לזמן עדיין לא יוצא מהרעש — {time.shots} שוטים, מתאם {Math.abs(time.r).toFixed(2)}.
+            </p>
+          )}
+          {scatter.length >= 2 && (
+            <>
+              <ScatterChart points={scatter} xLabel="דרגת טחינה" yLabel="זמן חליטה (שנ')" />
+              <p className="muted small">
+                ● מלא = שוט מצוין (8+) · ○ מתאר = השאר. שיפוע ברור משמאל לימין הוא הטחינה;
+                עמודה מפוזרת על דרגה אחת היא ההכנה.
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* השוט הטוב ביותר */}
+      {best && (
+        <div className="card">
+          <h2><TrophyIcon size={20} /> השוט הטוב ביותר בפולים האלה</h2>
+          <p style={{ margin: '4px 0' }}>
+            <strong>{best.shot.rating}/10</strong> · טחינה {best.shot.grindSetting} ·{' '}
+            {shotWeights(best.shot)} ב-{best.shot.brewTimeSec} שניות
+          </p>
+          <p className="muted small">
+            {formatDateTime(best.shot.createdAt)}
+            {best.roastAge !== null && ` · יום ${best.roastAge} מהקלייה`}
+          </p>
+        </div>
+      )}
+
+      {/* המסקנה */}
+      {conclusions.length > 0 && (
+        <div className="card">
+          <h2><BulbIcon size={20} /> המסקנה</h2>
+          {conclusions.map((c, i) => (
+            <p key={i} className="small" style={{ margin: '6px 0' }}>{c}</p>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}

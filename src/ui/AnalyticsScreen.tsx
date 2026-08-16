@@ -13,6 +13,7 @@ import { analyzeRecurringProblems } from '../services/recurringProblems';
 import { analyzable } from '../services/shotFilter';
 import { formatDateTime, shotWeights } from './labels';
 import { DashboardScreen } from './DashboardScreen';
+import { GrindAnalysisCard } from './GrindAnalysisCard';
 import { BeanIcon, BrainIcon, BulbIcon, ChartIcon, CoinIcon, CupIcon, FlameIcon, GearIcon, GiftIcon, LeafIcon, MedalIcon, ScaleIcon, SettingsIcon, StarIcon, TargetIcon, TasteIcon, TimerIcon, TrendIcon, TrophyIcon } from './icons';
 
 // ===== Coffee Shot Analytics =====
@@ -28,11 +29,12 @@ function AllTimeBadge({ on }: { on: boolean }) {
 
 // קטגוריות לסינון מסך הניתוח — מקבצות את הכרטיסים לפי כוונה.
 // "מבט על" (ה-Dashboard לשעבר) היא קטגוריה כאן — מסך נתונים אחד, לא שניים.
-type AnalyticsCat = 'overview' | 'quality' | 'trends' | 'consistency' | 'cost' | 'all';
+type AnalyticsCat = 'overview' | 'quality' | 'trends' | 'grind' | 'consistency' | 'cost' | 'all';
 const ANALYTICS_CATS: { value: AnalyticsCat; label: string }[] = [
   { value: 'overview', label: 'מבט על' },
   { value: 'quality', label: 'איכות' },
   { value: 'trends', label: 'מגמות' },
+  { value: 'grind', label: 'טחינה' },
   { value: 'consistency', label: 'עקביות' },
   { value: 'cost', label: 'עלות' },
   { value: 'all', label: 'הכל' },
@@ -861,7 +863,7 @@ export function AnalyticsScreen() {
       <div className="card accent">
         <h2><TrendIcon size={20} /> הנתונים שלי</h2>
         <p className="muted small" style={{ marginTop: 0 }}>
-          {shots.length} שוטים מתועדים — מבט על, איכות, מגמות, עקביות ועלות.
+          {shots.length} שוטים מתועדים — מבט על, איכות, מגמות, טחינה, עקביות ועלות.
         </p>
         <button className="btn secondary block" style={{ marginBottom: 12 }} onClick={() => setWrapped(true)}>
           <GiftIcon size={18} /> Coffee Wrapped — סיכום השנה שלי
@@ -896,7 +898,7 @@ export function AnalyticsScreen() {
             </Field>
             <p className="muted small" style={{ marginTop: -2 }}>
               {scopeId
-                ? `${scoped.length} שוטים בפולים האלה. כל הקטגוריות — מבט על, איכות, מגמות, עקביות ועלות — מחושבות עליהם בלבד. היחיד שנשאר על כל ההיסטוריה הוא עקומת הטריות, כי היא לומדת בכמה ימים מהקלייה הפולים בשיא אצלך, ולזה צריך את כל השקיות.`
+                ? `${scoped.length} שוטים בפולים האלה. כל הקטגוריות מחושבות עליהם בלבד. היחיד שנשאר על כל ההיסטוריה הוא עקומת הטריות, כי היא לומדת בכמה ימים מהקלייה הפולים בשיא אצלך, ולזה צריך את כל השקיות. ניתוח הטחינה מכסה את כל השקיות של הפולים שנבחרו, עם תיקון גיל לכל שוט.`
                 : 'כל השוטים יחד. בגרף הטחינה יופיע קו מפריד בכל החלפת פולים — הקפיצה שם היא פולים חדשים, לא סחיפה.'}
             </p>
             {scopeId && !scopedEnough && (
@@ -959,6 +961,11 @@ export function AnalyticsScreen() {
             {consistency < 50 && ' יש מקום לשיפור — נסה להקפיד על פיזור אחיד של הקפה במחט (WDT) וטמפינג ישר.'}
           </p>
         </div>
+      )}
+
+      {/* ניתוח טחינה — מסונן לפולים שנבחרו, על פני כל השקיות שלהם */}
+      {show('grind') && (
+        <GrindAnalysisCard beanId={scopeId} shots={shots} bags={bags} beans={beans} grinders={grinders} />
       )}
 
       {/* מדד אמינות המוח: המוח בודק את עצמו */}

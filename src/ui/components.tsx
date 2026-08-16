@@ -199,7 +199,11 @@ export function CountUp({ value, decimals, prefix = '', suffix = '', duration = 
   const [display, setDisplay] = useState(() => (reduced() ? value : 0));
   // המספר שמוצג ברגע זה. אנימציה שנקטעת באמצע ממשיכה מכאן ולא קופצת.
   const fromRef = useRef(reduced() ? value : 0);
-  const mountedRef = useRef(false);
+  // האם הריצה הקודמת הייתה כשהמספר היה נראה. המעבר "לא נראה"→"נראה" הוא
+  // כניסה (מאפס, איטי), ושינוי ערך בזמן שהוא נראה הוא עדכון (מהערך הנוכחי, מהיר).
+  const wasVisible = useRef(false);
+  // אותה חשיפה-בגלילה של הגרפים: כל כניסה מחדש לתצוגה מריצה את הספירה שוב
+  const { ref, revealed } = useRevealOnView<HTMLSpanElement>({ repeat: true });
 
   useEffect(() => {
     if (reduced()) {
@@ -207,9 +211,17 @@ export function CountUp({ value, decimals, prefix = '', suffix = '', duration = 
       setDisplay(value);
       return;
     }
+    // מחוץ לתצוגה — מתאפס ומחכה. האיפוס קורה כשאף אחד לא מסתכל, ולכן
+    // מה שנראה בכניסה הבאה הוא ספירה מלאה ולא קפיצה מהערך הישן.
+    if (!revealed) {
+      wasVisible.current = false;
+      fromRef.current = 0;
+      setDisplay(0);
+      return;
+    }
     const from = fromRef.current;
-    const ms = mountedRef.current ? UPDATE_MS : duration;
-    mountedRef.current = true;
+    const ms = wasVisible.current ? UPDATE_MS : duration;
+    wasVisible.current = true;
     if (from === value) {
       setDisplay(value);
       return;
@@ -227,8 +239,10 @@ export function CountUp({ value, decimals, prefix = '', suffix = '', duration = 
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [value, duration]);
-  return <>{prefix}{display.toFixed(dec)}{suffix}</>;
+  }, [value, duration, revealed]);
+
+  // span ולא fragment: צריך אלמנט אמיתי כדי לדעת מתי הוא נכנס לתצוגה
+  return <span ref={ref}>{prefix}{display.toFixed(dec)}{suffix}</span>;
 }
 
 // ---- חשיפה בגלילה ----

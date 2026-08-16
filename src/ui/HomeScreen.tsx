@@ -565,13 +565,13 @@ export function HomeScreen({ navigate }: { navigate: (s: Screen) => void }) {
         <div className="stat-grid cols-3">
           <StatTile value={<CountUp value={insights.shotCount} />} label="שוטים סה״כ" />
           <StatTile
-            value={tightness ? `±${tightness.stdevSec}` : '—'}
+            value={tightness ? <CountUp value={tightness.stdevSec} decimals={1} prefix="±" /> : '—'}
             label="פיזור ההכנה (שנ׳)"
           />
           <StatTile
             value={
               tightnessTrend
-                ? `${tightnessTrend.deltaSec > 0 ? '+' : ''}${tightnessTrend.deltaSec}`
+                ? <CountUp value={tightnessTrend.deltaSec} decimals={1} prefix={tightnessTrend.deltaSec > 0 ? '+' : ''} />
                 : '—'
             }
             label={tightnessTrend && tightnessTrend.deltaSec < 0 ? 'מתהדק' : 'שינוי בפיזור'}

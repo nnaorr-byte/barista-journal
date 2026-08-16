@@ -4,7 +4,7 @@ import { db } from '../db/database';
 import { weeklySummary, weeksBackWithData, TARGET_RATING } from '../services/stats';
 import { makePersonalWindowResolver } from '../services/targetWindow';
 import { shotRatio } from '../domain/types';
-import { ScreenSkeleton, StatTile } from './components';
+import { CountUp, ScreenSkeleton, StatTile } from './components';
 import { formatDateTime, ratingClass, shotWeights } from './labels';
 import { BulbIcon, ChartIcon, TargetIcon, TrendIcon, TrophyIcon } from './icons';
 
@@ -145,11 +145,11 @@ export function WeeklySummaryScreen() {
             )}
 
             <div className="stat-grid">
-              <StatTile value={wk.count} label="שוטים" />
-              <StatTile value={wk.bestShot ? wk.bestShot.rating : '—'} label="הכי טוב" />
-              <StatTile value={wk.daysWithCoffee} label="ימים עם קפה" />
+              <StatTile value={<CountUp value={wk.count} />} label="שוטים" />
+              <StatTile value={wk.bestShot ? <CountUp value={wk.bestShot.rating} /> : '—'} label="הכי טוב" />
+              <StatTile value={<CountUp value={wk.daysWithCoffee} />} label="ימים עם קפה" />
               <StatTile
-                value={wk.inTargetPct !== null ? `${wk.inTargetPct}%` : '—'}
+                value={wk.inTargetPct !== null ? <CountUp value={wk.inTargetPct} suffix="%" /> : '—'}
                 label="בחלון היעד"
               />
             </div>

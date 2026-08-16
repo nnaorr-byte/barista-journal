@@ -3,7 +3,7 @@ import type { Bag, Bean, Grinder, Shot } from '../domain/types';
 import { analyzeGrind } from '../services/grindAnalysis';
 import { makePersonalWindowResolver } from '../services/targetWindow';
 import { ScatterChart } from './charts';
-import { EmptyState } from './components';
+import { CountUp, EmptyState, StatTile } from './components';
 import { formatDateTime, shotWeights } from './labels';
 import { BulbIcon, GearIcon, TargetIcon, TimerIcon, TrophyIcon } from './icons';
 
@@ -130,18 +130,9 @@ export function GrindAnalysisCard({ beanId, shots, bags, beans, grinders }: {
         <div className={`card${verdict.decisive ? ' accent' : ''}`}>
           <h2><TrophyIcon size={20} /> {verdict.decisive ? `הדרגה שעבדה: ${verdict.best}` : 'אין הכרעה בין הדרגות'}</h2>
           <div className="stat-grid cols-3">
-            <div className="stat-tile">
-              <div className="value">{verdict.best}</div>
-              <div className="label">מובילה בדירוג</div>
-            </div>
-            <div className="stat-tile">
-              <div className="value">{verdict.deltaRating.toFixed(1)}</div>
-              <div className="label">פער מ-{verdict.other}</div>
-            </div>
-            <div className="stat-tile">
-              <div className="value">{verdict.se.toFixed(1)}</div>
-              <div className="label">שגיאת המדידה</div>
-            </div>
+            <StatTile value={<CountUp value={verdict.best} />} label="מובילה בדירוג" />
+            <StatTile value={<CountUp value={verdict.deltaRating} decimals={1} />} label={`פער מ-${verdict.other}`} />
+            <StatTile value={<CountUp value={verdict.se} decimals={1} />} label="שגיאת המדידה" />
           </div>
           <p className="muted small" style={{ marginTop: 10 }}>
             {verdict.decisive
@@ -157,18 +148,12 @@ export function GrindAnalysisCard({ beanId, shots, bags, beans, grinders }: {
           <h2><TimerIcon size={20} /> מה הטחינה עושה לזמן</h2>
           {time.meaningful ? (
             <div className="stat-grid cols-3">
-              <div className="stat-tile">
-                <div className="value">{time.secPerStep > 0 ? '+' : ''}{time.secPerStep.toFixed(1)}s</div>
-                <div className="label">לכל צעד טחינה</div>
-              </div>
-              <div className="stat-tile">
-                <div className="value">{Math.abs(time.r).toFixed(2)}</div>
-                <div className="label">חוזק הקשר</div>
-              </div>
-              <div className="stat-tile">
-                <div className="value">{time.shots}</div>
-                <div className="label">שוטים במדידה</div>
-              </div>
+              <StatTile
+                value={<CountUp value={time.secPerStep} decimals={1} prefix={time.secPerStep > 0 ? '+' : ''} suffix="s" />}
+                label="לכל צעד טחינה"
+              />
+              <StatTile value={<CountUp value={Math.abs(time.r)} decimals={2} />} label="חוזק הקשר" />
+              <StatTile value={<CountUp value={time.shots} />} label="שוטים במדידה" />
             </div>
           ) : (
             <p className="small" style={{ color: 'var(--warn)' }}>
@@ -192,18 +177,13 @@ export function GrindAnalysisCard({ beanId, shots, bags, beans, grinders }: {
         <div className={`card${winningTime.decisive ? ' accent' : ''}`}>
           <h2><TimerIcon size={20} /> זמן החילוץ המנצח</h2>
           <div className="stat-grid cols-3">
-            <div className="stat-tile">
-              <div className="value">{winningTime.best.from}–{winningTime.best.to}s</div>
-              <div className="label">רצועת הזמן</div>
-            </div>
-            <div className="stat-tile">
-              <div className="value">{winningTime.best.avgRating.toFixed(1)}</div>
-              <div className="label">דירוג ממוצע</div>
-            </div>
-            <div className="stat-tile">
-              <div className="value">{winningTime.best.grindMode}</div>
-              <div className="label">הטחינה שם</div>
-            </div>
+            {/* טווח = שני מספרים, ולכן שתי ספירות. הקו ביניהם נשאר במקומו */}
+            <StatTile
+              value={<><CountUp value={winningTime.best.from} />–<CountUp value={winningTime.best.to} suffix="s" /></>}
+              label="רצועת הזמן"
+            />
+            <StatTile value={<CountUp value={winningTime.best.avgRating} decimals={1} />} label="דירוג ממוצע" />
+            <StatTile value={<CountUp value={winningTime.best.grindMode} />} label="הטחינה שם" />
           </div>
 
           {winningTime.bands.length > 1 && (
@@ -253,26 +233,19 @@ export function GrindAnalysisCard({ beanId, shots, bags, beans, grinders }: {
         <div className="card">
           <h2><TargetIcon size={20} /> איפה יצאו השוטים הכי טובים</h2>
           <div className="stat-grid cols-3">
-            <div className="stat-tile">
-              <div className="value">
-                {sweetSpot.grindMin === sweetSpot.grindMax
-                  ? sweetSpot.grindMin
-                  : `${sweetSpot.grindMin}–${sweetSpot.grindMax}`}
-              </div>
-              <div className="label">טווח טחינה</div>
-            </div>
-            <div className="stat-tile">
-              <div className="value">
-                {sweetSpot.timeMin === sweetSpot.timeMax
-                  ? `${sweetSpot.timeMin}s`
-                  : `${sweetSpot.timeMin}–${sweetSpot.timeMax}s`}
-              </div>
-              <div className="label">טווח זמן עצירה</div>
-            </div>
-            <div className="stat-tile">
-              <div className="value">{sweetSpot.shots}</div>
-              <div className="label">שוטים {sweetSpot.minRating}+</div>
-            </div>
+            <StatTile
+              value={sweetSpot.grindMin === sweetSpot.grindMax
+                ? <CountUp value={sweetSpot.grindMin} />
+                : <><CountUp value={sweetSpot.grindMin} />–<CountUp value={sweetSpot.grindMax} /></>}
+              label="טווח טחינה"
+            />
+            <StatTile
+              value={sweetSpot.timeMin === sweetSpot.timeMax
+                ? <CountUp value={sweetSpot.timeMin} suffix="s" />
+                : <><CountUp value={sweetSpot.timeMin} />–<CountUp value={sweetSpot.timeMax} suffix="s" /></>}
+              label="טווח זמן עצירה"
+            />
+            <StatTile value={<CountUp value={sweetSpot.shots} />} label={`שוטים ${sweetSpot.minRating}+`} />
           </div>
           <p className="muted small" style={{ marginTop: 10 }}>
             רוב השוטים הטובים נחתו על טחינה <b>{sweetSpot.grindMode}</b>, בזמן עצירה ממוצע של{' '}

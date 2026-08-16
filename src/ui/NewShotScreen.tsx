@@ -12,7 +12,7 @@ import { analyzable } from '../services/shotFilter';
 import type {
   Bag, DialInSession, MachineTempSetting, QualityLevel, Shot, ShotRecommendation, TasteTag,
 } from '../domain/types';
-import { Chips, DialInLadder, Field, RatingPicker, ScreenSkeleton, StatTile, VsPreviousPicker } from './components';
+import { Chips, CountUp, DialInLadder, Field, RatingPicker, ScreenSkeleton, StatTile, VsPreviousPicker } from './components';
 import { QUALITY_LABELS, TASTE_LABELS, TEMP_LABELS } from './labels';
 import { BoltIcon, BrainIcon, BulbIcon, CheckIcon, ChevronDownIcon, ClipboardIcon, CupIcon, PlusIcon, SaveIcon, StarIcon, TargetIcon, TimerIcon, TrophyIcon, WarnIcon } from './icons';
 import { Celebration } from './Celebration';
@@ -1433,14 +1433,14 @@ function BrewStep({
       <div className="card accent">
         <h2><TargetIcon size={20} /> ההמלצה עבור {beanName}</h2>
         <div className="stat-grid">
-          <StatTile value={recommendation.doseGrams} label="גרם נכנס" />
+          <StatTile value={<CountUp value={recommendation.doseGrams} decimals={1} />} label="גרם נכנס" />
           {recommendation.stopAtGrams !== null && (
-            <StatTile value={recommendation.stopAtGrams} label="עצירה בפועל" />
+            <StatTile value={<CountUp value={recommendation.stopAtGrams} decimals={1} />} label="עצירה בפועל" />
           )}
-          <StatTile value={recommendation.yieldGrams} label="יעד סופי בכוס" />
-          <StatTile value={`${recommendation.brewTimeSecMin}–${recommendation.brewTimeSecMax}`} label="יעד שניות" />
-          <StatTile value={`1:${recommendation.ratio}`} label="יחס" />
-          {recommendation.grindSetting !== null && <StatTile value={recommendation.grindSetting} label="טחינה" />}
+          <StatTile value={<CountUp value={recommendation.yieldGrams} decimals={1} />} label="יעד סופי בכוס" />
+          <StatTile value={<><CountUp value={recommendation.brewTimeSecMin} />–<CountUp value={recommendation.brewTimeSecMax} /></>} label="יעד שניות" />
+          <StatTile value={<CountUp value={recommendation.ratio} decimals={1} prefix="1:" />} label="יחס" />
+          {recommendation.grindSetting !== null && <StatTile value={<CountUp value={recommendation.grindSetting} />} label="טחינה" />}
           {recommendation.machineTemp !== 'medium' && (
             <StatTile value={TEMP_LABELS[recommendation.machineTemp]} label="טמפרטורה" />
           )}

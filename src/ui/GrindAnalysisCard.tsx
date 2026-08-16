@@ -5,7 +5,7 @@ import { makePersonalWindowResolver } from '../services/targetWindow';
 import { ScatterChart } from './charts';
 import { EmptyState } from './components';
 import { formatDateTime, shotWeights } from './labels';
-import { BulbIcon, GearIcon, TimerIcon, TrophyIcon } from './icons';
+import { BulbIcon, GearIcon, TargetIcon, TimerIcon, TrophyIcon } from './icons';
 
 // ===== ניתוח טחינה =====
 // כרטיס אחד לכל השאלה "מה הטחינה תרמה בפולים האלה": טבלת הדרגות, שער
@@ -59,7 +59,7 @@ export function GrindAnalysisCard({ beanId, shots, bags, beans, grinders }: {
     );
   }
 
-  const { rows, time, verdict, best, floor, ageAdjusted, conclusions, beanName, totalShots } = analysis;
+  const { rows, time, verdict, best, sweetSpot, floor, conclusions, beanName, totalShots } = analysis;
 
   const scatter = shots
     .filter((s) => s.beanId === beanId && s.grindSetting > 0 && s.brewTimeSec > 0 && !s.excluded && !s.choked)
@@ -76,9 +76,7 @@ export function GrindAnalysisCard({ beanId, shots, bags, beans, grinders }: {
         <h2><GearIcon size={20} /> ניתוח טחינה — {beanName}</h2>
         <p className="muted small" style={{ marginTop: 0 }}>
           {totalShots} שוטים ברי-ניתוח על {rows.length} דרגות טחינה, מכל השקיות של הפולים האלה.
-          {ageAdjusted
-            ? ' זמני החליטה מתוקננים לגיל הקלייה — מה שנשאר הוא הטחינה.'
-            : ' זמני החליטה גולמיים (ראה הערה במסקנות).'}
+          זמן העצירה בטבלה הוא מה שנמדד בפועל — ממוצע כשיש כמה שוטים על אותה דרגה.
         </p>
 
         <div style={{ overflowX: 'auto' }}>
@@ -88,7 +86,7 @@ export function GrindAnalysisCard({ beanId, shots, bags, beans, grinders }: {
                 <th>טחינה</th>
                 <th>שוטים</th>
                 <th>דירוג</th>
-                <th>זמן</th>
+                <th>זמן עצירה</th>
                 <th>יחס</th>
                 <th>בחלון</th>
               </tr>
@@ -104,7 +102,15 @@ export function GrindAnalysisCard({ beanId, shots, bags, beans, grinders }: {
                   </th>
                   <td>{r.shots}</td>
                   <td style={{ fontWeight: 700 }}>{r.avgRating.toFixed(1)}</td>
-                  <td>{r.avgTimeSec !== null ? `${r.avgTimeSec.toFixed(1)}s` : '—'}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    {r.avgTimeSec !== null ? `${r.avgTimeSec.toFixed(1)}s` : '—'}
+                    {/* טווח, כדי ששוט בודד לא ייראה כמו ממוצע ושפיזור לא ייעלם בממוצע */}
+                    {r.minTimeSec !== null && r.maxTimeSec !== null && r.minTimeSec !== r.maxTimeSec && (
+                      <span className="muted small" style={{ display: 'block' }}>
+                        {r.minTimeSec}–{r.maxTimeSec}
+                      </span>
+                    )}
+                  </td>
                   <td>{r.avgRatio !== null ? `1:${r.avgRatio.toFixed(1)}` : '—'}</td>
                   <td>{r.inTargetPct !== null ? `${r.inTargetPct}%` : '—'}</td>
                 </tr>
@@ -113,6 +119,7 @@ export function GrindAnalysisCard({ beanId, shots, bags, beans, grinders }: {
           </table>
         </div>
         <p className="muted small" style={{ marginTop: 8 }}>
+          המספר הקטן מתחת לזמן הוא הטווח בפועל — הכי מהיר עד הכי איטי על אותה דרגה.
           "בחלון" = אחוז השוטים שנחתו גם בזמן היעד של הפולים האלה וגם בדירוג 8+. הוא מפריד
           טוב יותר מהדירוג לבדו, כי הדירוגים שלך דחוסים בקצה העליון.
         </p>
@@ -177,6 +184,39 @@ export function GrindAnalysisCard({ beanId, shots, bags, beans, grinders }: {
               </p>
             </>
           )}
+        </div>
+      )}
+
+      {/* האזור המנצח — טווח טחינה וזמן, לא נקודה אחת */}
+      {sweetSpot && (
+        <div className="card">
+          <h2><TargetIcon size={20} /> איפה יצאו השוטים הכי טובים</h2>
+          <div className="stat-grid cols-3">
+            <div className="stat-tile">
+              <div className="value">
+                {sweetSpot.grindMin === sweetSpot.grindMax
+                  ? sweetSpot.grindMin
+                  : `${sweetSpot.grindMin}–${sweetSpot.grindMax}`}
+              </div>
+              <div className="label">טווח טחינה</div>
+            </div>
+            <div className="stat-tile">
+              <div className="value">
+                {sweetSpot.timeMin === sweetSpot.timeMax
+                  ? `${sweetSpot.timeMin}s`
+                  : `${sweetSpot.timeMin}–${sweetSpot.timeMax}s`}
+              </div>
+              <div className="label">טווח זמן עצירה</div>
+            </div>
+            <div className="stat-tile">
+              <div className="value">{sweetSpot.shots}</div>
+              <div className="label">שוטים {sweetSpot.minRating}+</div>
+            </div>
+          </div>
+          <p className="muted small" style={{ marginTop: 10 }}>
+            רוב השוטים הטובים נחתו על טחינה <b>{sweetSpot.grindMode}</b>, בזמן עצירה ממוצע של{' '}
+            <b>{sweetSpot.timeAvg} שניות</b>. זה היעד — לא מספר בודד אלא חלון שאתה כבר יודע לפגוע בו.
+          </p>
         </div>
       )}
 

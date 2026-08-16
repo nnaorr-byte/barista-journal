@@ -36,12 +36,31 @@ export interface GrindRow {
   shots: number;
   avgRating: number;
   ratingStdev: number;
-  /** זמן ממוצע — מתוקנן לגיל כשהשיפוע מדיד, אחרת גולמי */
+  /**
+   * זמן העצירה **כפי שנמדד**, ממוצע כשיש כמה שוטים. גולמי בכוונה:
+   * העמודה הזאת היא מה שקרה בכוס, ומספר מתוקנן שמתחזה למדידה שולח
+   * לחפש שוט שלא היה. תיקון הגיל חי רק ברגרסיה למטה, שם הוא נחוץ
+   * כדי להפריד את הטחינה מהגזים.
+   */
   avgTimeSec: number | null;
+  minTimeSec: number | null;
+  maxTimeSec: number | null;
   avgRatio: number | null;
   excellentPct: number;
   inTargetPct: number | null;
   isCurrent: boolean;
+}
+
+/** האזור שבו נחתו השוטים הטובים — טווח טחינה וטווח זמן, לא נקודה אחת */
+export interface SweetSpot {
+  shots: number;
+  minRating: number;
+  grindMin: number;
+  grindMax: number;
+  grindMode: number; // הדרגה שחוזרת הכי הרבה בין הטובים
+  timeMin: number;
+  timeMax: number;
+  timeAvg: number;
 }
 
 export interface TimeVsGrind {
@@ -75,9 +94,10 @@ export interface GrindAnalysis {
   time: TimeVsGrind | null;
   verdict: GrindVerdict | null;
   best: BestShotPick | null;
+  sweetSpot: SweetSpot | null;
   floor: number | null;
   slope: AgingSlope | null;
-  /** האם עמודת הזמן עברה נטרול גיל בפועל */
+  /** האם הרגרסיה הצליחה לנטרל את שיפוע ההזדקנות (הטבלה תמיד גולמית) */
   ageAdjusted: boolean;
   conclusions: string[];
 }
@@ -146,6 +166,7 @@ export function analyzeGrind({
   const rows: GrindRow[] = [...byGrind.entries()]
     .map(([grindSetting, list]) => {
       const withTime = list.filter((s) => s.brewTimeSec > 0);
+      const times = withTime.map((s) => s.brewTimeSec);
       const ratings = list.map((s) => s.rating);
       const inTarget = withTime.filter((s) => isInTarget(s, resolveWindow(s))).length;
       return {
@@ -153,7 +174,9 @@ export function analyzeGrind({
         shots: list.length,
         avgRating: round1(mean(ratings)),
         ratingStdev: stdev(ratings),
-        avgTimeSec: withTime.length ? round1(mean(withTime.map(adjTime))) : null,
+        avgTimeSec: times.length ? round1(mean(times)) : null,
+        minTimeSec: times.length ? Math.min(...times) : null,
+        maxTimeSec: times.length ? Math.max(...times) : null,
         avgRatio: withTime.length ? round1(mean(withTime.map((s) => shotRatio(s)))) : null,
         excellentPct: Math.round((list.filter((s) => s.rating >= TARGET_RATING).length / list.length) * 100),
         inTargetPct: withTime.length ? Math.round((inTarget / withTime.length) * 100) : null,
@@ -170,9 +193,11 @@ export function analyzeGrind({
   // ---- מי טובה יותר ----
   const verdict = compareTopTwo(rows);
 
-  // ---- השוט הכי טוב ----
+  // ---- השוט הכי טוב, והאזור שבו נחתו הטובים ----
   const best = pickBestShot(usable, resolveWindow, bagMap);
+  const sweetSpot = findSweetSpot(timed);
 
+  const floor = chokeFloor(rawShots);
   return {
     beanName: bean?.name ?? 'פולים שנמחקו',
     totalShots: usable.length,
@@ -180,10 +205,48 @@ export function analyzeGrind({
     time,
     verdict,
     best,
-    floor: chokeFloor(rawShots),
+    sweetSpot,
+    floor,
     slope,
     ageAdjusted,
-    conclusions: buildConclusions({ rows, time, verdict, best, ageAdjusted, floor: chokeFloor(rawShots) }),
+    conclusions: buildConclusions({ rows, time, verdict, best, sweetSpot, ageAdjusted, floor }),
+  };
+}
+
+// ---- האזור המנצח ----
+// לא נקודה אחת אלא טווח: באיזו טחינה ובאיזה זמן נחתו השוטים הטובים.
+// הסף הוא 8+, ואם אין מספיק כאלה יורדים לשלושת הטובים ביותר — כדי
+// שהתשובה תהיה קיימת גם למי שעדיין לא הגיע ל-8.
+function findSweetSpot(timed: Shot[]): SweetSpot | null {
+  if (timed.length < 3) return null;
+  const sorted = [...timed].sort((a, b) => b.rating - a.rating);
+  const top = sorted[0].rating;
+  // הסף הוא הרמה העליונה שלך, לא "טוב" באופן כללי: 8+ על יומן שכולו 8–10
+  // מחזיר כמעט הכול, וטווח שמכיל את כל השוטים אינו אזור מנצח אלא הרשימה.
+  let picked = sorted.filter((s) => s.rating >= Math.max(TARGET_RATING, top - 1));
+  // עדיין רוב היומן? מעלים לרמה העליונה בלבד
+  if (picked.length > timed.length * 0.6) {
+    const tighter = sorted.filter((s) => s.rating >= top);
+    if (tighter.length >= 2) picked = tighter;
+  }
+  if (picked.length < 3) picked = sorted.slice(0, 3);
+  if (picked.length < 2) return null;
+
+  const grinds = picked.map((s) => s.grindSetting);
+  const times = picked.map((s) => s.brewTimeSec);
+  const counts = new Map<number, number>();
+  for (const g of grinds) counts.set(g, (counts.get(g) ?? 0) + 1);
+  const grindMode = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
+
+  return {
+    shots: picked.length,
+    minRating: Math.min(...picked.map((s) => s.rating)),
+    grindMin: Math.min(...grinds),
+    grindMax: Math.max(...grinds),
+    grindMode,
+    timeMin: Math.min(...times),
+    timeMax: Math.max(...times),
+    timeAvg: round1(mean(times)),
   };
 }
 
@@ -278,16 +341,30 @@ function pickBestShot(
 // נגזרת מהמספרים, לא טקסט קבוע. כשאין הכרעה זה נאמר במפורש — זו מסקנה
 // ולא היעדר מסקנה.
 function buildConclusions({
-  rows, time, verdict, best, ageAdjusted, floor,
+  rows, time, verdict, best, sweetSpot, ageAdjusted, floor,
 }: {
   rows: GrindRow[];
   time: TimeVsGrind | null;
   verdict: GrindVerdict | null;
   best: BestShotPick | null;
+  sweetSpot: SweetSpot | null;
   ageAdjusted: boolean;
   floor: number | null;
 }): string[] {
   const out: string[] = [];
+
+  if (sweetSpot) {
+    const grindPart = sweetSpot.grindMin === sweetSpot.grindMax
+      ? `טחינה ${sweetSpot.grindMin}`
+      : `טחינה ${sweetSpot.grindMin}–${sweetSpot.grindMax} (רובם על ${sweetSpot.grindMode})`;
+    const timePart = sweetSpot.timeMin === sweetSpot.timeMax
+      ? `${sweetSpot.timeMin} שניות`
+      : `${sweetSpot.timeMin}–${sweetSpot.timeMax} שניות`;
+    out.push(
+      `${sweetSpot.shots} השוטים הטובים שלך (${sweetSpot.minRating}+) יצאו ב${grindPart}, `
+      + `בזמן עצירה של ${timePart} — ממוצע ${sweetSpot.timeAvg}. זה האזור לכוון אליו.`,
+    );
+  }
 
   if (verdict?.decisive) {
     out.push(
@@ -326,10 +403,10 @@ function buildConclusions({
     );
   }
 
-  if (!ageAdjusted) {
+  if (!ageAdjusted && time) {
     out.push(
-      'הזמנים כאן גולמיים: אין מספיק שוטים על הגדרות זהות בגילאי שקית שונים כדי למדוד '
-      + 'את שיפוע ההזדקנות ולנטרל אותו. חלק מההפרש בין הדרגות עשוי להיות הגזים, לא הטחינה.',
+      'שער ההמרה לא נוקה מהזדקנות הפולים: אין מספיק שוטים על הגדרות זהות בגילאי שקית שונים '
+      + 'כדי למדוד את השיפוע ולנטרל אותו. חלק מההפרש בזמן בין הדרגות עשוי להיות הגזים, לא הטחינה.',
     );
   }
 

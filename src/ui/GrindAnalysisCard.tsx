@@ -59,7 +59,7 @@ export function GrindAnalysisCard({ beanId, shots, bags, beans, grinders }: {
     );
   }
 
-  const { rows, time, verdict, best, sweetSpot, floor, conclusions, beanName, totalShots } = analysis;
+  const { rows, time, verdict, best, sweetSpot, winningTime, floor, conclusions, beanName, totalShots } = analysis;
 
   const scatter = shots
     .filter((s) => s.beanId === beanId && s.grindSetting > 0 && s.brewTimeSec > 0 && !s.excluded && !s.choked)
@@ -184,6 +184,67 @@ export function GrindAnalysisCard({ beanId, shots, bags, beans, grinders }: {
               </p>
             </>
           )}
+        </div>
+      )}
+
+      {/* זמן החילוץ המנצח — משווה רצועות זמן לפי הדירוג שהן מייצרות */}
+      {winningTime && (
+        <div className={`card${winningTime.decisive ? ' accent' : ''}`}>
+          <h2><TimerIcon size={20} /> זמן החילוץ המנצח</h2>
+          <div className="stat-grid cols-3">
+            <div className="stat-tile">
+              <div className="value">{winningTime.best.from}–{winningTime.best.to}s</div>
+              <div className="label">רצועת הזמן</div>
+            </div>
+            <div className="stat-tile">
+              <div className="value">{winningTime.best.avgRating.toFixed(1)}</div>
+              <div className="label">דירוג ממוצע</div>
+            </div>
+            <div className="stat-tile">
+              <div className="value">{winningTime.best.grindMode}</div>
+              <div className="label">הטחינה שם</div>
+            </div>
+          </div>
+
+          {winningTime.bands.length > 1 && (
+            <div style={{ overflowX: 'auto', marginTop: 12 }}>
+              <table className="data">
+                <thead>
+                  <tr>
+                    <th>זמן חילוץ</th>
+                    <th>שוטים</th>
+                    <th>דירוג</th>
+                    <th>טחינה</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {winningTime.bands.map((b) => (
+                    <tr key={`${b.from}-${b.to}`}>
+                      <th style={{ whiteSpace: 'nowrap' }}>
+                        {b.from}–{b.to}s
+                        {b === winningTime.best && winningTime.decisive
+                          && <span className="badge accent" style={{ marginInlineStart: 6 }}>מנצחת</span>}
+                      </th>
+                      <td>{b.shots}</td>
+                      <td style={{ fontWeight: 700 }}>{b.avgRating.toFixed(1)}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        {b.grindMin === b.grindMax ? b.grindMin : `${b.grindMin}–${b.grindMax}`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <p className="muted small" style={{ marginTop: 10 }}>
+            {winningTime.decisive
+              ? `הפער מהרצועה הבאה הוא ${winningTime.delta.toFixed(1)} נקודות, גדול מפי שניים משגיאת המדידה (${winningTime.se.toFixed(1)}) — זו רצועת זמן אמיתית ולא מקרה.`
+              : winningTime.runnerUp
+                ? `הפער מהרצועה הבאה הוא ${winningTime.delta.toFixed(1)} נקודות בלבד, בתוך טווח השגיאה (${winningTime.se.toFixed(1)}). הרצועה מובילה, אבל עדיין לא מוכחת.`
+                : 'כל השוטים שלך ברצועת זמן אחת — אין רצועה שנייה להשוות אליה.'}
+            {' '}הרצועות נגזרות מטווח הזמנים שלך בפועל, לא מסולם קבוע.
+          </p>
         </div>
       )}
 

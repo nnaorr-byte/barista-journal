@@ -51,6 +51,33 @@ export interface GrindRow {
   isCurrent: boolean;
 }
 
+/** רצועת זמן חילוץ אחת, עם הטחינה שייצרה אותה */
+export interface TimeBand {
+  from: number;
+  to: number;
+  shots: number;
+  avgRating: number;
+  ratingStdev: number;
+  grindMode: number;
+  grindMin: number;
+  grindMax: number;
+}
+
+/**
+ * זמן החילוץ המנצח — לא "איפה נחתו הטובים" אלא ההפך: מחלקים את **כל**
+ * השוטים לרצועות זמן ושואלים איזו רצועה מייצרת את הדירוג הגבוה ביותר.
+ * ההבדל מהותי: SweetSpot מסתכל על הטובים ומתאר אותם, וזה מסתכל על הכול
+ * ומשווה. רצועה עם דירוג גבוה ושוט אחד לא תנצח כאן.
+ */
+export interface WinningTime {
+  bands: TimeBand[]; // ממוינות מהדירוג הגבוה לנמוך
+  best: TimeBand;
+  runnerUp: TimeBand | null;
+  decisive: boolean;
+  delta: number;
+  se: number;
+}
+
 /** האזור שבו נחתו השוטים הטובים — טווח טחינה וטווח זמן, לא נקודה אחת */
 export interface SweetSpot {
   shots: number;
@@ -95,6 +122,7 @@ export interface GrindAnalysis {
   verdict: GrindVerdict | null;
   best: BestShotPick | null;
   sweetSpot: SweetSpot | null;
+  winningTime: WinningTime | null;
   floor: number | null;
   slope: AgingSlope | null;
   /** האם הרגרסיה הצליחה לנטרל את שיפוע ההזדקנות (הטבלה תמיד גולמית) */
@@ -196,6 +224,7 @@ export function analyzeGrind({
   // ---- השוט הכי טוב, והאזור שבו נחתו הטובים ----
   const best = pickBestShot(usable, resolveWindow, bagMap);
   const sweetSpot = findSweetSpot(timed);
+  const winningTime = findWinningTime(timed);
 
   const floor = chokeFloor(rawShots);
   return {
@@ -206,10 +235,73 @@ export function analyzeGrind({
     verdict,
     best,
     sweetSpot,
+    winningTime,
     floor,
     slope,
     ageAdjusted,
-    conclusions: buildConclusions({ rows, time, verdict, best, sweetSpot, ageAdjusted, floor }),
+    conclusions: buildConclusions({ rows, time, verdict, best, sweetSpot, winningTime, ageAdjusted, floor }),
+  };
+}
+
+// ---- זמן החילוץ המנצח ----
+// מחלקים את כל השוטים לרצועות זמן ומשווים את הדירוג הממוצע ביניהן.
+// הרצועות נגזרות מהטווח שלך בפועל ולא מסולם קבוע: מי שכל השוטים שלו
+// בין 29 ל-36 היה מקבל מסולם קבוע רצועה אחת ותשובה ריקה.
+const TARGET_BAND_SEC = 3; // רוחב רצועה מבוקש
+const MAX_BANDS = 4;
+const MIN_BAND_SHOTS = 2;
+
+function findWinningTime(timed: Shot[]): WinningTime | null {
+  if (timed.length < 4) return null;
+  const times = timed.map((s) => s.brewTimeSec);
+  const lo = Math.min(...times);
+  const hi = Math.max(...times);
+  const span = hi - lo;
+  if (span < 2) return null; // כל השוטים באותו זמן — אין מה להשוות
+
+  const count = Math.max(2, Math.min(MAX_BANDS, Math.round(span / TARGET_BAND_SEC)));
+  const width = span / count;
+  const buckets: Shot[][] = Array.from({ length: count }, () => []);
+  for (const s of timed) {
+    const idx = Math.min(count - 1, Math.floor((s.brewTimeSec - lo) / width));
+    buckets[idx].push(s);
+  }
+
+  const bands: TimeBand[] = buckets
+    .map((list, i) => {
+      if (list.length < MIN_BAND_SHOTS) return null;
+      const grinds = list.map((s) => s.grindSetting);
+      const counts = new Map<number, number>();
+      for (const g of grinds) counts.set(g, (counts.get(g) ?? 0) + 1);
+      const ratings = list.map((s) => s.rating);
+      return {
+        // גבולות מעוגלים לשנייה — רצועה של 29.4–32.7 אינה הוראה שאפשר לפעול לפיה
+        from: Math.round(lo + i * width),
+        to: Math.round(lo + (i + 1) * width),
+        shots: list.length,
+        avgRating: round1(mean(ratings)),
+        ratingStdev: stdev(ratings),
+        grindMode: [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0],
+        grindMin: Math.min(...grinds),
+        grindMax: Math.max(...grinds),
+      };
+    })
+    .filter((b): b is TimeBand => b !== null)
+    .sort((a, b) => b.avgRating - a.avgRating);
+
+  if (bands.length === 0) return null;
+  const [bestBand, runnerUp = null] = bands;
+  const se = runnerUp
+    ? Math.sqrt((bestBand.ratingStdev ** 2) / bestBand.shots + (runnerUp.ratingStdev ** 2) / runnerUp.shots)
+    : 0;
+  const delta = runnerUp ? bestBand.avgRating - runnerUp.avgRating : 0;
+  return {
+    bands,
+    best: bestBand,
+    runnerUp,
+    decisive: !!runnerUp && delta >= MIN_RATING_GAP && delta > SE_MULTIPLIER * se,
+    delta: round1(delta),
+    se: round1(se),
   };
 }
 
@@ -341,17 +433,45 @@ function pickBestShot(
 // נגזרת מהמספרים, לא טקסט קבוע. כשאין הכרעה זה נאמר במפורש — זו מסקנה
 // ולא היעדר מסקנה.
 function buildConclusions({
-  rows, time, verdict, best, sweetSpot, ageAdjusted, floor,
+  rows, time, verdict, best, sweetSpot, winningTime, ageAdjusted, floor,
 }: {
   rows: GrindRow[];
   time: TimeVsGrind | null;
   verdict: GrindVerdict | null;
   best: BestShotPick | null;
   sweetSpot: SweetSpot | null;
+  winningTime: WinningTime | null;
   ageAdjusted: boolean;
   floor: number | null;
 }): string[] {
   const out: string[] = [];
+
+  if (winningTime) {
+    const w = winningTime.best;
+    const grindPart = w.grindMin === w.grindMax
+      ? `טחינה ${w.grindMin}`
+      : `טחינה ${w.grindMin}–${w.grindMax}, רובם ${w.grindMode}`;
+    if (winningTime.decisive && winningTime.runnerUp) {
+      out.push(
+        `זמן החילוץ המנצח שלך: ${w.from}–${w.to} שניות, דירוג ממוצע ${w.avgRating.toFixed(1)} `
+        + `(${w.shots} שוטים, ${grindPart}). הרצועה הבאה אחריה, ${winningTime.runnerUp.from}–`
+        + `${winningTime.runnerUp.to} שניות, מקבלת ${winningTime.runnerUp.avgRating.toFixed(1)} — `
+        + `פער של ${winningTime.delta.toFixed(1)} נקודות, גדול משגיאת המדידה.`,
+      );
+    } else if (winningTime.runnerUp) {
+      out.push(
+        `הרצועה הטובה ביותר בזמן החילוץ היא ${w.from}–${w.to} שניות (${w.avgRating.toFixed(1)}, `
+        + `${w.shots} שוטים, ${grindPart}), אבל היא לא נפרדת מ-${winningTime.runnerUp.from}–`
+        + `${winningTime.runnerUp.to} שניות: הפער ${winningTime.delta.toFixed(1)} בתוך טווח השגיאה `
+        + `(${winningTime.se.toFixed(1)}). הזמן לבדו עדיין לא מסביר את הדירוג אצלך.`,
+      );
+    } else {
+      out.push(
+        `כל השוטים המדורגים שלך נופלים ברצועת זמן אחת, ${w.from}–${w.to} שניות `
+        + `(${grindPart}). אין רצועה שנייה להשוות אליה — נסה במכוון זמן אחר כדי לדעת.`,
+      );
+    }
+  }
 
   if (sweetSpot) {
     const grindPart = sweetSpot.grindMin === sweetSpot.grindMax
